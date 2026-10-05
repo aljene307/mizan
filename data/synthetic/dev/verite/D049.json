@@ -1,0 +1,64 @@
+{
+  "id": "D049",
+  "lot": "dev",
+  "groupe": "G38",
+  "fichier": "D049.pdf",
+  "format": "pdf",
+  "sha256": "0ab84952f938bccf9c3296a35784b3f3d1055701fe2700fd0c291f000e5253df",
+  "derive_de": null,
+  "fournisseur_code": "F01",
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "FA-2026-0266",
+    "date_facture": "2026-08-09",
+    "date_echeance": "2026-09-08",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Papeterie Ennour Bureautique",
+      "matricule_fiscal": "9979067J/A/M/000",
+      "adresse": "45, avenue de la Liberté, 1002 Tunis",
+      "rib": "99932238223510373255"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Cartouche toner noir compatible",
+        "quantite": 1,
+        "prix_unitaire_ht": 113.54,
+        "taux_tva": 19,
+        "montant_ht": 113.54
+      },
+      {
+        "designation": "Ramette papier A4 80 g (500 feuilles)",
+        "quantite": 43,
+        "prix_unitaire_ht": 13.86,
+        "taux_tva": 19,
+        "montant_ht": 595.98
+      },
+      {
+        "designation": "Classeur à levier dos 75 mm",
+        "quantite": 48,
+        "prix_unitaire_ht": 5.69,
+        "taux_tva": 19,
+        "montant_ht": 273.12
+      },
+      {
+        "designation": "Stylo bille bleu (boîte de 50)",
+        "quantite": 3,
+        "prix_unitaire_ht": 25.16,
+        "taux_tva": 19,
+        "montant_ht": 75.48
+      }
+    ],
+    "montant_ht": 1058.12,
+    "montant_tva": 201.043,
+    "droit_timbre": 1,
+    "montant_ttc": 1260.163,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

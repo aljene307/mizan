@@ -1,0 +1,57 @@
+{
+  "id": "D039",
+  "lot": "dev",
+  "groupe": "G24",
+  "fichier": "D039.pdf",
+  "format": "pdf",
+  "sha256": "e13128a9b8f6181449026de1bbe68d829fb7b3ab0fed8bcdd4feb1be5db89d58",
+  "derive_de": null,
+  "fournisseur_code": "F12",
+  "mise_en_page": "ticket",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "MAF00141",
+    "date_facture": "2026-03-13",
+    "date_echeance": "2026-05-12",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Mejerda Agro-Fournitures",
+      "matricule_fiscal": "9957695G/A/M/000",
+      "adresse": "Avenue de l'Environnement, 9000 Béja",
+      "rib": "99071173390949753806"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Bocaux verre 370 ml (carton de 12)",
+        "quantite": 213,
+        "prix_unitaire_ht": 12.46,
+        "taux_tva": 19,
+        "montant_ht": 2653.98
+      },
+      {
+        "designation": "Sacs kraft alimentaires (lot de 500)",
+        "quantite": 7,
+        "prix_unitaire_ht": 209.7,
+        "taux_tva": 19,
+        "montant_ht": 1467.9
+      },
+      {
+        "designation": "Sel alimentaire (sac de 25 kg)",
+        "quantite": 44,
+        "prix_unitaire_ht": 9.05,
+        "taux_tva": 7,
+        "montant_ht": 398.2
+      }
+    ],
+    "montant_ht": 4520.08,
+    "montant_tva": 811.031,
+    "droit_timbre": 1,
+    "montant_ttc": 5332.111,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

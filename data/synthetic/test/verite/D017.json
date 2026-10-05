@@ -1,0 +1,71 @@
+{
+  "id": "D017",
+  "lot": "test",
+  "groupe": "G20",
+  "fichier": "D017.pdf",
+  "format": "pdf",
+  "sha256": "051bce17531e2e1c1116f3180b5320505c2ef0feee287b33e1bc96a4c054755f",
+  "derive_de": null,
+  "fournisseur_code": "F02",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "ISS260280",
+    "date_facture": "2026-03-06",
+    "date_echeance": "2026-04-05",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "InfoSahel Systèmes",
+      "matricule_fiscal": "9911705Y/A/M/000",
+      "adresse": "8, rue Ibn Khaldoun, 4000 Sousse",
+      "rib": "99132202812094401873"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Disque SSD 1 To",
+        "quantite": 5,
+        "prix_unitaire_ht": 323.91,
+        "taux_tva": 19,
+        "montant_ht": 1619.55
+      },
+      {
+        "designation": "Câble réseau Cat6 (rouleau 305 m)",
+        "quantite": 3,
+        "prix_unitaire_ht": 270.14,
+        "taux_tva": 19,
+        "montant_ht": 810.42
+      },
+      {
+        "designation": "Licence logiciel de gestion (1 an)",
+        "quantite": 3,
+        "prix_unitaire_ht": 679.11,
+        "taux_tva": 19,
+        "montant_ht": 2037.33
+      },
+      {
+        "designation": "Ordinateur portable 15\" i5 16 Go",
+        "quantite": 2,
+        "prix_unitaire_ht": 2828,
+        "taux_tva": 19,
+        "montant_ht": 5656
+      },
+      {
+        "designation": "Intervention technicien",
+        "quantite": 11,
+        "prix_unitaire_ht": 81.16,
+        "taux_tva": 19,
+        "montant_ht": 892.76
+      }
+    ],
+    "montant_ht": 11016.06,
+    "montant_tva": 2093.051,
+    "droit_timbre": 1,
+    "montant_ttc": 13110.111,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

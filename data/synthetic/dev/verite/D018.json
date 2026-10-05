@@ -1,0 +1,50 @@
+{
+  "id": "D018",
+  "lot": "dev",
+  "groupe": "G47",
+  "fichier": "D018.pdf",
+  "format": "pdf",
+  "sha256": "1791c621315e1039e66de86177c6f9894382b41c516fb33428458b818e898548",
+  "derive_de": null,
+  "fournisseur_code": "F12",
+  "mise_en_page": "ticket",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "MAF00136",
+    "date_facture": "2026-02-28",
+    "date_echeance": "2026-04-29",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Mejerda Agro-Fournitures",
+      "matricule_fiscal": "9957695G/A/M/000",
+      "adresse": "Avenue de l'Environnement, 9000 Béja",
+      "rib": "99071173390949753806"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Sacs kraft alimentaires (lot de 500)",
+        "quantite": 9,
+        "prix_unitaire_ht": 199.71,
+        "taux_tva": 19,
+        "montant_ht": 1797.39
+      },
+      {
+        "designation": "Capsules twist-off 63 mm (carton de 1000)",
+        "quantite": 13,
+        "prix_unitaire_ht": 115.56,
+        "taux_tva": 19,
+        "montant_ht": 1502.28
+      }
+    ],
+    "montant_ht": 3299.67,
+    "montant_tva": 626.937,
+    "droit_timbre": 1,
+    "montant_ttc": 3927.607,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

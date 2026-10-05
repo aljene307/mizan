@@ -11,6 +11,13 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 > Projet de portfolio. Le dépôt ne contient que des **données synthétiques** et
 > n'envoie rien à la plateforme El Fatoora / TTN.
 
+> ⚠️ **Limite de l'évaluation.** Les factures de test sont générées à partir
+> de nos propres modèles de mise en page. L'extraction est donc évaluée sur
+> des documents propres et réguliers, plus faciles que de vraies factures
+> (mises en page inconnues, scans de mauvaise qualité, écriture manuscrite).
+> **La précision mesurée est optimiste** et ne préjuge pas des performances
+> sur des factures réelles.
+
 > ⚠️ **Paramètres fiscaux illustratifs.** Les taux et montants fiscaux de
 > `config_fiscale` (TVA, droit de timbre) sont donnés à titre d'illustration.
 > Plusieurs restent **à confirmer** sur les textes officiels consolidés (voir
@@ -36,7 +43,7 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (avec Docker Compose v2 ou plus)
 - Git
-- Node.js 24 ou plus (pour les tests de `src/`, à partir de l'étape 4)
+- Node.js 24 ou plus (générateur de données, fonctions de `src/` et tests)
 
 ## Démarrage
 
@@ -65,6 +72,18 @@ docker compose run --rm dbmate status    # voir les migrations appliquées
 docker compose run --rm dbmate rollback  # annuler la dernière migration
 docker compose exec postgres sh /db/tests/lancer.sh   # tester le schéma et les droits
 ```
+
+## Fonctions métier, données synthétiques et tests
+
+```powershell
+npm install                       # dépendances (Playwright, sharp, pg, ajv…)
+npx playwright install chromium   # navigateur utilisé pour produire les PDF
+npm test                          # tests unitaires (src/) et tests du jeu de données
+npm run generer                   # régénère data/synthetic/ (PostgreSQL doit tourner)
+```
+
+Le jeu de données (60 factures fictives, vérité terrain, relevé bancaire) est
+décrit dans [data/synthetic/README.md](data/synthetic/README.md).
 
 | Table | Rôle |
 |---|---|
@@ -113,7 +132,8 @@ docker-compose.yml   pile locale
 docs/                architecture, décisions, journal
 db/                  schéma SQL, migrations, données de départ
 workflows/           exports JSON des workflows n8n
-src/                 fonctions JavaScript des contrôles
+generateur/          générateur des données synthétiques (Node.js + Playwright)
+src/                 fonctions JavaScript des contrôles et schémas JSON
 tests/               tests unitaires de src/
 data/synthetic/      factures et relevés générés, avec vérité terrain
 eval/                script et résultats d'évaluation

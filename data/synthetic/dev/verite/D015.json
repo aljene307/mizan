@@ -1,0 +1,57 @@
+{
+  "id": "D015",
+  "lot": "dev",
+  "groupe": "G40",
+  "fichier": "D015.jpg",
+  "format": "image",
+  "sha256": "eb431080503488959493fed933358dbf275a9e2addca260424088c6a13c51670",
+  "derive_de": null,
+  "fournisseur_code": "F02",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "ISS260268",
+    "date_facture": "2026-01-25",
+    "date_echeance": "2026-02-24",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "InfoSahel Systèmes",
+      "matricule_fiscal": "9911705Y/A/M/000",
+      "adresse": "8, rue Ibn Khaldoun, 4000 Sousse",
+      "rib": "99132202812094401873"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Licence logiciel de gestion (1 an)",
+        "quantite": 2,
+        "prix_unitaire_ht": 1008.77,
+        "taux_tva": 19,
+        "montant_ht": 2017.54
+      },
+      {
+        "designation": "Écran 24\" Full HD",
+        "quantite": 5,
+        "prix_unitaire_ht": 547.24,
+        "taux_tva": 19,
+        "montant_ht": 2736.2
+      },
+      {
+        "designation": "Intervention technicien",
+        "quantite": 11.5,
+        "prix_unitaire_ht": 58.76,
+        "taux_tva": 19,
+        "montant_ht": 675.74
+      }
+    ],
+    "montant_ht": 5429.48,
+    "montant_tva": 1031.601,
+    "droit_timbre": 1,
+    "montant_ttc": 6462.081,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

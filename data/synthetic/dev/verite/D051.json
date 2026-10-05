@@ -1,0 +1,51 @@
+{
+  "id": "D051",
+  "lot": "dev",
+  "groupe": "G01",
+  "fichier": "D051.pdf",
+  "format": "pdf",
+  "sha256": "33a642deb3d69740012729bb90c0f63d6580b64addb77c478c7ea4c6b5ecd90d",
+  "derive_de": null,
+  "fournisseur_code": "F03",
+  "mise_en_page": "ticket",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "2026/152",
+    "date_facture": "2026-03-11",
+    "date_echeance": "2026-03-11",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Yasmine Services Nettoyage",
+      "matricule_fiscal": "9978595K/A/M/000",
+      "adresse": "17, rue des Jasmins, 2080 Ariana",
+      "rib": "99438639017355887241"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Nettoyage vitrerie",
+        "quantite": 80,
+        "prix_unitaire_ht": 2.45,
+        "taux_tva": 19,
+        "montant_ht": 196
+      }
+    ],
+    "montant_ht": 196,
+    "montant_tva": 86.24,
+    "droit_timbre": 1,
+    "montant_ttc": 283.24,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "erreur_tva",
+      "detail": {
+        "tva_calculee": 37.24,
+        "tva_imprimee": 86.24
+      }
+    }
+  ]
+}

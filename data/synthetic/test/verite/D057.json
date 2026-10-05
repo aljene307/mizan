@@ -1,0 +1,43 @@
+{
+  "id": "D057",
+  "lot": "test",
+  "groupe": "G54",
+  "fichier": "D057.pdf",
+  "format": "pdf",
+  "sha256": "9c2817d2e42d78b50e8fa23a70487336ad0e23854ec0fb0da623110e42a174bf",
+  "derive_de": null,
+  "fournisseur_code": "F06",
+  "mise_en_page": "serif",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "BNM/2026/036",
+    "date_facture": "2026-07-30",
+    "date_echeance": "2026-08-29",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Bizerte Nord Maintenance Industrielle",
+      "matricule_fiscal": "9942665K/A/M/000",
+      "adresse": "3, rue de Mateur, 7000 Bizerte",
+      "rib": "99607512589123410209"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Roulement à billes 6205",
+        "quantite": 13,
+        "prix_unitaire_ht": 16.08,
+        "taux_tva": 19,
+        "montant_ht": 209.04
+      }
+    ],
+    "montant_ht": 209.04,
+    "montant_tva": 39.718,
+    "droit_timbre": 1,
+    "montant_ttc": 249.758,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

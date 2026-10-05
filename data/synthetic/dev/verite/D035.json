@@ -1,0 +1,50 @@
+{
+  "id": "D035",
+  "lot": "dev",
+  "groupe": "G08",
+  "fichier": "D035.pdf",
+  "format": "pdf",
+  "sha256": "de49bc851c329978f7c6ba9b5a0421b9d283b54cbc6db926d6884dde44555813",
+  "derive_de": "D056",
+  "fournisseur_code": "F04",
+  "mise_en_page": "serif",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "TCL-00329",
+    "date_facture": "2026-02-23",
+    "date_echeance": "2026-04-24",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Trans-Cap Logistique",
+      "matricule_fiscal": "9911957K/A/M/000",
+      "adresse": "Route de Hammamet km 3, 8000 Nabeul",
+      "rib": "99532548060714626340"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Transport marchandises Tunis - Sfax",
+        "quantite": 3,
+        "prix_unitaire_ht": 584.36,
+        "taux_tva": 13,
+        "montant_ht": 1753.08
+      }
+    ],
+    "montant_ht": 1753.08,
+    "montant_tva": 227.9,
+    "droit_timbre": 1,
+    "montant_ttc": 1981.98,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "doublon_exact",
+      "detail": {
+        "original": "D056"
+      }
+    }
+  ]
+}

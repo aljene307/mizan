@@ -1,0 +1,65 @@
+{
+  "id": "D058",
+  "lot": "test",
+  "groupe": "G14",
+  "fichier": "D058.pdf",
+  "format": "pdf",
+  "sha256": "ba924ebdb32df46c82caae4da9c2f53f9e4bb68168138944b9c9acd71a74693b",
+  "derive_de": null,
+  "fournisseur_code": "F07",
+  "mise_en_page": "ticket",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "EGH 0269",
+    "date_facture": "2026-09-16",
+    "date_echeance": "2026-10-16",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Électricité Générale Hammamet",
+      "matricule_fiscal": "9900614/A/M/000",
+      "adresse": "22, avenue de la République, 8050 Hammamet",
+      "rib": "99803767839070687023"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Installation électrique",
+        "quantite": 31,
+        "prix_unitaire_ht": 50.93,
+        "taux_tva": 19,
+        "montant_ht": 1578.83
+      },
+      {
+        "designation": "Câble électrique 3G2,5 (couronne 100 m)",
+        "quantite": 4,
+        "prix_unitaire_ht": 210.89,
+        "taux_tva": 19,
+        "montant_ht": 843.56
+      },
+      {
+        "designation": "Projecteur LED 100 W",
+        "quantite": 20,
+        "prix_unitaire_ht": 87.59,
+        "taux_tva": 19,
+        "montant_ht": 1751.8
+      }
+    ],
+    "montant_ht": 4174.19,
+    "montant_tva": 793.096,
+    "droit_timbre": 1,
+    "montant_ttc": 4968.286,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "matricule_invalide",
+      "detail": {
+        "matricule_reference": "9900614F",
+        "matricule_imprime": "9900614/A/M/000"
+      }
+    }
+  ]
+}

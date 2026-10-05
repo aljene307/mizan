@@ -1,0 +1,71 @@
+{
+  "id": "D048",
+  "lot": "test",
+  "groupe": "G17",
+  "fichier": "D048.pdf",
+  "format": "pdf",
+  "sha256": "290b831b3f70a676f0c4b70c60bf34589872e7c635c5082e426c0801286c79c6",
+  "derive_de": null,
+  "fournisseur_code": "F02",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "ISS260272",
+    "date_facture": "2026-02-09",
+    "date_echeance": "2026-03-11",
+    "devise": "EUR",
+    "fournisseur": {
+      "raison_sociale": "InfoSahel Systèmes",
+      "matricule_fiscal": "9911705Y/A/M/000",
+      "adresse": "8, rue Ibn Khaldoun, 4000 Sousse",
+      "rib": "99132202812094401873"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Câble réseau Cat6 (rouleau 305 m)",
+        "quantite": 1,
+        "prix_unitaire_ht": 96.12,
+        "taux_tva": 19,
+        "montant_ht": 96.12
+      },
+      {
+        "designation": "Écran 24\" Full HD",
+        "quantite": 4,
+        "prix_unitaire_ht": 146.47,
+        "taux_tva": 19,
+        "montant_ht": 585.88
+      },
+      {
+        "designation": "Licence logiciel de gestion (1 an)",
+        "quantite": 2,
+        "prix_unitaire_ht": 258.33,
+        "taux_tva": 19,
+        "montant_ht": 516.66
+      },
+      {
+        "designation": "Disque SSD 1 To",
+        "quantite": 1,
+        "prix_unitaire_ht": 99.74,
+        "taux_tva": 19,
+        "montant_ht": 99.74
+      }
+    ],
+    "montant_ht": 1298.4,
+    "montant_tva": 246.7,
+    "droit_timbre": null,
+    "montant_ttc": 1545.1,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "devise_etrangere",
+      "detail": {
+        "devise": "EUR"
+      }
+    }
+  ]
+}

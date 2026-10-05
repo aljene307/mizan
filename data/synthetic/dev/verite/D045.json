@@ -1,0 +1,57 @@
+{
+  "id": "D045",
+  "lot": "dev",
+  "groupe": "G07",
+  "fichier": "D045.pdf",
+  "format": "pdf",
+  "sha256": "d0e98e645ba39f631ac96033fe2f4a8b96d490ae9552fb03211f8e3bbdd95002",
+  "derive_de": null,
+  "fournisseur_code": "F02",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "ISS260284",
+    "date_facture": "2026-04-07",
+    "date_echeance": "2026-05-07",
+    "devise": "EUR",
+    "fournisseur": {
+      "raison_sociale": "InfoSahel Systèmes",
+      "matricule_fiscal": "9911705Y/A/M/000",
+      "adresse": "8, rue Ibn Khaldoun, 4000 Sousse",
+      "rib": "99132202812094401873"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Câble réseau Cat6 (rouleau 305 m)",
+        "quantite": 1,
+        "prix_unitaire_ht": 105.51,
+        "taux_tva": 19,
+        "montant_ht": 105.51
+      },
+      {
+        "designation": "Intervention technicien",
+        "quantite": 13,
+        "prix_unitaire_ht": 17.87,
+        "taux_tva": 19,
+        "montant_ht": 232.31
+      }
+    ],
+    "montant_ht": 337.82,
+    "montant_tva": 64.19,
+    "droit_timbre": null,
+    "montant_ttc": 402.01,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "devise_etrangere",
+      "detail": {
+        "devise": "EUR"
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "mizan",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Contrôleur de factures fournisseurs avec rapprochement bancaire (projet de portfolio)",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "generer": "node generateur/generer.js"
+  },
+  "devDependencies": {
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/lato": "5.3.0",
+    "@fontsource/source-serif-4": "5.3.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "pg": "8.23.1",
+    "playwright": "1.63.0",
+    "sharp": "0.35.5"
+  }
+}

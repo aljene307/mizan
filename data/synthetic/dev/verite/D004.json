@@ -1,0 +1,50 @@
+{
+  "id": "D004",
+  "lot": "dev",
+  "groupe": "G33",
+  "fichier": "D004.jpg",
+  "format": "image",
+  "sha256": "e3d8690c600a229f9672e16d86f89f99a9b4b0c8e7a1edfb8d1079340ff31d54",
+  "derive_de": null,
+  "fournisseur_code": "F03",
+  "mise_en_page": "ticket",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "2026/159",
+    "date_facture": "2026-06-10",
+    "date_echeance": "2026-06-10",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Yasmine Services Nettoyage",
+      "matricule_fiscal": "9978595K/A/M/000",
+      "adresse": "17, rue des Jasmins, 2080 Ariana",
+      "rib": "99438639017355887241"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Nettoyage des locaux (forfait mensuel)",
+        "quantite": 1,
+        "prix_unitaire_ht": 1488.98,
+        "taux_tva": 19,
+        "montant_ht": 1488.98
+      },
+      {
+        "designation": "Produits d'entretien (lot)",
+        "quantite": 4,
+        "prix_unitaire_ht": 170.87,
+        "taux_tva": 19,
+        "montant_ht": 683.48
+      }
+    ],
+    "montant_ht": 2172.46,
+    "montant_tva": 412.767,
+    "droit_timbre": 1,
+    "montant_ttc": 2586.227,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

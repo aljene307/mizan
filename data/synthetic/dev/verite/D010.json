@@ -1,0 +1,58 @@
+{
+  "id": "D010",
+  "lot": "dev",
+  "groupe": "G02",
+  "fichier": "D010.pdf",
+  "format": "pdf",
+  "sha256": "21e9418ae19632781dc3ba3c77da6408808d3968520b4d7dfe47fd2099a54e0d",
+  "derive_de": null,
+  "fournisseur_code": "F02",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "ISS260294",
+    "date_facture": "2026-07-07",
+    "date_echeance": "2026-08-06",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "InfoSahel Systèmes",
+      "matricule_fiscal": "9911705Y/A/M/000",
+      "adresse": "8, rue Ibn Khaldoun, 4000 Sousse",
+      "rib": "99132202812094401873"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Disque SSD 1 To",
+        "quantite": 4,
+        "prix_unitaire_ht": 328.37,
+        "taux_tva": 19,
+        "montant_ht": 1313.48
+      },
+      {
+        "designation": "Licence logiciel de gestion (1 an)",
+        "quantite": 5,
+        "prix_unitaire_ht": 1134.92,
+        "taux_tva": 19,
+        "montant_ht": 5674.6
+      }
+    ],
+    "montant_ht": 6988.08,
+    "montant_tva": 1327.735,
+    "droit_timbre": 1,
+    "montant_ttc": 8378.036,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "ttc_incoherent",
+      "detail": {
+        "ttc_calcule": 8316.815,
+        "ttc_imprime": 8378.036
+      }
+    }
+  ]
+}

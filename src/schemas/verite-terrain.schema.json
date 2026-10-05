@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mizan.example/schemas/verite-terrain.schema.json",
+  "title": "Vérité terrain d'un document synthétique",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "lot", "groupe", "fichier", "format", "sha256", "derive_de",
+    "fournisseur_code", "mise_en_page", "extraction", "anomalies_attendues"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^D\\d{3}$" },
+    "lot": { "enum": ["dev", "test"] },
+    "groupe": { "type": "string", "pattern": "^G\\d{2}$" },
+    "fichier": { "type": "string", "pattern": "^D\\d{3}\\.(pdf|jpg)$" },
+    "format": { "enum": ["pdf", "image"] },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "derive_de": { "type": ["string", "null"], "pattern": "^D\\d{3}$" },
+    "fournisseur_code": { "type": ["string", "null"] },
+    "mise_en_page": { "enum": ["classique", "serif", "moderne", "ticket"] },
+    "extraction": { "$ref": "https://mizan.example/schemas/extraction-facture.schema.json" },
+    "anomalies_attendues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "detail"],
+        "properties": {
+          "code": {
+            "enum": [
+              "doublon_exact", "doublon_rescanne", "erreur_tva", "ttc_incoherent", "rib_modifie",
+              "matricule_invalide", "montant_eleve", "fournisseur_inconnu", "devise_etrangere"
+            ]
+          },
+          "detail": { "type": "object" }
+        }
+      }
+    }
+  }
+}

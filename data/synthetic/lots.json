@@ -1,0 +1,524 @@
+{
+  "graine": 20260101,
+  "regle": "Le lot « test » est réservé à l'évaluation (étape 8) : il ne sert jamais à régler le prompt ni le schéma (docs/decisions.md D-026).",
+  "dev": [
+    {
+      "id": "D001",
+      "groupe": "G41",
+      "fichier": "dev/documents/D001.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D003",
+      "groupe": "G30",
+      "fichier": "dev/documents/D003.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D004",
+      "groupe": "G33",
+      "fichier": "dev/documents/D004.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D005",
+      "groupe": "G49",
+      "fichier": "dev/documents/D005.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D006",
+      "groupe": "G39",
+      "fichier": "dev/documents/D006.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D007",
+      "groupe": "G48",
+      "fichier": "dev/documents/D007.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D008",
+      "groupe": "G06",
+      "fichier": "dev/documents/D008.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "fournisseur_inconnu"
+      ]
+    },
+    {
+      "id": "D010",
+      "groupe": "G02",
+      "fichier": "dev/documents/D010.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "ttc_incoherent"
+      ]
+    },
+    {
+      "id": "D011",
+      "groupe": "G04",
+      "fichier": "dev/documents/D011.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "matricule_invalide"
+      ]
+    },
+    {
+      "id": "D014",
+      "groupe": "G23",
+      "fichier": "dev/documents/D014.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D015",
+      "groupe": "G40",
+      "fichier": "dev/documents/D015.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D018",
+      "groupe": "G47",
+      "fichier": "dev/documents/D018.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D019",
+      "groupe": "G32",
+      "fichier": "dev/documents/D019.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D020",
+      "groupe": "G27",
+      "fichier": "dev/documents/D020.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D021",
+      "groupe": "G42",
+      "fichier": "dev/documents/D021.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D022",
+      "groupe": "G26",
+      "fichier": "dev/documents/D022.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D023",
+      "groupe": "G43",
+      "fichier": "dev/documents/D023.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D024",
+      "groupe": "G36",
+      "fichier": "dev/documents/D024.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D025",
+      "groupe": "G34",
+      "fichier": "dev/documents/D025.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D028",
+      "groupe": "G05",
+      "fichier": "dev/documents/D028.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "montant_eleve"
+      ]
+    },
+    {
+      "id": "D029",
+      "groupe": "G35",
+      "fichier": "dev/documents/D029.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D030",
+      "groupe": "G03",
+      "fichier": "dev/documents/D030.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "rib_modifie"
+      ]
+    },
+    {
+      "id": "D033",
+      "groupe": "G37",
+      "fichier": "dev/documents/D033.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D034",
+      "groupe": "G10",
+      "fichier": "dev/documents/D034.pdf",
+      "type_document": "avoir",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D035",
+      "groupe": "G08",
+      "fichier": "dev/documents/D035.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "doublon_exact"
+      ]
+    },
+    {
+      "id": "D036",
+      "groupe": "G21",
+      "fichier": "dev/documents/D036.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D037",
+      "groupe": "G22",
+      "fichier": "dev/documents/D037.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D038",
+      "groupe": "G45",
+      "fichier": "dev/documents/D038.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D039",
+      "groupe": "G24",
+      "fichier": "dev/documents/D039.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D040",
+      "groupe": "G10",
+      "fichier": "dev/documents/D040.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D041",
+      "groupe": "G31",
+      "fichier": "dev/documents/D041.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D042",
+      "groupe": "G09",
+      "fichier": "dev/documents/D042.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D044",
+      "groupe": "G25",
+      "fichier": "dev/documents/D044.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D045",
+      "groupe": "G07",
+      "fichier": "dev/documents/D045.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "devise_etrangere"
+      ]
+    },
+    {
+      "id": "D046",
+      "groupe": "G28",
+      "fichier": "dev/documents/D046.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D049",
+      "groupe": "G38",
+      "fichier": "dev/documents/D049.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D050",
+      "groupe": "G09",
+      "fichier": "dev/documents/D050.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": [
+        "doublon_rescanne"
+      ]
+    },
+    {
+      "id": "D051",
+      "groupe": "G01",
+      "fichier": "dev/documents/D051.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "erreur_tva"
+      ]
+    },
+    {
+      "id": "D053",
+      "groupe": "G29",
+      "fichier": "dev/documents/D053.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D054",
+      "groupe": "G46",
+      "fichier": "dev/documents/D054.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D055",
+      "groupe": "G44",
+      "fichier": "dev/documents/D055.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D056",
+      "groupe": "G08",
+      "fichier": "dev/documents/D056.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    }
+  ],
+  "test": [
+    {
+      "id": "D002",
+      "groupe": "G12",
+      "fichier": "test/documents/D002.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "ttc_incoherent"
+      ]
+    },
+    {
+      "id": "D009",
+      "groupe": "G16",
+      "fichier": "test/documents/D009.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "fournisseur_inconnu"
+      ]
+    },
+    {
+      "id": "D012",
+      "groupe": "G11",
+      "fichier": "test/documents/D012.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "erreur_tva"
+      ]
+    },
+    {
+      "id": "D013",
+      "groupe": "G18",
+      "fichier": "test/documents/D013.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "doublon_exact"
+      ]
+    },
+    {
+      "id": "D016",
+      "groupe": "G20",
+      "fichier": "test/documents/D016.jpg",
+      "type_document": "avoir",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D017",
+      "groupe": "G20",
+      "fichier": "test/documents/D017.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D026",
+      "groupe": "G50",
+      "fichier": "test/documents/D026.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D027",
+      "groupe": "G19",
+      "fichier": "test/documents/D027.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": [
+        "doublon_rescanne"
+      ]
+    },
+    {
+      "id": "D031",
+      "groupe": "G13",
+      "fichier": "test/documents/D031.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "rib_modifie"
+      ]
+    },
+    {
+      "id": "D032",
+      "groupe": "G53",
+      "fichier": "test/documents/D032.jpg",
+      "type_document": "facture",
+      "format": "image",
+      "anomalies": []
+    },
+    {
+      "id": "D043",
+      "groupe": "G18",
+      "fichier": "test/documents/D043.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D047",
+      "groupe": "G52",
+      "fichier": "test/documents/D047.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D048",
+      "groupe": "G17",
+      "fichier": "test/documents/D048.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "devise_etrangere"
+      ]
+    },
+    {
+      "id": "D052",
+      "groupe": "G19",
+      "fichier": "test/documents/D052.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D057",
+      "groupe": "G54",
+      "fichier": "test/documents/D057.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D058",
+      "groupe": "G14",
+      "fichier": "test/documents/D058.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "matricule_invalide"
+      ]
+    },
+    {
+      "id": "D059",
+      "groupe": "G51",
+      "fichier": "test/documents/D059.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": []
+    },
+    {
+      "id": "D060",
+      "groupe": "G15",
+      "fichier": "test/documents/D060.pdf",
+      "type_document": "facture",
+      "format": "pdf",
+      "anomalies": [
+        "montant_eleve"
+      ]
+    }
+  ]
+}

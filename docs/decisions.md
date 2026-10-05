@@ -344,3 +344,165 @@ nom de la clé.
   1er janvier 2026 (D-020). Une facture datée de 2025 n'aurait aucun taux
   applicable, et les contrôles signaleraient une erreur de configuration au
   lieu de tester la facture.
+
+---
+
+## Étape 2 — Données synthétiques (2026-10-05)
+
+### D-024 · Générateur : Node.js + Playwright (choix A)
+- **Options étudiées :** Node.js + Playwright ; Python + ReportLab + Pillow ;
+  Node.js + pdfkit.
+- **Choix :** modèles HTML/CSS rendus par Chromium (Playwright) en PDF et en
+  PNG. `sharp` imite un scan (rotation, flou, bruit, compression JPEG).
+  Les polices sont des paquets `@fontsource` (licence OFL) intégrés aux
+  modèles, pas des polices du système.
+- **Raison :** un même modèle produit le PDF et l'image, les mises en page
+  sont faciles à varier, et le projet reste en un seul langage. Embarquer
+  les polices rend le rendu identique sous Windows et sous Linux.
+- **Reproductibilité :** un générateur pseudo-aléatoire à graine fixe
+  (`mulberry32`) produit les mêmes données à chaque exécution. Chromium écrit
+  la date du rendu dans chaque PDF ; le générateur la remplace par une date
+  fixe de même longueur (`figerDatesPdf`). Vérifié le 2026-10-05 : deux
+  générations successives donnent les 126 mêmes fichiers, octet par octet.
+  **Limite :** cette identité vaut pour une même version de Chromium, de
+  sharp et des polices. Une mise à jour de ces outils peut changer les
+  octets (et donc les empreintes SHA-256) sans changer le contenu ; ce qui
+  fait foi reste la vérité terrain JSON, déterministe et testée.
+
+### D-025 · Contenu du jeu : 60 documents, 9 types de pièges
+- **Volume :** 60 documents au lieu d'environ 50. Chaque type de piège
+  doit figurer **dans les deux lots** (D-026), ce qui en impose au moins
+  deux exemplaires.
+- **Pièges (2 exemplaires chacun, un par lot) :**
+
+  | Code | Description |
+  |---|---|
+  | `doublon_exact` | Le même fichier, renvoyé sous un autre nom |
+  | `doublon_rescanne` | La même facture, reçue en image (scan) |
+  | `erreur_tva` | Montant de TVA différent de la somme HT × taux |
+  | `ttc_incoherent` | HT + TVA + timbre ≠ TTC |
+  | `rib_modifie` | RIB imprimé différent du RIB connu du fournisseur |
+  | `matricule_invalide` | Matricule fiscal hors format |
+  | `montant_eleve` | TTC au-dessus du seuil de validation (D-028) |
+  | `fournisseur_inconnu` | Fournisseur absent du référentiel |
+  | `devise_etrangere` | Facture en EUR |
+
+- **Avoirs :** 2 (un par lot), chacun lié à une facture du même lot.
+- **Formats :** environ 45 PDF natifs et 15 images imitant un scan. Aucun XML
+  (format TEIF non disponible).
+- **Relevé bancaire :** un CSV couvrant du 1er janvier au 30 septembre 2026
+  (séparateur `;`, décimale `,`, 3 décimales), avec la liste des
+  appariements attendus. Il contient des paiements exacts, un paiement en
+  deux fois, un virement groupé, une facture payée nette de son avoir, des
+  impayés, des frais bancaires et des opérations sans rapport (salaires).
+  Les factures piégées pour doublon ne sont payées qu'une fois ; celles dont
+  le RIB a été modifié ne sont pas payées ; celles en EUR non plus.
+- **Mention « Document fictif – données synthétiques »** en pied de chaque
+  document, en petit corps.
+
+### D-026 · Deux lots fixes : développement (70 %) et test (30 %)
+- **Choix :** 42 documents de développement et 18 de test, chacun dans son
+  propre dossier (`data/synthetic/dev/` et `data/synthetic/test/`). La
+  répartition est fixée par le générateur et listée dans
+  `data/synthetic/lots.json`.
+- **Règles de répartition :**
+  - chaque type de piège est présent dans les deux lots ;
+  - un document et ses dérivés (doublon, scan, avoir) restent **dans le même
+    lot**. Sinon, un document de test serait la quasi-copie d'un document de
+    développement, et le score de l'étape 8 serait faussé (fuite de données).
+- **Règle d'usage :** le lot de test ne sert **jamais** à régler le prompt
+  d'extraction ni le schéma (étapes 3 à 7). Il est réservé à l'évaluation de
+  l'étape 8. On ne l'ouvre pas pour « voir pourquoi ça échoue » avant cette
+  étape.
+- **Relevé bancaire :** non découpé. Le rapprochement (étape 6) est
+  déterministe et n'a pas de paramètre appris sur les données.
+
+### D-027 · Identifiants au bon format mais non attribuables
+Objectif : passer les contrôles de format sans pouvoir correspondre à une
+vraie entreprise ou à un vrai compte.
+
+**Matricule fiscal**
+- **Format retenu :** 7 chiffres suivis d'une lettre clé (`\d{7}[A-Z]`),
+  d'après le cahier des charges technique TEJ du ministère des Finances
+  (juin 2024, § 7.1.1.2). Copie consultée :
+  <https://jibaya.tn/wp-content/uploads/2024/05/TEJ-CCT-RS-V2.pdf>
+  (document de <https://tej.finances.gov.tn>). Sur les factures, la forme
+  complète `NNNNNNNL/A/M/000` (code TVA, catégorie, établissement) est
+  imprimée ; elle ne vient que de sources secondaires
+  ([facturetunisie.pro](https://facturetunisie.pro/matricule-fiscal-tunisie)).
+  La vérité terrain stocke la forme courte officielle et la forme imprimée.
+- **Méthode « non attribuable » :** tous les numéros commencent par `99`
+  (plage 9900000–9999999). Hypothèse : les numéros sont attribués de façon
+  séquentielle et cette plage haute est loin des numéros en service.
+  **Limite :** l'hypothèse ne peut pas être vérifiée sans accès au
+  répertoire fiscal.
+- **Lettre clé :** un algorithme de calcul (modulo 23) circule dans des
+  sources secondaires, mais aucune source officielle ne le confirme. Le
+  générateur choisit donc la lettre au hasard (hors I, O et U), et le
+  contrôle de l'étape 4 ne vérifiera que le format, pas la clé, tant que
+  l'algorithme n'est pas confirmé.
+
+**RIB**
+- **Structure :** 20 chiffres = banque (2) + agence (3) + compte (13) +
+  clé (2). Source : registre IBAN ISO 13616 tenu par SWIFT (entrée TN, données
+  fournies par l'association professionnelle des banques, mise à jour de
+  mai 2016), consulté via <https://ibanapi.com/iban-registry/TN> (le PDF de
+  swift.com a refusé le téléchargement).
+- **Clé :** `clé = 97 − ((18 premiers chiffres × 100) mod 97)`. Algorithme
+  relevé dans une bibliothèque libre
+  ([TNRIB](https://github.com/McZen-Technologies/TNRIB)), puis **vérifié** sur
+  l'exemple du registre IBAN (`TN59 1000 6035 1835 9847 8831` : la clé
+  calculée vaut 31, comme imprimé). Cohérence supplémentaire : avec cette
+  clé, tout IBAN tunisien a pour chiffres de contrôle 59, ce que montre le
+  registre.
+- **Méthode « non attribuable » :** code banque **`99`**. Il est absent des
+  listes de codes en service consultées : 25 codes de 01 à 86 dans TNRIB
+  (complétés par [thebanker.tn](https://www.thebanker.tn/p/listes-des-banques-tunisiennes.html)).
+  **Limite :** la liste officielle de la BCT n'a pas été consultée. Si le
+  code 99 était attribué un jour, la probabilité qu'un numéro de compte
+  tiré au hasard sur 13 chiffres existe resterait très faible, mais pas
+  nulle.
+- **Le RIB de l'entreprise cliente** (relevé bancaire) suit la même règle.
+
+**Noms :** raisons sociales inventées. Combinées à la mention « Document
+fictif » et aux identifiants non attribuables, aucun document ne peut être
+confondu avec une vraie facture.
+
+### D-028 · Seuil de validation provisoire : 20 000 TND TTC
+- **Contexte :** le piège `montant_eleve` a besoin d'un seuil. Le seuil
+  définitif relève de l'étape 5 (paramètre métier, stocké en base).
+- **Choix provisoire :** 20 000 TND TTC. Les factures normales restent sous
+  15 000 TND ; les factures piégées dépassent 40 000 TND. Les étiquettes
+  restent donc justes pour **tout seuil compris entre 15 000 et 40 000 TND**.
+  Hors de cette plage, il faudra régénérer les données.
+
+### D-029 · Conventions du générateur sans portée fiscale
+Les choix suivants décrivent ce que le générateur imprime. Ce ne sont **pas**
+des affirmations fiscales :
+- les avoirs ne portent pas de droit de timbre (exonération non vérifiée,
+  voir D-020) ;
+- les factures en EUR ne portent pas de timbre ; leur TVA est calculée au
+  taux normal de `config_fiscale`. Leur traitement fiscal réel est hors
+  périmètre : le piège sert seulement à vérifier que le système repère une
+  devise autre que TND ;
+- le montant HT de chaque ligne est arrondi au millime (0,5 arrondi vers le
+  haut) ; la TVA est calculée **par taux**, sur le total HT des lignes à ce
+  taux, puis arrondie au millime. En EUR, tout est arrondi au centime ;
+- le taux de TVA attribué à chaque article du catalogue est **arbitraire**.
+  Il sert à produire des factures à plusieurs taux et ne dit pas quel taux
+  s'applique réellement à ce bien ou service ;
+- les prix des catalogues sont inventés.
+
+### D-030 · Fonctions partagées placées dans `src/`
+- **Choix :** les fonctions sur les montants (calcul en millimes entiers),
+  le RIB (clé, validité) et le matricule fiscal (format) sont écrites dès
+  maintenant dans `src/`, avec leurs tests dans `tests/`. Le générateur les
+  importe, et les contrôles de l'étape 4 les réutiliseront.
+- **Raison :** le générateur et les contrôles appliquent exactement la même
+  règle. Une donnée « valide » pour l'un l'est donc pour l'autre.
+- **Calcul en millimes :** les montants sont manipulés en entiers (1 TND =
+  1 000 millimes), jamais en nombres à virgule flottante.
+- **Schémas JSON** dans `src/schemas/` : `extraction-facture.schema.json`
+  (champs lus sur un document, strict : tous les champs obligatoires, aucun
+  champ en plus, `null` si absent) et `verite-terrain.schema.json`, qui
+  l'englobe. Le premier servira à valider la sortie du LLM à l'étape 3.

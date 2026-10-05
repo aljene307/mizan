@@ -1,0 +1,65 @@
+{
+  "id": "D060",
+  "lot": "test",
+  "groupe": "G15",
+  "fichier": "D060.pdf",
+  "format": "pdf",
+  "sha256": "748e4bcfc1c6c3ae18adb8ed943de8b532295ff1355512450b342480ff3c9575",
+  "derive_de": null,
+  "fournisseur_code": "F10",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "ABM-0031",
+    "date_facture": "2026-07-13",
+    "date_echeance": "2026-09-11",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Atlas Bureau Mobilier",
+      "matricule_fiscal": "9916548K/A/M/000",
+      "adresse": "Route de Sousse, 5000 Monastir",
+      "rib": "99766956919106488239"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Armoire métallique 2 portes",
+        "quantite": 20,
+        "prix_unitaire_ht": 523.81,
+        "taux_tva": 19,
+        "montant_ht": 10476.2
+      },
+      {
+        "designation": "Bureau opérateur 160x80",
+        "quantite": 50,
+        "prix_unitaire_ht": 1164.37,
+        "taux_tva": 19,
+        "montant_ht": 58218.5
+      },
+      {
+        "designation": "Table de réunion 10 places",
+        "quantite": 4,
+        "prix_unitaire_ht": 1700.25,
+        "taux_tva": 19,
+        "montant_ht": 6801
+      }
+    ],
+    "montant_ht": 75495.7,
+    "montant_tva": 14344.183,
+    "droit_timbre": 1,
+    "montant_ttc": 89840.883,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "montant_eleve",
+      "detail": {
+        "ttc": 89840.883,
+        "seuil_provisoire": 20000
+      }
+    }
+  ]
+}

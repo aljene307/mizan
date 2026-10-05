@@ -1,0 +1,79 @@
+{
+  "id": "D031",
+  "lot": "test",
+  "groupe": "G13",
+  "fichier": "D031.pdf",
+  "format": "pdf",
+  "sha256": "098ec5e1477f0fa8471a9dd33f8eb1bc57b2b9c5ccad242f3e662466426648bc",
+  "derive_de": null,
+  "fournisseur_code": "F05",
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "F20260194",
+    "date_facture": "2026-06-07",
+    "date_echeance": "2026-08-06",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Emballages Kerkennah",
+      "matricule_fiscal": "9925036W/A/M/000",
+      "adresse": "Zone industrielle Poudrière, 3000 Sfax",
+      "rib": "99188766619162401196"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Étiquettes adhésives (rouleau de 1000)",
+        "quantite": 15,
+        "prix_unitaire_ht": 25.15,
+        "taux_tva": 19,
+        "montant_ht": 377.25
+      },
+      {
+        "designation": "Carton double cannelure 60x40x40",
+        "quantite": 1144,
+        "prix_unitaire_ht": 3.76,
+        "taux_tva": 19,
+        "montant_ht": 4301.44
+      },
+      {
+        "designation": "Film étirable 23 µm (rouleau)",
+        "quantite": 20,
+        "prix_unitaire_ht": 19.69,
+        "taux_tva": 19,
+        "montant_ht": 393.8
+      },
+      {
+        "designation": "Palette bois 120x80",
+        "quantite": 53,
+        "prix_unitaire_ht": 32.59,
+        "taux_tva": 19,
+        "montant_ht": 1727.27
+      },
+      {
+        "designation": "Ruban adhésif imprimé (lot de 36)",
+        "quantite": 3,
+        "prix_unitaire_ht": 70.12,
+        "taux_tva": 19,
+        "montant_ht": 210.36
+      }
+    ],
+    "montant_ht": 7010.12,
+    "montant_tva": 1331.923,
+    "droit_timbre": 1,
+    "montant_ttc": 8343.043,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "rib_modifie",
+      "detail": {
+        "rib_reference": "99720551704430393594",
+        "rib_imprime": "99188766619162401196"
+      }
+    }
+  ]
+}

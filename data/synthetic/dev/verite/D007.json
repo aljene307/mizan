@@ -1,0 +1,57 @@
+{
+  "id": "D007",
+  "lot": "dev",
+  "groupe": "G48",
+  "fichier": "D007.pdf",
+  "format": "pdf",
+  "sha256": "1c7c6fe47342ed6da41f61252f4d8d0804fe3a5950707db68b426ff978dbdfed",
+  "derive_de": null,
+  "fournisseur_code": "F06",
+  "mise_en_page": "serif",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "BNM/2026/033",
+    "date_facture": "2026-04-25",
+    "date_echeance": "2026-05-25",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Bizerte Nord Maintenance Industrielle",
+      "matricule_fiscal": "9942665K/A/M/000",
+      "adresse": "3, rue de Mateur, 7000 Bizerte",
+      "rib": "99607512589123410209"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Maintenance préventive compresseur",
+        "quantite": 1,
+        "prix_unitaire_ht": 644.93,
+        "taux_tva": 19,
+        "montant_ht": 644.93
+      },
+      {
+        "designation": "Huile hydraulique ISO 46",
+        "quantite": 130,
+        "prix_unitaire_ht": 10.83,
+        "taux_tva": 19,
+        "montant_ht": 1407.9
+      },
+      {
+        "designation": "Roulement à billes 6205",
+        "quantite": 12,
+        "prix_unitaire_ht": 21.83,
+        "taux_tva": 19,
+        "montant_ht": 261.96
+      }
+    ],
+    "montant_ht": 2314.79,
+    "montant_tva": 439.81,
+    "droit_timbre": 1,
+    "montant_ttc": 2755.6,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

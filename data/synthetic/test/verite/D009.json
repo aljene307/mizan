@@ -1,0 +1,64 @@
+{
+  "id": "D009",
+  "lot": "test",
+  "groupe": "G16",
+  "fichier": "D009.pdf",
+  "format": "pdf",
+  "sha256": "824b84659e9000b21378c6003677e32acf4cbfd2b43cb8e15c2d6bbb4da1806e",
+  "derive_de": null,
+  "fournisseur_code": null,
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "KPE2026024",
+    "date_facture": "2026-01-28",
+    "date_echeance": "2026-02-27",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Kairouan Pro Équipement",
+      "matricule_fiscal": "9993072G/A/M/000",
+      "adresse": "5, rue des Aghlabides, 3100 Kairouan",
+      "rib": "99015752383611667579"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Disjoncteur différentiel 40 A",
+        "quantite": 7,
+        "prix_unitaire_ht": 148.59,
+        "taux_tva": 19,
+        "montant_ht": 1040.13
+      },
+      {
+        "designation": "Projecteur LED 100 W",
+        "quantite": 6,
+        "prix_unitaire_ht": 122.16,
+        "taux_tva": 19,
+        "montant_ht": 732.96
+      },
+      {
+        "designation": "Câble électrique 3G2,5 (couronne 100 m)",
+        "quantite": 2,
+        "prix_unitaire_ht": 179.05,
+        "taux_tva": 19,
+        "montant_ht": 358.1
+      }
+    ],
+    "montant_ht": 2131.19,
+    "montant_tva": 404.926,
+    "droit_timbre": 1,
+    "montant_ttc": 2537.116,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "fournisseur_inconnu",
+      "detail": {
+        "raison_sociale": "Kairouan Pro Équipement"
+      }
+    }
+  ]
+}

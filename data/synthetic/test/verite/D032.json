@@ -1,0 +1,43 @@
+{
+  "id": "D032",
+  "lot": "test",
+  "groupe": "G53",
+  "fichier": "D032.jpg",
+  "format": "image",
+  "sha256": "448666c45e14c5de9018f6ceefc0a7b9b5c7e182259e68520265689ec65cd21b",
+  "derive_de": null,
+  "fournisseur_code": "F01",
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "FA-2026-0256",
+    "date_facture": "2026-03-30",
+    "date_echeance": "2026-04-29",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Papeterie Ennour Bureautique",
+      "matricule_fiscal": "9979067J/A/M/000",
+      "adresse": "45, avenue de la Liberté, 1002 Tunis",
+      "rib": "99932238223510373255"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Cartouche toner noir compatible",
+        "quantite": 3,
+        "prix_unitaire_ht": 125.27,
+        "taux_tva": 19,
+        "montant_ht": 375.81
+      }
+    ],
+    "montant_ht": 375.81,
+    "montant_tva": 71.404,
+    "droit_timbre": 1,
+    "montant_ttc": 448.214,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

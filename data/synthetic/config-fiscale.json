@@ -1,0 +1,81 @@
+[
+  {
+    "cle": "timbre.facture",
+    "valeur": "1.0000",
+    "unite": "TND",
+    "libelle": "Droit de timbre par facture (cas général)",
+    "conditions": {},
+    "valide_du": "2026-01-01",
+    "valide_au": null,
+    "source_libelle": "Code des droits d'enregistrement et de timbre, art. 117 (texte consolidé non consulté) ; montant cité par des sources secondaires",
+    "source_url": null,
+    "a_confirmer": true
+  },
+  {
+    "cle": "timbre.facture.grande_surface.50_100",
+    "valeur": "1.5000",
+    "unite": "TND",
+    "libelle": "Droit de timbre - facture émise par une grande surface commerciale, de 50 à 100 TND",
+    "conditions": {
+      "emetteur": "grande_surface",
+      "montant_max_inclus": 100,
+      "montant_min_inclus": 50
+    },
+    "valide_du": "2026-01-01",
+    "valide_au": null,
+    "source_libelle": "LF 2026 (loi n° 2025-17), art. 20, point 6 : art. 117, § I, n° 6 bis du CDET ; JORT n° 148 du 12/12/2025, p. 4233",
+    "source_url": "https://www.finances.gov.tn/sites/default/files/2026-01/115725.pdf",
+    "a_confirmer": true
+  },
+  {
+    "cle": "timbre.facture.grande_surface.plus_100",
+    "valeur": "2.0000",
+    "unite": "TND",
+    "libelle": "Droit de timbre - facture émise par une grande surface commerciale, plus de 100 TND",
+    "conditions": {
+      "emetteur": "grande_surface",
+      "montant_min_exclu": 100
+    },
+    "valide_du": "2026-01-01",
+    "valide_au": null,
+    "source_libelle": "LF 2026 (loi n° 2025-17), art. 20, point 6 : art. 117, § I, n° 6 bis du CDET ; JORT n° 148 du 12/12/2025, p. 4233",
+    "source_url": "https://www.finances.gov.tn/sites/default/files/2026-01/115725.pdf",
+    "a_confirmer": true
+  },
+  {
+    "cle": "tva.taux_intermediaire",
+    "valeur": "13.0000",
+    "unite": "pourcent",
+    "libelle": "TVA - taux intermédiaire",
+    "conditions": {},
+    "valide_du": "2026-01-01",
+    "valide_au": null,
+    "source_libelle": "Sources secondaires concordantes uniquement (aucun texte officiel consulté)",
+    "source_url": null,
+    "a_confirmer": true
+  },
+  {
+    "cle": "tva.taux_normal",
+    "valeur": "19.0000",
+    "unite": "pourcent",
+    "libelle": "TVA - taux normal",
+    "conditions": {},
+    "valide_du": "2026-01-01",
+    "valide_au": null,
+    "source_libelle": "Code de la TVA, art. 7 (texte consolidé non consulté) ; taux cité par la LF 2025 (loi n° 2024-48), art. 40, JORT n° 149 du 10/12/2024",
+    "source_url": "https://www.finances.gov.tn/sites/default/files/2024-12/LF2025.pdf",
+    "a_confirmer": true
+  },
+  {
+    "cle": "tva.taux_reduit",
+    "valeur": "7.0000",
+    "unite": "pourcent",
+    "libelle": "TVA - taux réduit",
+    "conditions": {},
+    "valide_du": "2026-01-01",
+    "valide_au": null,
+    "source_libelle": "Code de la TVA, art. 7 (texte consolidé non consulté) ; taux cité par la LF 2026 (loi n° 2025-17), art. 46, JORT n° 148 du 12/12/2025",
+    "source_url": "https://www.finances.gov.tn/sites/default/files/2026-01/115725.pdf",
+    "a_confirmer": true
+  }
+]

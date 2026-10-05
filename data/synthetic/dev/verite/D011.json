@@ -1,0 +1,65 @@
+{
+  "id": "D011",
+  "lot": "dev",
+  "groupe": "G04",
+  "fichier": "D011.pdf",
+  "format": "pdf",
+  "sha256": "5f99deedf74f3f342d129877a43d7a911e02233d426c12fd286898e831394895",
+  "derive_de": null,
+  "fournisseur_code": "F09",
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "MC2026-00102",
+    "date_facture": "2026-08-16",
+    "date_echeance": "2026-08-16",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Médina Connect Télécom",
+      "matricule_fiscal": "991756L/A/M/000",
+      "adresse": "61, rue de Rome, 1000 Tunis",
+      "rib": "99463183057963294105"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Abonnement fibre professionnelle",
+        "quantite": 2,
+        "prix_unitaire_ht": 256.97,
+        "taux_tva": 19,
+        "montant_ht": 513.94
+      },
+      {
+        "designation": "Forfait mobile flotte (par ligne)",
+        "quantite": 18,
+        "prix_unitaire_ht": 53.74,
+        "taux_tva": 19,
+        "montant_ht": 967.32
+      },
+      {
+        "designation": "Frais de mise en service",
+        "quantite": 1,
+        "prix_unitaire_ht": 112.94,
+        "taux_tva": 19,
+        "montant_ht": 112.94
+      }
+    ],
+    "montant_ht": 1594.2,
+    "montant_tva": 302.898,
+    "droit_timbre": 1,
+    "montant_ttc": 1898.098,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "matricule_invalide",
+      "detail": {
+        "matricule_reference": "9917566L",
+        "matricule_imprime": "991756L/A/M/000"
+      }
+    }
+  ]
+}

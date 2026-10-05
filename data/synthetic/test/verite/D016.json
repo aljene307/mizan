@@ -1,0 +1,43 @@
+{
+  "id": "D016",
+  "lot": "test",
+  "groupe": "G20",
+  "fichier": "D016.jpg",
+  "format": "image",
+  "sha256": "dcea661a6869db7327486ff2948e192b315265593488202b1950ecf0885ddf26",
+  "derive_de": null,
+  "fournisseur_code": "F02",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "avoir",
+    "numero": "AV-2026-001",
+    "date_facture": "2026-03-21",
+    "date_echeance": null,
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "InfoSahel Systèmes",
+      "matricule_fiscal": "9911705Y/A/M/000",
+      "adresse": "8, rue Ibn Khaldoun, 4000 Sousse",
+      "rib": "99132202812094401873"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Retour : Câble réseau Cat6 (rouleau 305 m)",
+        "quantite": 1,
+        "prix_unitaire_ht": 270.14,
+        "taux_tva": 19,
+        "montant_ht": 270.14
+      }
+    ],
+    "montant_ht": 270.14,
+    "montant_tva": 51.327,
+    "droit_timbre": null,
+    "montant_ttc": 321.467,
+    "facture_origine_numero": "ISS260280"
+  },
+  "anomalies_attendues": []
+}

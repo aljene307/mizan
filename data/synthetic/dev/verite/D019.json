@@ -1,0 +1,64 @@
+{
+  "id": "D019",
+  "lot": "dev",
+  "groupe": "G32",
+  "fichier": "D019.pdf",
+  "format": "pdf",
+  "sha256": "ee4f6a2282e4c338b26440292b38410724a6a3a1a1c50d139fb1f3c6fa9658e8",
+  "derive_de": null,
+  "fournisseur_code": "F08",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "FACT-2026-243",
+    "date_facture": "2026-06-08",
+    "date_echeance": "2026-07-08",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "El Manar Graphique",
+      "matricule_fiscal": "9996911S/A/M/000",
+      "adresse": "9, rue d'Irak, 2092 El Manar",
+      "rib": "99717238554545339497"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Cartes de visite (boîte de 500)",
+        "quantite": 1,
+        "prix_unitaire_ht": 44.61,
+        "taux_tva": 19,
+        "montant_ht": 44.61
+      },
+      {
+        "designation": "Impression flyers A5 quadri",
+        "quantite": 10,
+        "prix_unitaire_ht": 86.06,
+        "taux_tva": 19,
+        "montant_ht": 860.6
+      },
+      {
+        "designation": "Infographie et mise en page",
+        "quantite": 10,
+        "prix_unitaire_ht": 48.7,
+        "taux_tva": 19,
+        "montant_ht": 487
+      },
+      {
+        "designation": "Brochure 16 pages",
+        "quantite": 1123,
+        "prix_unitaire_ht": 5.17,
+        "taux_tva": 19,
+        "montant_ht": 5805.91
+      }
+    ],
+    "montant_ht": 7198.12,
+    "montant_tva": 1367.643,
+    "droit_timbre": 1,
+    "montant_ttc": 8566.763,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

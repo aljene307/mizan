@@ -1,0 +1,64 @@
+{
+  "id": "D008",
+  "lot": "dev",
+  "groupe": "G06",
+  "fichier": "D008.pdf",
+  "format": "pdf",
+  "sha256": "580a9211d15663f9c2197842782fb6b2a086057b8dbc3dd8f3b059506c4e9cbe",
+  "derive_de": null,
+  "fournisseur_code": null,
+  "mise_en_page": "serif",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "DEF-0130",
+    "date_facture": "2026-05-01",
+    "date_echeance": "2026-05-31",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Djerba Express Fournitures",
+      "matricule_fiscal": "9946460J/A/M/000",
+      "adresse": "Route de Midoun, 4180 Djerba",
+      "rib": "99397393461493329082"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Cartouche toner noir compatible",
+        "quantite": 3,
+        "prix_unitaire_ht": 91.36,
+        "taux_tva": 19,
+        "montant_ht": 274.08
+      },
+      {
+        "designation": "Stylo bille bleu (boîte de 50)",
+        "quantite": 10,
+        "prix_unitaire_ht": 31.47,
+        "taux_tva": 19,
+        "montant_ht": 314.7
+      },
+      {
+        "designation": "Enveloppes kraft C4 (paquet de 250)",
+        "quantite": 2,
+        "prix_unitaire_ht": 50.51,
+        "taux_tva": 19,
+        "montant_ht": 101.02
+      }
+    ],
+    "montant_ht": 689.8,
+    "montant_tva": 131.062,
+    "droit_timbre": 1,
+    "montant_ttc": 821.862,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "fournisseur_inconnu",
+      "detail": {
+        "raison_sociale": "Djerba Express Fournitures"
+      }
+    }
+  ]
+}

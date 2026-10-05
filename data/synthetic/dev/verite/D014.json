@@ -1,0 +1,50 @@
+{
+  "id": "D014",
+  "lot": "dev",
+  "groupe": "G23",
+  "fichier": "D014.pdf",
+  "format": "pdf",
+  "sha256": "e88bf4bce3c35b836c74e654c6f0429fb6564da0d816d0408bdd7be10706c17b",
+  "derive_de": null,
+  "fournisseur_code": "F07",
+  "mise_en_page": "ticket",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "EGH 0268",
+    "date_facture": "2026-03-05",
+    "date_echeance": "2026-04-04",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Électricité Générale Hammamet",
+      "matricule_fiscal": "9900614F/A/M/000",
+      "adresse": "22, avenue de la République, 8050 Hammamet",
+      "rib": "99803767839070687023"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Installation électrique",
+        "quantite": 18,
+        "prix_unitaire_ht": 43.59,
+        "taux_tva": 19,
+        "montant_ht": 784.62
+      },
+      {
+        "designation": "Projecteur LED 100 W",
+        "quantite": 17,
+        "prix_unitaire_ht": 110.48,
+        "taux_tva": 19,
+        "montant_ht": 1878.16
+      }
+    ],
+    "montant_ht": 2662.78,
+    "montant_tva": 505.928,
+    "droit_timbre": 1,
+    "montant_ttc": 3169.708,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

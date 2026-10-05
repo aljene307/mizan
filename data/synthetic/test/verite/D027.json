@@ -1,0 +1,50 @@
+{
+  "id": "D027",
+  "lot": "test",
+  "groupe": "G19",
+  "fichier": "D027.jpg",
+  "format": "image",
+  "sha256": "439e3557304c5d18b32c9ea332f09d0a678aae87e2973fbb9637fd5ea52d9caa",
+  "derive_de": "D052",
+  "fournisseur_code": "F01",
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "FA-2026-0255",
+    "date_facture": "2026-02-17",
+    "date_echeance": "2026-03-19",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Papeterie Ennour Bureautique",
+      "matricule_fiscal": "9979067J/A/M/000",
+      "adresse": "45, avenue de la Liberté, 1002 Tunis",
+      "rib": "99932238223510373255"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Enveloppes kraft C4 (paquet de 250)",
+        "quantite": 3,
+        "prix_unitaire_ht": 36.43,
+        "taux_tva": 19,
+        "montant_ht": 109.29
+      }
+    ],
+    "montant_ht": 109.29,
+    "montant_tva": 20.765,
+    "droit_timbre": 1,
+    "montant_ttc": 131.055,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "doublon_rescanne",
+      "detail": {
+        "original": "D052"
+      }
+    }
+  ]
+}

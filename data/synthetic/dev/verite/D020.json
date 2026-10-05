@@ -1,0 +1,64 @@
+{
+  "id": "D020",
+  "lot": "dev",
+  "groupe": "G27",
+  "fichier": "D020.pdf",
+  "format": "pdf",
+  "sha256": "26b06adc5a0c967257b5f744474631456e8dfa5db1cc7243b3d6a98fccc4c16d",
+  "derive_de": null,
+  "fournisseur_code": "F03",
+  "mise_en_page": "ticket",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "2026/155",
+    "date_facture": "2026-04-05",
+    "date_echeance": "2026-04-05",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Yasmine Services Nettoyage",
+      "matricule_fiscal": "9978595K/A/M/000",
+      "adresse": "17, rue des Jasmins, 2080 Ariana",
+      "rib": "99438639017355887241"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Désinfection des sanitaires",
+        "quantite": 3,
+        "prix_unitaire_ht": 175.45,
+        "taux_tva": 19,
+        "montant_ht": 526.35
+      },
+      {
+        "designation": "Nettoyage des locaux (forfait mensuel)",
+        "quantite": 1,
+        "prix_unitaire_ht": 1449.25,
+        "taux_tva": 19,
+        "montant_ht": 1449.25
+      },
+      {
+        "designation": "Produits d'entretien (lot)",
+        "quantite": 2,
+        "prix_unitaire_ht": 88.71,
+        "taux_tva": 19,
+        "montant_ht": 177.42
+      },
+      {
+        "designation": "Nettoyage vitrerie",
+        "quantite": 159,
+        "prix_unitaire_ht": 3.3,
+        "taux_tva": 19,
+        "montant_ht": 524.7
+      }
+    ],
+    "montant_ht": 2677.72,
+    "montant_tva": 508.767,
+    "droit_timbre": 1,
+    "montant_ttc": 3187.487,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

@@ -1,0 +1,43 @@
+{
+  "id": "D038",
+  "lot": "dev",
+  "groupe": "G45",
+  "fichier": "D038.pdf",
+  "format": "pdf",
+  "sha256": "d097521d364e4294a23b0a2f5e6f22974c76af2e215897dfa40f9387cd880822",
+  "derive_de": null,
+  "fournisseur_code": "F05",
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "F20260188",
+    "date_facture": "2026-04-15",
+    "date_echeance": "2026-06-14",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Emballages Kerkennah",
+      "matricule_fiscal": "9925036W/A/M/000",
+      "adresse": "Zone industrielle Poudrière, 3000 Sfax",
+      "rib": "99720551704430393594"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Film étirable 23 µm (rouleau)",
+        "quantite": 116,
+        "prix_unitaire_ht": 22.26,
+        "taux_tva": 19,
+        "montant_ht": 2582.16
+      }
+    ],
+    "montant_ht": 2582.16,
+    "montant_tva": 490.61,
+    "droit_timbre": 1,
+    "montant_ttc": 3073.77,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

@@ -1,0 +1,57 @@
+{
+  "id": "D041",
+  "lot": "dev",
+  "groupe": "G31",
+  "fichier": "D041.jpg",
+  "format": "image",
+  "sha256": "0fe48e04317551131064a9c132c1fd1aaba01633d32b3ce940de046febde664e",
+  "derive_de": null,
+  "fournisseur_code": "F11",
+  "mise_en_page": "serif",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "OGS-26-058",
+    "date_facture": "2026-06-03",
+    "date_echeance": "2026-07-03",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Oasis Gardiennage et Sécurité",
+      "matricule_fiscal": "9928250F/A/M/000",
+      "adresse": "14, avenue Farhat Hached, 6000 Gabès",
+      "rib": "99303070463216990768"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Agent de sécurité événementiel",
+        "quantite": 40,
+        "prix_unitaire_ht": 16.54,
+        "taux_tva": 19,
+        "montant_ht": 661.6
+      },
+      {
+        "designation": "Extincteur poudre 6 kg",
+        "quantite": 5,
+        "prix_unitaire_ht": 102.16,
+        "taux_tva": 19,
+        "montant_ht": 510.8
+      },
+      {
+        "designation": "Gardiennage de nuit (forfait mensuel)",
+        "quantite": 1,
+        "prix_unitaire_ht": 3363.63,
+        "taux_tva": 19,
+        "montant_ht": 3363.63
+      }
+    ],
+    "montant_ht": 4536.03,
+    "montant_tva": 861.846,
+    "droit_timbre": 1,
+    "montant_ttc": 5398.876,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

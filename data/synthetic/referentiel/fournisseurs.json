@@ -1,0 +1,110 @@
+[
+  {
+    "code": "F01",
+    "raison_sociale": "Papeterie Ennour Bureautique",
+    "matricule_fiscal": "9979067J",
+    "adresse": "45, avenue de la Liberté, 1002 Tunis",
+    "email": "contact@papeterieennourbur.example",
+    "rib": "99932238223510373255",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F02",
+    "raison_sociale": "InfoSahel Systèmes",
+    "matricule_fiscal": "9911705Y",
+    "adresse": "8, rue Ibn Khaldoun, 4000 Sousse",
+    "email": "contact@infosahelsystemes.example",
+    "rib": "99132202812094401873",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F03",
+    "raison_sociale": "Yasmine Services Nettoyage",
+    "matricule_fiscal": "9978595K",
+    "adresse": "17, rue des Jasmins, 2080 Ariana",
+    "email": "contact@yasmineservicesnet.example",
+    "rib": "99438639017355887241",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F04",
+    "raison_sociale": "Trans-Cap Logistique",
+    "matricule_fiscal": "9911957K",
+    "adresse": "Route de Hammamet km 3, 8000 Nabeul",
+    "email": "contact@transcaplogistique.example",
+    "rib": "99532548060714626340",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F05",
+    "raison_sociale": "Emballages Kerkennah",
+    "matricule_fiscal": "9925036W",
+    "adresse": "Zone industrielle Poudrière, 3000 Sfax",
+    "email": "contact@emballageskerkenna.example",
+    "rib": "99720551704430393594",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F06",
+    "raison_sociale": "Bizerte Nord Maintenance Industrielle",
+    "matricule_fiscal": "9942665K",
+    "adresse": "3, rue de Mateur, 7000 Bizerte",
+    "email": "contact@bizertenordmainten.example",
+    "rib": "99607512589123410209",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F07",
+    "raison_sociale": "Électricité Générale Hammamet",
+    "matricule_fiscal": "9900614F",
+    "adresse": "22, avenue de la République, 8050 Hammamet",
+    "email": "contact@electricitegeneral.example",
+    "rib": "99803767839070687023",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F08",
+    "raison_sociale": "El Manar Graphique",
+    "matricule_fiscal": "9996911S",
+    "adresse": "9, rue d'Irak, 2092 El Manar",
+    "email": "contact@elmanargraphique.example",
+    "rib": "99717238554545339497",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F09",
+    "raison_sociale": "Médina Connect Télécom",
+    "matricule_fiscal": "9917566L",
+    "adresse": "61, rue de Rome, 1000 Tunis",
+    "email": "contact@medinaconnecttelec.example",
+    "rib": "99463183057963294105",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F10",
+    "raison_sociale": "Atlas Bureau Mobilier",
+    "matricule_fiscal": "9916548K",
+    "adresse": "Route de Sousse, 5000 Monastir",
+    "email": "contact@atlasbureaumobilie.example",
+    "rib": "99766956919106488239",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F11",
+    "raison_sociale": "Oasis Gardiennage et Sécurité",
+    "matricule_fiscal": "9928250F",
+    "adresse": "14, avenue Farhat Hached, 6000 Gabès",
+    "email": "contact@oasisgardiennageet.example",
+    "rib": "99303070463216990768",
+    "banque": "Banque Démo 99"
+  },
+  {
+    "code": "F12",
+    "raison_sociale": "Mejerda Agro-Fournitures",
+    "matricule_fiscal": "9957695G",
+    "adresse": "Avenue de l'Environnement, 9000 Béja",
+    "email": "contact@mejerdaagrofournit.example",
+    "rib": "99071173390949753806",
+    "banque": "Banque Démo 99"
+  }
+]

@@ -78,3 +78,46 @@ bien échouer les tests ; `db/schema.sql` ne contient aucun secret.
   contrôles sans justification écrite (D-022).
 - Contrainte pour l'étape 2 : factures synthétiques datées de 2026 (D-023).
 - README : avertissement sur le caractère illustratif des paramètres fiscaux.
+
+## Étape 2 — Données synthétiques (2026-10-05)
+
+**Fait**
+- Projet Node.js (`package.json`, ESM) : Playwright 1.63 (Chromium headless),
+  sharp, pg, ajv, polices @fontsource (OFL).
+- `src/` : montants en millimes, RIB (clé), matricule fiscal (format),
+  lecture de `config_fiscale` à une date, schémas JSON d'extraction et de
+  vérité terrain. 19 tests unitaires.
+- `generateur/` : référentiel fictif (12 fournisseurs connus, 2 inconnus),
+  modèle déterministe (60 documents, 9 types de pièges, lots dev/test,
+  relevé bancaire), rendu en 4 mises en page (PDF et scans JPEG).
+- `data/synthetic/` : 45 PDF, 15 scans, 60 vérités terrain, `lots.json`,
+  référentiel, relevé CSV de 103 opérations et 33 appariements attendus.
+- 21 tests du générateur et des fichiers produits (40 tests Node au total).
+- README : limite de l'évaluation (précision optimiste sur données
+  synthétiques) ; README propre au jeu de données.
+
+**Décisions :** D-024 à D-030.
+
+**Problèmes rencontrés**
+- Matricule fiscal : le format officiel (`\d{7}[A-Z]`) vient du cahier des
+  charges TEJ ; l'algorithme de la lettre clé n'a aucune source officielle,
+  il n'est donc pas appliqué (D-027).
+- Clé RIB : la formule la plus citée en ligne (89 × B + 15 × G + 3 × C) est
+  celle du RIB **français**. L'algorithme retenu a été vérifié sur l'exemple
+  du registre IBAN. Le PDF du registre sur swift.com a refusé le
+  téléchargement (HTTP 403).
+- Liste officielle des codes banque de la BCT non consultée : le choix du
+  code 99 repose sur des listes secondaires (D-027).
+- `node --test tests/` ne fonctionne plus sous Node 24 : il faut un motif de
+  fichiers (`"tests/**/*.test.js"`).
+- Bug trouvé par les tests : les appariements du relevé pointaient vers une
+  copie de l'opération et perdaient leur numéro de ligne. Corrigé.
+- Chromium écrit la date du rendu dans chaque PDF, ce qui changeait les
+  empreintes à chaque génération. Les dates sont maintenant figées
+  (même longueur, la table xref reste valide).
+- Pour respecter D-026, seuls des documents du lot dev ont été ouverts pour
+  vérifier visuellement le rendu.
+
+**Vérifié (étape 2) :** 40 tests Node passent ; deux générations successives
+donnent les 126 mêmes fichiers, octet par octet ; inspection visuelle des 4
+mises en page et de 2 scans (lot dev uniquement).

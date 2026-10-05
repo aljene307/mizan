@@ -1,0 +1,51 @@
+{
+  "id": "D012",
+  "lot": "test",
+  "groupe": "G11",
+  "fichier": "D012.pdf",
+  "format": "pdf",
+  "sha256": "4121f4e4758fbb624a8525d9b7a8bd04ba0af391209787a48e6ed15ab217b76b",
+  "derive_de": null,
+  "fournisseur_code": "F10",
+  "mise_en_page": "moderne",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "ABM-0025",
+    "date_facture": "2026-06-28",
+    "date_echeance": "2026-08-27",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Atlas Bureau Mobilier",
+      "matricule_fiscal": "9916548K/A/M/000",
+      "adresse": "Route de Sousse, 5000 Monastir",
+      "rib": "99766956919106488239"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Armoire métallique 2 portes",
+        "quantite": 11,
+        "prix_unitaire_ht": 975.88,
+        "taux_tva": 19,
+        "montant_ht": 10734.68
+      }
+    ],
+    "montant_ht": 10734.68,
+    "montant_tva": 1992.589,
+    "droit_timbre": 1,
+    "montant_ttc": 12728.269,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": [
+    {
+      "code": "erreur_tva",
+      "detail": {
+        "tva_calculee": 2039.589,
+        "tva_imprimee": 1992.589
+      }
+    }
+  ]
+}

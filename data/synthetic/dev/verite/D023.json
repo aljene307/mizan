@@ -1,0 +1,50 @@
+{
+  "id": "D023",
+  "lot": "dev",
+  "groupe": "G43",
+  "fichier": "D023.pdf",
+  "format": "pdf",
+  "sha256": "d73c1f84ec73963bcbf71b7d68ef140b2b8265fb1caea6006adb770be7ae5213",
+  "derive_de": null,
+  "fournisseur_code": "F01",
+  "mise_en_page": "classique",
+  "extraction": {
+    "type_document": "facture",
+    "numero": "FA-2026-0247",
+    "date_facture": "2026-02-11",
+    "date_echeance": "2026-03-13",
+    "devise": "TND",
+    "fournisseur": {
+      "raison_sociale": "Papeterie Ennour Bureautique",
+      "matricule_fiscal": "9979067J/A/M/000",
+      "adresse": "45, avenue de la Liberté, 1002 Tunis",
+      "rib": "99932238223510373255"
+    },
+    "client": {
+      "raison_sociale": "Société Démo Mizan SARL",
+      "matricule_fiscal": "9925897C/A/M/000"
+    },
+    "lignes": [
+      {
+        "designation": "Ramette papier A4 80 g (500 feuilles)",
+        "quantite": 37,
+        "prix_unitaire_ht": 9.43,
+        "taux_tva": 19,
+        "montant_ht": 348.91
+      },
+      {
+        "designation": "Classeur à levier dos 75 mm",
+        "quantite": 17,
+        "prix_unitaire_ht": 5.67,
+        "taux_tva": 19,
+        "montant_ht": 96.39
+      }
+    ],
+    "montant_ht": 445.3,
+    "montant_tva": 84.607,
+    "droit_timbre": 1,
+    "montant_ttc": 530.907,
+    "facture_origine_numero": null
+  },
+  "anomalies_attendues": []
+}

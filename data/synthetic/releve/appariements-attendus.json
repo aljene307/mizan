@@ -1,0 +1,755 @@
+{
+  "fichier": "releve-2026-01-01_2026-09-30.csv",
+  "format": {
+    "separateur": ";",
+    "decimale": ",",
+    "dates": "JJ/MM/AAAA",
+    "encodage": "UTF-8"
+  },
+  "compte": {
+    "banque": "Banque Démo 99",
+    "rib": "99330228027133819365",
+    "devise": "TND"
+  },
+  "periode": {
+    "debut": "2026-01-01",
+    "fin": "2026-09-30"
+  },
+  "solde_initial": 120000,
+  "solde_final": 246654.03,
+  "appariements": [
+    {
+      "numero_ligne": 3,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 2558.619,
+      "factures": [
+        {
+          "document_id": "D026",
+          "numero": "2026/131",
+          "montant_affecte": 2558.619
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 8,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 3182.287,
+      "factures": [
+        {
+          "document_id": "D033",
+          "numero": "2026/143",
+          "montant_affecte": 3182.287
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 21,
+      "type": "ecart",
+      "mode": "virement",
+      "montant_operation": 6460.081,
+      "factures": [
+        {
+          "document_id": "D015",
+          "numero": "ISS260268",
+          "montant_affecte": 6460.081
+        }
+      ],
+      "avoirs": [],
+      "ecart": -2
+    },
+    {
+      "numero_ligne": 22,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 131.055,
+      "factures": [
+        {
+          "document_id": "D052",
+          "numero": "FA-2026-0255",
+          "montant_affecte": 131.055
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 23,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 974.646,
+      "factures": [
+        {
+          "document_id": "D047",
+          "numero": "MC2026-00073",
+          "montant_affecte": 974.646
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 25,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 3380.136,
+      "factures": [
+        {
+          "document_id": "D001",
+          "numero": "2026/153",
+          "montant_affecte": 3380.136
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 26,
+      "type": "exact",
+      "mode": "cheque",
+      "montant_operation": 530.907,
+      "factures": [
+        {
+          "document_id": "D023",
+          "numero": "FA-2026-0247",
+          "montant_affecte": 530.907
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 28,
+      "type": "exact",
+      "mode": "cheque",
+      "montant_operation": 1554.164,
+      "factures": [
+        {
+          "document_id": "D025",
+          "numero": "MC2026-00078",
+          "montant_affecte": 1554.164
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 30,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 3169.708,
+      "factures": [
+        {
+          "document_id": "D014",
+          "numero": "EGH 0268",
+          "montant_affecte": 3169.708
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 32,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 4043.563,
+      "factures": [
+        {
+          "document_id": "D021",
+          "numero": "MAF00134",
+          "montant_affecte": 4043.563
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 35,
+      "type": "groupe",
+      "mode": "virement",
+      "montant_operation": 6706.163,
+      "factures": [
+        {
+          "document_id": "D020",
+          "numero": "2026/155",
+          "montant_affecte": 3187.487
+        },
+        {
+          "document_id": "D005",
+          "numero": "2026/137",
+          "montant_affecte": 3518.676
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 36,
+      "type": "net_avoir",
+      "mode": "virement",
+      "montant_operation": 12788.644,
+      "factures": [
+        {
+          "document_id": "D017",
+          "numero": "ISS260280",
+          "montant_affecte": 13110.111
+        }
+      ],
+      "avoirs": [
+        {
+          "document_id": "D016",
+          "numero": "AV-2026-001",
+          "montant_impute": 321.467
+        }
+      ],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 38,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 1981.98,
+      "factures": [
+        {
+          "document_id": "D056",
+          "numero": "TCL-00329",
+          "montant_affecte": 1981.98
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 42,
+      "type": "exact",
+      "mode": "cheque",
+      "montant_operation": 3927.607,
+      "factures": [
+        {
+          "document_id": "D018",
+          "numero": "MAF00136",
+          "montant_affecte": 3927.607
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 44,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 448.214,
+      "factures": [
+        {
+          "document_id": "D032",
+          "numero": "FA-2026-0256",
+          "montant_affecte": 448.214
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 47,
+      "type": "net_avoir",
+      "mode": "virement",
+      "montant_operation": 284.22,
+      "factures": [
+        {
+          "document_id": "D040",
+          "numero": "FA-2026-0263",
+          "montant_affecte": 355.025
+        }
+      ],
+      "avoirs": [
+        {
+          "document_id": "D034",
+          "numero": "AV-2026-003",
+          "montant_impute": 70.805
+        }
+      ],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 49,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 95370.289,
+      "factures": [
+        {
+          "document_id": "D028",
+          "numero": "ABM-0017",
+          "montant_affecte": 95370.289
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 51,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 572.164,
+      "factures": [
+        {
+          "document_id": "D042",
+          "numero": "MC2026-00087",
+          "montant_affecte": 572.164
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 52,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 5332.111,
+      "factures": [
+        {
+          "document_id": "D039",
+          "numero": "MAF00141",
+          "montant_affecte": 5332.111
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 55,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 3975.755,
+      "factures": [
+        {
+          "document_id": "D006",
+          "numero": "OGS-26-051",
+          "montant_affecte": 3975.755
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 61,
+      "type": "exact",
+      "mode": "cheque",
+      "montant_operation": 2755.6,
+      "factures": [
+        {
+          "document_id": "D007",
+          "numero": "BNM/2026/033",
+          "montant_affecte": 2755.6
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 64,
+      "type": "partiel",
+      "mode": "virement",
+      "montant_operation": 3211,
+      "factures": [
+        {
+          "document_id": "D024",
+          "numero": "ISS260287",
+          "montant_affecte": 3211
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 66,
+      "type": "exact",
+      "mode": "cheque",
+      "montant_operation": 1159.644,
+      "factures": [
+        {
+          "document_id": "D022",
+          "numero": "MC2026-00089",
+          "montant_affecte": 1159.644
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 67,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 2586.227,
+      "factures": [
+        {
+          "document_id": "D004",
+          "numero": "2026/159",
+          "montant_affecte": 2586.227
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 69,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 3073.77,
+      "factures": [
+        {
+          "document_id": "D038",
+          "numero": "F20260188",
+          "montant_affecte": 3073.77
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 73,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 5398.876,
+      "factures": [
+        {
+          "document_id": "D041",
+          "numero": "OGS-26-058",
+          "montant_affecte": 5398.876
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 75,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 2048.455,
+      "factures": [
+        {
+          "document_id": "D044",
+          "numero": "MC2026-00090",
+          "montant_affecte": 2048.455
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 78,
+      "type": "partiel",
+      "mode": "virement",
+      "montant_operation": 4816.02,
+      "factures": [
+        {
+          "document_id": "D024",
+          "numero": "ISS260287",
+          "montant_affecte": 4816.02
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 80,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 8566.763,
+      "factures": [
+        {
+          "document_id": "D019",
+          "numero": "FACT-2026-243",
+          "montant_affecte": 8566.763
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 84,
+      "type": "exact",
+      "mode": "cheque",
+      "montant_operation": 3858.409,
+      "factures": [
+        {
+          "document_id": "D053",
+          "numero": "ISS260290",
+          "montant_affecte": 3858.409
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 90,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 3635.855,
+      "factures": [
+        {
+          "document_id": "D029",
+          "numero": "2026/170",
+          "montant_affecte": 3635.855
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 96,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 1260.163,
+      "factures": [
+        {
+          "document_id": "D049",
+          "numero": "FA-2026-0266",
+          "montant_affecte": 1260.163
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    },
+    {
+      "numero_ligne": 100,
+      "type": "exact",
+      "mode": "virement",
+      "montant_operation": 1873.703,
+      "factures": [
+        {
+          "document_id": "D046",
+          "numero": "MAF00149",
+          "montant_affecte": 1873.703
+        }
+      ],
+      "avoirs": [],
+      "ecart": 0
+    }
+  ],
+  "factures_impayees": [
+    {
+      "document_id": "D002",
+      "numero": "BNM/2026/026",
+      "montant_ttc": 2819.667,
+      "devise": "TND",
+      "raison": "ttc_incoherent"
+    },
+    {
+      "document_id": "D003",
+      "numero": "MC2026-00096",
+      "montant_ttc": 1443.863,
+      "devise": "TND",
+      "raison": "retard"
+    },
+    {
+      "document_id": "D008",
+      "numero": "DEF-0130",
+      "montant_ttc": 821.862,
+      "devise": "TND",
+      "raison": "fournisseur_inconnu"
+    },
+    {
+      "document_id": "D009",
+      "numero": "KPE2026024",
+      "montant_ttc": 2537.116,
+      "devise": "TND",
+      "raison": "fournisseur_inconnu"
+    },
+    {
+      "document_id": "D010",
+      "numero": "ISS260294",
+      "montant_ttc": 8378.036,
+      "devise": "TND",
+      "raison": "ttc_incoherent"
+    },
+    {
+      "document_id": "D011",
+      "numero": "MC2026-00102",
+      "montant_ttc": 1898.098,
+      "devise": "TND",
+      "raison": "matricule_invalide"
+    },
+    {
+      "document_id": "D012",
+      "numero": "ABM-0025",
+      "montant_ttc": 12728.269,
+      "devise": "TND",
+      "raison": "erreur_tva"
+    },
+    {
+      "document_id": "D030",
+      "numero": "2026/166",
+      "montant_ttc": 1489.309,
+      "devise": "TND",
+      "raison": "rib_modifie"
+    },
+    {
+      "document_id": "D031",
+      "numero": "F20260194",
+      "montant_ttc": 8343.043,
+      "devise": "TND",
+      "raison": "rib_modifie"
+    },
+    {
+      "document_id": "D036",
+      "numero": "TCL-00333",
+      "montant_ttc": 2218.084,
+      "devise": "TND",
+      "raison": "echeance_fin_de_periode"
+    },
+    {
+      "document_id": "D037",
+      "numero": "ISS260302",
+      "montant_ttc": 6417.159,
+      "devise": "TND",
+      "raison": "non_echue"
+    },
+    {
+      "document_id": "D043",
+      "numero": "FA-2026-0268",
+      "montant_ttc": 2287.311,
+      "devise": "TND",
+      "raison": "echeance_fin_de_periode"
+    },
+    {
+      "document_id": "D045",
+      "numero": "ISS260284",
+      "montant_ttc": 402.01,
+      "devise": "EUR",
+      "raison": "devise_etrangere"
+    },
+    {
+      "document_id": "D048",
+      "numero": "ISS260272",
+      "montant_ttc": 1545.1,
+      "devise": "EUR",
+      "raison": "devise_etrangere"
+    },
+    {
+      "document_id": "D051",
+      "numero": "2026/152",
+      "montant_ttc": 283.24,
+      "devise": "TND",
+      "raison": "erreur_tva"
+    },
+    {
+      "document_id": "D054",
+      "numero": "TCL-00340",
+      "montant_ttc": 4567.177,
+      "devise": "TND",
+      "raison": "non_echue"
+    },
+    {
+      "document_id": "D055",
+      "numero": "TCL-00346",
+      "montant_ttc": 6092.478,
+      "devise": "TND",
+      "raison": "non_echue"
+    },
+    {
+      "document_id": "D057",
+      "numero": "BNM/2026/036",
+      "montant_ttc": 249.758,
+      "devise": "TND",
+      "raison": "retard"
+    },
+    {
+      "document_id": "D058",
+      "numero": "EGH 0269",
+      "montant_ttc": 4968.286,
+      "devise": "TND",
+      "raison": "matricule_invalide"
+    },
+    {
+      "document_id": "D059",
+      "numero": "MC2026-00068",
+      "montant_ttc": 2205.927,
+      "devise": "TND",
+      "raison": "retard"
+    },
+    {
+      "document_id": "D060",
+      "numero": "ABM-0031",
+      "montant_ttc": 89840.883,
+      "devise": "TND",
+      "raison": "retard"
+    }
+  ],
+  "lignes_sans_facture": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    24,
+    27,
+    29,
+    31,
+    33,
+    34,
+    37,
+    39,
+    40,
+    41,
+    43,
+    45,
+    46,
+    48,
+    50,
+    53,
+    54,
+    56,
+    57,
+    58,
+    59,
+    60,
+    62,
+    63,
+    65,
+    68,
+    70,
+    71,
+    72,
+    74,
+    76,
+    77,
+    79,
+    81,
+    82,
+    83,
+    85,
+    86,
+    87,
+    88,
+    89,
+    91,
+    92,
+    93,
+    94,
+    95,
+    97,
+    98,
+    99,
+    101,
+    102,
+    103
+  ]
+}
