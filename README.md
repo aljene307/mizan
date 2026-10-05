@@ -30,7 +30,7 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 |---|---|---|
 | 0 | Environnement Docker (n8n + PostgreSQL) | ✅ |
 | 1 | Modèle de données | ✅ |
-| 2 | Données synthétiques | à venir |
+| 2 | Données synthétiques | ✅ |
 | 3 | Réception et extraction | à venir |
 | 4 | Contrôles | à venir |
 | 5 | Validation humaine (Telegram) | à venir |

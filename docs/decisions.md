@@ -506,3 +506,14 @@ des affirmations fiscales :
   (champs lus sur un document, strict : tous les champs obligatoires, aucun
   champ en plus, `null` si absent) et `verite-terrain.schema.json`, qui
   l'englobe. Le premier servira à valider la sortie du LLM à l'étape 3.
+
+### D-031 · Évaluation : afficher les nombres bruts, pas seulement des pourcentages
+- **Contexte :** le lot de test ne contient que 18 documents (D-026). Sur un si
+  petit échantillon, un pourcentage seul est trompeur : un document de plus ou
+  de moins fait varier le score d'environ 5,6 points.
+- **Règle pour l'étape 8 :** chaque résultat affiche le nombre brut à côté du
+  pourcentage, par exemple « 17/18 (94,4 %) ». Cela vaut par champ, par
+  format (PDF, scan) et par type de piège. Pour les champs comptés ligne par
+  ligne (lignes de facture), on affiche aussi le dénominateur réel.
+- **Raison :** le lecteur voit la taille de l'échantillon et ne
+  surinterprète pas un écart de quelques points.

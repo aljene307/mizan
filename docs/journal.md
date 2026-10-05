@@ -118,6 +118,11 @@ bien échouer les tests ; `db/schema.sql` ne contient aucun secret.
 - Pour respecter D-026, seuls des documents du lot dev ont été ouverts pour
   vérifier visuellement le rendu.
 
+**Après validation :** décision D-031 (l'évaluation affichera les nombres
+bruts, le lot de test ne comptant que 18 documents). L'historique Git a été
+réécrit à la demande de Mohamed (messages sans numéro d'étape ni co-auteur,
+auteur et dates conservés), puis poussé avec `--force-with-lease`.
+
 **Vérifié (étape 2) :** 40 tests Node passent ; deux générations successives
 donnent les 126 mêmes fichiers, octet par octet ; inspection visuelle des 4
 mises en page et de 2 scans (lot dev uniquement).
