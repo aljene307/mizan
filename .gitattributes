@@ -1,0 +1,11 @@
+# Fins de ligne LF partout : les fichiers sont lus par des conteneurs Linux.
+* text=auto eol=lf
+
+# Scripts PowerShell : CRLF sous Windows
+*.ps1 text eol=crlf
+
+# Fichiers binaires
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
