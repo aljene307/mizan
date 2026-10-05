@@ -11,12 +11,18 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 > Projet de portfolio. Le dépôt ne contient que des **données synthétiques** et
 > n'envoie rien à la plateforme El Fatoora / TTN.
 
+> ⚠️ **Paramètres fiscaux illustratifs.** Les taux et montants fiscaux de
+> `config_fiscale` (TVA, droit de timbre) sont donnés à titre d'illustration.
+> Plusieurs restent **à confirmer** sur les textes officiels consolidés (voir
+> [docs/decisions.md](docs/decisions.md), D-020). Ils ne constituent **pas un
+> conseil fiscal**.
+
 ## État d'avancement
 
 | Étape | Contenu | État |
 |---|---|---|
 | 0 | Environnement Docker (n8n + PostgreSQL) | ✅ |
-| 1 | Modèle de données | à venir |
+| 1 | Modèle de données | ✅ |
 | 2 | Données synthétiques | à venir |
 | 3 | Réception et extraction | à venir |
 | 4 | Contrôles | à venir |
@@ -46,6 +52,47 @@ Ouvrir ensuite <http://localhost:5678> et créer le compte propriétaire n8n
 
 Arrêter : `docker compose down`. Les données sont conservées dans les volumes
 Docker ; `docker compose down -v` les supprime définitivement.
+
+## Base de données
+
+Le schéma de la base `mizan` est géré par migrations
+([dbmate](https://github.com/amacneil/dbmate)), dans `db/migrations/`.
+`db/schema.sql` est le schéma complet, régénéré automatiquement.
+
+```powershell
+docker compose run --rm dbmate up        # appliquer les migrations
+docker compose run --rm dbmate status    # voir les migrations appliquées
+docker compose run --rm dbmate rollback  # annuler la dernière migration
+docker compose exec postgres sh /db/tests/lancer.sh   # tester le schéma et les droits
+```
+
+| Table | Rôle |
+|---|---|
+| `fournisseurs`, `fournisseur_ribs` | Fournisseurs et historique de leurs RIB |
+| `factures`, `lignes_facture` | Factures et avoirs reçus, avec leurs lignes |
+| `resultats_controles` | Résultat de chaque règle de contrôle, par facture |
+| `releves_bancaires`, `lignes_releve` | Relevés bancaires importés |
+| `rapprochements` | Liens facture ↔ ligne de relevé |
+| `journal_audit` | Piste d'audit en ajout seul |
+| `config_fiscale` | Taux et montants fiscaux datés, avec leur source |
+
+n8n se connecte avec le rôle `mizan_app`, qui ne peut ni supprimer de données
+ni modifier le journal d'audit.
+
+## Glossary (English)
+
+| Français | English |
+|---|---|
+| facture / avoir | invoice / credit note |
+| fournisseur | supplier |
+| montant HT / TVA / TTC | net amount / VAT / gross amount |
+| droit de timbre | stamp duty |
+| matricule fiscal | tax identification number |
+| RIB (relevé d'identité bancaire) | bank account details |
+| relevé bancaire | bank statement |
+| rapprochement | reconciliation |
+| échéance | due date |
+| journal d'audit | audit trail |
 
 ## Architecture (étape 0)
 
