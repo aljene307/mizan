@@ -1,0 +1,32 @@
+{
+  "_source": "Réponse réelle de gemini-3.5-flash-lite (température 1.0, thinkingLevel low) au workflow test-gemini.json reconstruit, le 2026-10-05 : un zéro ajouté dans le RIB.",
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"type_document\": \"facture\", \"numero\": \"TEST-0001\", \"date_facture\": \"2026-03-01\", \"date_echeance\": \"2026-03-31\", \"devise\": \"TND\", \"fournisseur\": {\"raison_sociale\": \"Papeterie Exemple Test\", \"matricule_fiscal\": \"9900000K/A/M/000\", \"adresse\": null, \"rib\": \"990010000000000000165\"}, \"client\": {\"raison_sociale\": \"Société Démo Mizan SARL\", \"matricule_fiscal\": null}, \"lignes\": [{\"designation\": \"Ramette papier A4\", \"quantite\": 10.0, \"prix_unitaire_ht\": 12.5, \"taux_tva\": 19.0, \"montant_ht\": 125.0}], \"montant_ht\": 125.0, \"montant_tva\": 23.75, \"droit_timbre\": 1.0, \"montant_ttc\": 149.75, \"facture_origine_numero\": null}",
+            "thoughtSignature": "EmAKXgFpFH0TFclZHUN3lbfSRo1WPmzcR1ay7jPshSbe/cH+y7poB+Wv/yGjqZ05I6VdvRTkNMNYKBWnQNHpWprahyYiYR8dynQfPlrprG7wMcAW2NnPtQZ4q+QdzNvbYEg="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 884,
+    "candidatesTokenCount": 294,
+    "totalTokenCount": 1178,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 884
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "3xfEaq7gOZGGnsEP0cyMiAU"
+}

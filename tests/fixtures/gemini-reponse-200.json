@@ -1,0 +1,27 @@
+{
+  "_source": "Réponse réelle de gemini-3.5-flash-lite au workflow test-gemini.json, le 2026-10-05 (corps HTTP, sans les en-têtes).",
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"type_document\": \"facture\",\n  \"numero\": \"TEST-0001\",\n  \"date_facture\": \"2026-03-01\",\n  \"date_echeance\": \"2026-03-31\",\n  \"devise\": \"TND\",\n  \"fournisseur\": {\n    \"raison_sociale\": \"Papeterie Exemple Test\",\n    \"matricule_fiscal\": \"9900000K/A/M/000\",\n    \"adresse\": null,\n    \"rib\": \"990010000000000001\"\n  },\n  \"client\": {\n    \"raison_sociale\": \"Société Démo Mizan SARL\",\n    \"matricule_fiscal\": null\n  },\n  \"lignes\": [\n    {\n      \"designation\": \"Ramette papier A4\",\n      \"quantite\": 10.0,\n      \"prix_unitaire_ht\": 12.5,\n      \"taux_tva\": 19.0,\n      \"montant_ht\": 125.0\n    }\n  ],\n  \"montant_ht\": 125.0,\n  \"montant_tva\": 23.75,\n  \"droit_timbre\": 1.0,\n  \"montant_ttc\": 149.75,\n  \"facture_origine_numero\": null\n}",
+            "thoughtSignature": "EmAKXgFpFH0TugMTYlHDXu8TJ6UQuBuF1V2KabmpzqrJXRyVVGDnC1q3XFrTbTb/AN7IJlJOSBzbstCiljQmv2DU1T5qkWxdtMpUllYXhEEwVkdQvX7+Yi2lCLNKN35RKUk="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 882,
+    "candidatesTokenCount": 357,
+    "totalTokenCount": 1239,
+    "promptTokensDetails": [{ "modality": "TEXT", "tokenCount": 882 }],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "3hLEav_BIMzzvdIPxZ2auAs"
+}

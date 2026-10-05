@@ -18,6 +18,13 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 > **La précision mesurée est optimiste** et ne préjuge pas des performances
 > sur des factures réelles.
 
+> ⚠️ **Extraction par l'offre gratuite de Google Gemini : données synthétiques
+> uniquement.** Selon les conditions de l'API Gemini, l'offre gratuite peut
+> utiliser les contenus envoyés et les réponses pour améliorer les produits de
+> Google, et des relecteurs humains peuvent les lire. Elle convient aux
+> factures synthétiques de ce dépôt, **pas à de vraies factures**
+> ([conditions](https://ai.google.dev/gemini-api/terms), décision D-034).
+
 > ⚠️ **Paramètres fiscaux illustratifs.** Les taux et montants fiscaux de
 > `config_fiscale` (TVA, droit de timbre) sont donnés à titre d'illustration.
 > Plusieurs restent **à confirmer** sur les textes officiels consolidés (voir

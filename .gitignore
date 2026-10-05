@@ -14,3 +14,6 @@ Thumbs.db
 # Fichiers temporaires
 *.tmp
 *.log
+
+# Factures déposées pour le workflow de réception (copies de test)
+data/entrant/

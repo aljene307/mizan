@@ -30,6 +30,149 @@ COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiS
 
 
 --
+-- Name: enregistrer_extraction(jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.enregistrer_extraction(p jsonb) RETURNS bigint
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_facture   factures%ROWTYPE;
+    v_id        BIGINT;
+    v_resultat  TEXT := p ->> 'resultat';
+    v_donnees   JSONB := p -> 'donnees';
+    v_reussie   BOOLEAN := (p ->> 'resultat') IN ('valide', 'reutilisee');
+    v_methode   TEXT := p ->> 'methode_lecture';
+    v_alertes   JSONB := coalesce(p -> 'alertes_source', '[]'::jsonb);
+BEGIN
+    SELECT * INTO v_facture FROM factures WHERE id = (p ->> 'facture_id')::BIGINT FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'facture % introuvable', p ->> 'facture_id' USING ERRCODE = 'MZ002';
+    END IF;
+    IF v_facture.statut <> 'en_extraction' THEN
+        RAISE EXCEPTION 'facture % non réservée (statut %)', v_facture.id, v_facture.statut
+            USING ERRCODE = 'MZ003';
+    END IF;
+
+    INSERT INTO extractions (
+        facture_id, fichier_sha256, resultat, code_resultat, methode_lecture,
+        fournisseur_llm, modele, version_prompt, empreinte_prompt, parametres_generation,
+        duree_lecture_ms, duree_llm_ms, jetons_entree, jetons_sortie, jetons_reflexion, tentatives,
+        donnees, erreurs, verifications_source, alertes_source, reutilise_de, execution_n8n_id
+    ) VALUES (
+        v_facture.id, v_facture.fichier_sha256, v_resultat, p ->> 'code_resultat', v_methode,
+        p ->> 'fournisseur_llm', p ->> 'modele', p ->> 'version_prompt', p ->> 'empreinte_prompt',
+        p -> 'parametres_generation',
+        (p ->> 'duree_lecture_ms')::INTEGER, (p ->> 'duree_llm_ms')::INTEGER,
+        (p ->> 'jetons_entree')::INTEGER, (p ->> 'jetons_sortie')::INTEGER,
+        (p ->> 'jetons_reflexion')::INTEGER, (p ->> 'tentatives')::INTEGER,
+        v_donnees, coalesce(p -> 'erreurs', '[]'::jsonb),
+        coalesce(p -> 'verifications_source', '[]'::jsonb), v_alertes,
+        (p ->> 'reutilise_de')::BIGINT, p ->> 'execution_n8n_id'
+    ) RETURNING id INTO v_id;
+
+    IF v_reussie THEN
+        UPDATE factures SET
+            type_document       = v_donnees ->> 'type_document',
+            numero              = v_donnees ->> 'numero',
+            date_facture        = (v_donnees ->> 'date_facture')::DATE,
+            date_echeance       = (v_donnees ->> 'date_echeance')::DATE,
+            devise              = v_donnees ->> 'devise',
+            montant_ht          = (v_donnees ->> 'montant_ht')::NUMERIC,
+            montant_tva         = (v_donnees ->> 'montant_tva')::NUMERIC,
+            droit_timbre        = (v_donnees ->> 'droit_timbre')::NUMERIC,
+            montant_ttc         = (v_donnees ->> 'montant_ttc')::NUMERIC,
+            matricule_fiscal_lu = v_donnees #>> '{fournisseur,matricule_fiscal}',
+            raison_sociale_lue  = v_donnees #>> '{fournisseur,raison_sociale}',
+            rib_facture         = v_donnees #>> '{fournisseur,rib}',
+            methode_extraction  = CASE v_methode WHEN 'ocr' THEN 'ocr_llm' ELSE 'texte_llm' END,
+            extraction_brute    = v_donnees,
+            statut              = 'extraite',
+            reservee_le         = NULL
+        WHERE id = v_facture.id;
+
+        INSERT INTO lignes_facture (facture_id, numero_ligne, designation, quantite,
+                                    prix_unitaire_ht, taux_tva, montant_ht)
+        SELECT v_facture.id, l.rang::INTEGER, l.ligne ->> 'designation',
+               (l.ligne ->> 'quantite')::NUMERIC, (l.ligne ->> 'prix_unitaire_ht')::NUMERIC,
+               (l.ligne ->> 'taux_tva')::NUMERIC, (l.ligne ->> 'montant_ht')::NUMERIC
+        FROM jsonb_array_elements(v_donnees -> 'lignes') WITH ORDINALITY AS l (ligne, rang);
+    ELSE
+        UPDATE factures SET statut = 'erreur_extraction', reservee_le = NULL,
+                            extraction_brute = v_donnees
+        WHERE id = v_facture.id;
+    END IF;
+
+    INSERT INTO journal_audit (acteur, action, entite, entite_id, canal, donnees_avant, donnees_apres, execution_n8n_id)
+    VALUES (
+        'n8n:extraction',
+        CASE
+            WHEN v_resultat = 'valide' AND jsonb_array_length(v_alertes) > 0 THEN 'facture.extraite_avec_alertes'
+            WHEN v_resultat = 'valide' THEN 'facture.extraite'
+            WHEN v_resultat = 'reutilisee' THEN 'facture.extraction_reutilisee'
+            ELSE 'facture.erreur_extraction'
+        END,
+        'factures', v_facture.id::text, v_facture.canal_reception,
+        jsonb_build_object('statut', v_facture.statut),
+        jsonb_build_object('extraction_id', v_id, 'resultat', v_resultat,
+                           'code_resultat', p ->> 'code_resultat', 'modele', p ->> 'modele',
+                           'alertes_source', v_alertes),
+        p ->> 'execution_n8n_id'
+    );
+
+    RETURN v_id;
+END;
+$$;
+
+
+--
+-- Name: enregistrer_reception(text, text, text, text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.enregistrer_reception(p_canal text, p_reference text, p_format text, p_fichier_nom text, p_fichier_sha256 text, p_execution text DEFAULT NULL::text) RETURNS TABLE(facture_id bigint, nouvelle boolean)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_id BIGINT;
+BEGIN
+    INSERT INTO factures (canal_reception, reference_source, format_source, fichier_nom, fichier_sha256)
+    VALUES (p_canal, p_reference, p_format, p_fichier_nom, p_fichier_sha256)
+    ON CONFLICT (canal_reception, (coalesce(reference_source, fichier_nom)), fichier_sha256) DO NOTHING
+    RETURNING id INTO v_id;
+
+    IF v_id IS NOT NULL THEN
+        INSERT INTO journal_audit (acteur, action, entite, entite_id, canal, donnees_apres, execution_n8n_id)
+        VALUES ('n8n:reception', 'facture.recue', 'factures', v_id::text, p_canal,
+                jsonb_build_object('fichier_nom', p_fichier_nom, 'fichier_sha256', p_fichier_sha256,
+                                   'format_source', p_format),
+                p_execution);
+        RETURN QUERY SELECT v_id, TRUE;
+    ELSE
+        RETURN QUERY
+            SELECT f.id, FALSE FROM factures f
+            WHERE f.canal_reception = p_canal
+              AND coalesce(f.reference_source, f.fichier_nom) = coalesce(p_reference, p_fichier_nom)
+              AND f.fichier_sha256 = p_fichier_sha256;
+    END IF;
+END;
+$$;
+
+
+--
+-- Name: extraction_valide_existante(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.extraction_valide_existante(p_fichier_sha256 text) RETURNS TABLE(extraction_id bigint, donnees jsonb, methode_lecture text)
+    LANGUAGE sql STABLE
+    AS $$
+    SELECT e.id, e.donnees, e.methode_lecture FROM extractions e
+    WHERE e.fichier_sha256 = p_fichier_sha256 AND e.resultat = 'valide'
+    ORDER BY e.id DESC
+    LIMIT 1;
+$$;
+
+
+--
 -- Name: journal_audit_ajout_seul(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -58,6 +201,22 @@ $$;
 
 
 --
+-- Name: liberer_facture(bigint); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.liberer_facture(p_facture_id bigint) RETURNS boolean
+    LANGUAGE sql
+    AS $$
+    WITH liberee AS (
+        UPDATE factures SET statut = 'recue', reservee_le = NULL
+        WHERE id = p_facture_id AND statut = 'en_extraction'
+        RETURNING id
+    )
+    SELECT count(*) = 1 FROM liberee;
+$$;
+
+
+--
 -- Name: maj_modifie_le(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -78,6 +237,41 @@ $$;
 CREATE FUNCTION public.normaliser_numero_facture(numero text) RETURNS text
     LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
     RETURN upper(regexp_replace(numero, '[[:space:]]'::text, ''::text, 'g'::text));
+
+
+--
+-- Name: refuser_modification(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.refuser_modification() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    RAISE EXCEPTION '% est en ajout seul : % interdit', TG_TABLE_NAME, TG_OP
+        USING ERRCODE = 'MZ001';
+END;
+$$;
+
+
+--
+-- Name: reserver_facture_a_extraire(interval); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reserver_facture_a_extraire(p_delai_reprise interval DEFAULT '00:15:00'::interval) RETURNS TABLE(facture_id bigint, canal_reception text, reference_source text, fichier_nom text, fichier_sha256 character, format_source text)
+    LANGUAGE sql
+    AS $$
+    UPDATE factures f
+    SET statut = 'en_extraction', reservee_le = now()
+    WHERE f.id = (
+        SELECT c.id FROM factures c
+        WHERE c.statut = 'recue'
+           OR (c.statut = 'en_extraction' AND c.reservee_le < now() - p_delai_reprise)
+        ORDER BY c.id
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+    )
+    RETURNING f.id, f.canal_reception, f.reference_source, f.fichier_nom, f.fichier_sha256, f.format_source;
+$$;
 
 
 SET default_tablespace = '';
@@ -122,6 +316,60 @@ ALTER TABLE public.config_fiscale ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
 
 
 --
+-- Name: extractions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.extractions (
+    id bigint NOT NULL,
+    facture_id bigint NOT NULL,
+    fichier_sha256 character(64) NOT NULL,
+    resultat text NOT NULL,
+    code_resultat text NOT NULL,
+    methode_lecture text,
+    fournisseur_llm text,
+    modele text,
+    version_prompt text,
+    empreinte_prompt character(64),
+    duree_lecture_ms integer,
+    duree_llm_ms integer,
+    jetons_entree integer,
+    jetons_sortie integer,
+    tentatives integer,
+    donnees jsonb,
+    erreurs jsonb DEFAULT '[]'::jsonb NOT NULL,
+    reutilise_de bigint,
+    execution_n8n_id text,
+    cree_le timestamp with time zone DEFAULT now() NOT NULL,
+    parametres_generation jsonb,
+    jetons_reflexion integer,
+    verifications_source jsonb DEFAULT '[]'::jsonb NOT NULL,
+    alertes_source jsonb DEFAULT '[]'::jsonb NOT NULL,
+    CONSTRAINT extractions_code_ck CHECK ((code_resultat = ANY (ARRAY['ok'::text, 'reponse_illisible'::text, 'erreur_fournisseur'::text, 'quota_minute_epuise'::text, 'quota_journalier_epuise'::text, 'erreur_lecture'::text, 'erreur_ecriture'::text, 'reutilisation'::text]))),
+    CONSTRAINT extractions_donnees_ck CHECK (((resultat <> ALL (ARRAY['valide'::text, 'reutilisee'::text])) OR (donnees IS NOT NULL))),
+    CONSTRAINT extractions_mesures_ck CHECK (((COALESCE(duree_lecture_ms, 0) >= 0) AND (COALESCE(duree_llm_ms, 0) >= 0) AND (COALESCE(jetons_entree, 0) >= 0) AND (COALESCE(jetons_sortie, 0) >= 0) AND (COALESCE(tentatives, 0) >= 0))),
+    CONSTRAINT extractions_methode_ck CHECK ((methode_lecture = ANY (ARRAY['texte_pdf'::text, 'ocr'::text]))),
+    CONSTRAINT extractions_reflexion_ck CHECK ((COALESCE(jetons_reflexion, 0) >= 0)),
+    CONSTRAINT extractions_resultat_ck CHECK ((resultat = ANY (ARRAY['valide'::text, 'invalide'::text, 'erreur'::text, 'reutilisee'::text]))),
+    CONSTRAINT extractions_reutilisation_ck CHECK (((resultat = 'reutilisee'::text) = (reutilise_de IS NOT NULL))),
+    CONSTRAINT extractions_sha256_ck CHECK ((fichier_sha256 ~ '^[0-9a-f]{64}$'::text))
+);
+
+
+--
+-- Name: extractions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.extractions ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.extractions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: factures; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -151,15 +399,17 @@ CREATE TABLE public.factures (
     recue_le timestamp with time zone DEFAULT now() NOT NULL,
     cree_le timestamp with time zone DEFAULT now() NOT NULL,
     modifie_le timestamp with time zone DEFAULT now() NOT NULL,
+    reference_source text,
+    reservee_le timestamp with time zone,
     CONSTRAINT factures_approuvee_identifiee_ck CHECK (((statut <> ALL (ARRAY['conforme'::text, 'validee'::text])) OR ((fournisseur_id IS NOT NULL) AND (numero IS NOT NULL) AND (btrim(numero) <> ''::text)))),
     CONSTRAINT factures_canal_ck CHECK ((canal_reception = ANY (ARRAY['dossier'::text, 'email'::text, 'telegram'::text]))),
     CONSTRAINT factures_devise_ck CHECK ((devise ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT factures_format_ck CHECK ((format_source = ANY (ARRAY['pdf'::text, 'image'::text, 'xml'::text]))),
-    CONSTRAINT factures_methode_ck CHECK ((methode_extraction = ANY (ARRAY['ocr_llm'::text, 'xml'::text, 'manuelle'::text]))),
+    CONSTRAINT factures_methode_ck CHECK ((methode_extraction = ANY (ARRAY['texte_llm'::text, 'ocr_llm'::text, 'xml'::text, 'manuelle'::text]))),
     CONSTRAINT factures_montants_positifs_ck CHECK (((COALESCE(montant_ht, (0)::numeric) >= (0)::numeric) AND (COALESCE(montant_tva, (0)::numeric) >= (0)::numeric) AND (COALESCE(droit_timbre, (0)::numeric) >= (0)::numeric) AND (COALESCE(montant_ttc, (0)::numeric) >= (0)::numeric))),
     CONSTRAINT factures_origine_avoir_ck CHECK (((facture_origine_id IS NULL) OR (type_document = 'avoir'::text))),
     CONSTRAINT factures_sha256_ck CHECK ((fichier_sha256 ~ '^[0-9a-f]{64}$'::text)),
-    CONSTRAINT factures_statut_ck CHECK ((statut = ANY (ARRAY['recue'::text, 'extraite'::text, 'erreur_extraction'::text, 'conforme'::text, 'anomalie'::text, 'bloquee'::text, 'validee'::text, 'rejetee'::text]))),
+    CONSTRAINT factures_statut_ck CHECK ((statut = ANY (ARRAY['recue'::text, 'en_extraction'::text, 'extraite'::text, 'erreur_extraction'::text, 'conforme'::text, 'anomalie'::text, 'bloquee'::text, 'validee'::text, 'rejetee'::text]))),
     CONSTRAINT factures_type_document_ck CHECK ((type_document = ANY (ARRAY['facture'::text, 'avoir'::text])))
 );
 
@@ -476,6 +726,14 @@ ALTER TABLE ONLY public.config_fiscale
 
 
 --
+-- Name: extractions extractions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extractions
+    ADD CONSTRAINT extractions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: factures factures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -596,6 +854,27 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: extractions_facture_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX extractions_facture_ix ON public.extractions USING btree (facture_id);
+
+
+--
+-- Name: extractions_valides_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX extractions_valides_ix ON public.extractions USING btree (fichier_sha256, id DESC) WHERE (resultat = 'valide'::text);
+
+
+--
+-- Name: factures_a_extraire_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX factures_a_extraire_ix ON public.factures USING btree (id) WHERE (statut = ANY (ARRAY['recue'::text, 'en_extraction'::text]));
+
+
+--
 -- Name: factures_approuvees_uk; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -621,6 +900,13 @@ CREATE INDEX factures_doublon_numero_ix ON public.factures USING btree (fourniss
 --
 
 CREATE INDEX factures_fichier_sha256_ix ON public.factures USING btree (fichier_sha256);
+
+
+--
+-- Name: factures_reception_uk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX factures_reception_uk ON public.factures USING btree (canal_reception, COALESCE(reference_source, fichier_nom), fichier_sha256);
 
 
 --
@@ -687,6 +973,20 @@ CREATE INDEX resultats_controles_regle_ix ON public.resultats_controles USING bt
 
 
 --
+-- Name: extractions extractions_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER extractions_pas_de_modification BEFORE DELETE OR UPDATE ON public.extractions FOR EACH ROW EXECUTE FUNCTION public.refuser_modification();
+
+
+--
+-- Name: extractions extractions_pas_de_vidage; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER extractions_pas_de_vidage BEFORE TRUNCATE ON public.extractions FOR EACH STATEMENT EXECUTE FUNCTION public.refuser_modification();
+
+
+--
 -- Name: factures factures_maj_modifie_le; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -726,6 +1026,22 @@ CREATE TRIGGER journal_audit_pas_de_vidage BEFORE TRUNCATE ON public.journal_aud
 --
 
 CREATE TRIGGER rapprochements_maj_modifie_le BEFORE UPDATE ON public.rapprochements FOR EACH ROW EXECUTE FUNCTION public.maj_modifie_le();
+
+
+--
+-- Name: extractions extractions_facture_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extractions
+    ADD CONSTRAINT extractions_facture_id_fkey FOREIGN KEY (facture_id) REFERENCES public.factures(id);
+
+
+--
+-- Name: extractions extractions_reutilise_de_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.extractions
+    ADD CONSTRAINT extractions_reutilise_de_fkey FOREIGN KEY (reutilise_de) REFERENCES public.extractions(id);
 
 
 --
@@ -812,4 +1128,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261005120500'),
     ('20261005120600'),
     ('20261005120700'),
-    ('20261005120800');
+    ('20261005120800'),
+    ('20261005120900'),
+    ('20261005121000');

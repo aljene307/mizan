@@ -1,0 +1,1105 @@
+{
+  "name": "Mizan – Réception et extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000011",
+      "name": "Toutes les minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/entrant/*.{pdf,PDF,jpg,JPG,jpeg,JPEG,png,PNG}",
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000012",
+      "name": "Lister les fichiers reçus",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000013",
+              "leftValue": "={{ $json.fileName !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000014",
+      "name": "Fichier reçu ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "dataPropertyName": "sha256",
+        "encoding": "hex"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000015",
+      "name": "Empreinte SHA-256",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        660,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM enregistrer_reception($1, $2, $3, $4, $5, $6);",
+        "options": {
+          "queryReplacement": "={{ [ 'dossier', $json.fileName, String($json.fileExtension || '').toLowerCase() === 'pdf' ? 'pdf' : 'image', $json.fileName, $json.sha256, $execution.id ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000016",
+      "name": "Enregistrer la réception",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        -120
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Point de passage unique entre la réception et l'extraction.\nconst nouvelles = $input.all().filter((i) => i.json.nouvelle === true).length;\nreturn [{ json: { nouvelles_factures: nouvelles } }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000017",
+      "name": "Fin de la réception",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM reserver_facture_a_extraire();",
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000018",
+      "name": "Réserver une facture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1320,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM extraction_valide_existante($1);",
+        "options": {
+          "queryReplacement": "={{ [ $json.fichier_sha256 ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000019",
+      "name": "Extraction déjà faite ?",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1540,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000020",
+              "leftValue": "={{ !!$json.extraction_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000021",
+      "name": "Réutiliser l'extraction ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/extractionWorkflow.js\n// Logique des nœuds Code du workflow « Réception et extraction » (D-035 à\n// D-040, D-047). Les fonctions des autres modules sont reçues en paramètre\n// (« deps ») : ce fichier n'importe rien et peut être recopié dans un nœud\n// Code (D-041).\n\n// En dessous de ce nombre de lettres et de chiffres, le texte d'un PDF est\n// jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.\nconst SEUIL_CARACTERES_PDF = 50;\n\n/** Vrai si le texte contient assez de lettres et de chiffres. */\nfunction texteSuffisant(texte) {\n  return (String(texte ?? '').match(/[\\p{L}\\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;\n}\n\n/**\n * Texte à envoyer au LLM, depuis la sortie du nœud Extract From File (« text »)\n * ou du nœud HTTP vers l'OCR (« body.texte »).\n * @returns {{texte: string, methode_lecture: 'texte_pdf'|'ocr', duree_lecture_ms: number|null, version_prompt: string}}\n */\nfunction texteAExtraire(entree, versionPrompt) {\n  if (typeof entree?.body?.texte === 'string') {\n    return { texte: entree.body.texte, methode_lecture: 'ocr', duree_lecture_ms: entree.body.duree_ms ?? null, version_prompt: versionPrompt };\n  }\n  if (typeof entree?.text === 'string') {\n    return { texte: entree.text, methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: versionPrompt };\n  }\n  throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\\'OCR)');\n}\n\n/** Dernière version enregistrée dans le registre des prompts. */\nfunction derniereVersionPrompt(registre) {\n  const versions = Object.keys(registre);\n  if (!versions.length) throw new Error('registre des prompts vide');\n  return versions[versions.length - 1];\n}\n\n/**\n * Enregistrement d'une extraction faite par le LLM : validation du schéma\n * strict, puis contrôle des identifiants dans le texte source.\n * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}\n */\nfunction payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {\n  if (contrat.code_resultat === 'quota_journalier_epuise') {\n    return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };\n  }\n  const base = {\n    facture_id: reservation.facture_id,\n    code_resultat: contrat.code_resultat,\n    methode_lecture: lecture.methode_lecture,\n    duree_lecture_ms: lecture.duree_lecture_ms,\n    fournisseur_llm: contrat.fournisseur_llm,\n    modele: contrat.modele,\n    version_prompt: contrat.version_prompt,\n    empreinte_prompt: contrat.empreinte_prompt,\n    parametres_generation: contrat.parametres_generation,\n    duree_llm_ms: contrat.duree_ms,\n    jetons_entree: contrat.jetons_entree,\n    jetons_sortie: contrat.jetons_sortie,\n    jetons_reflexion: contrat.jetons_reflexion,\n    tentatives: contrat.tentatives,\n    execution_n8n_id: executionId,\n  };\n  if (contrat.code_resultat !== 'ok') {\n    return {\n      arret_quota: false, appel_llm: true, message: contrat.message_erreur,\n      payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },\n    };\n  }\n  const validation = deps.validerExtraction(schema, contrat.donnees);\n  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];\n  return {\n    arret_quota: false, appel_llm: true, message: null,\n    payload: {\n      ...base,\n      resultat: validation.valide ? 'valide' : 'invalide',\n      donnees: contrat.donnees,\n      erreurs: validation.erreurs,\n      verifications_source: verifications,\n      alertes_source: deps.alertesSource(verifications),\n    },\n  };\n}\n\n/** Réutilisation d'une extraction valide du même fichier (aucun appel au LLM). */\nfunction payloadReutilisation(reservation, existante, executionId) {\n  return {\n    arret_quota: false, appel_llm: false, message: null,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'reutilisee',\n      code_resultat: 'reutilisation',\n      reutilise_de: existante.extraction_id,\n      methode_lecture: existante.methode_lecture,\n      donnees: existante.donnees,\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */\nfunction payloadEchec(reservation, code, message, executionId, appelLlm) {\n  return {\n    arret_quota: false, appel_llm: appelLlm, message,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'erreur',\n      code_resultat: code,\n      donnees: null,\n      erreurs: [message],\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Message lisible depuis un item de la sortie d'erreur d'un nœud n8n. */\nfunction messageErreur(item) {\n  const e = item?.error ?? item;\n  return String(e?.message ?? e?.description ?? (typeof e === 'string' ? e : JSON.stringify(e ?? 'erreur inconnue'))).slice(0, 1000);\n}\n// >>>\n\n// Même fichier déjà extrait : aucun appel au LLM (D-035, point 2).\nreturn [{ json: payloadReutilisation($('Réserver une facture').last().json, $input.first().json, $execution.id) }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000022",
+      "name": "Préparer la réutilisation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ '/data/entrant/' + $('Réserver une facture').last().json.fichier_nom }}",
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000023",
+      "name": "Lire le fichier réservé",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        100
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000024",
+              "leftValue": "={{ $json.fileName !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000025",
+      "name": "Fichier trouvé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000026",
+              "leftValue": "={{ $('Réserver une facture').last().json.format_source === 'pdf' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000027",
+      "name": "PDF ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2420,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000028",
+      "name": "Lire le texte du PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        -60
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/extractionWorkflow.js\n// Logique des nœuds Code du workflow « Réception et extraction » (D-035 à\n// D-040, D-047). Les fonctions des autres modules sont reçues en paramètre\n// (« deps ») : ce fichier n'importe rien et peut être recopié dans un nœud\n// Code (D-041).\n\n// En dessous de ce nombre de lettres et de chiffres, le texte d'un PDF est\n// jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.\nconst SEUIL_CARACTERES_PDF = 50;\n\n/** Vrai si le texte contient assez de lettres et de chiffres. */\nfunction texteSuffisant(texte) {\n  return (String(texte ?? '').match(/[\\p{L}\\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;\n}\n\n/**\n * Texte à envoyer au LLM, depuis la sortie du nœud Extract From File (« text »)\n * ou du nœud HTTP vers l'OCR (« body.texte »).\n * @returns {{texte: string, methode_lecture: 'texte_pdf'|'ocr', duree_lecture_ms: number|null, version_prompt: string}}\n */\nfunction texteAExtraire(entree, versionPrompt) {\n  if (typeof entree?.body?.texte === 'string') {\n    return { texte: entree.body.texte, methode_lecture: 'ocr', duree_lecture_ms: entree.body.duree_ms ?? null, version_prompt: versionPrompt };\n  }\n  if (typeof entree?.text === 'string') {\n    return { texte: entree.text, methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: versionPrompt };\n  }\n  throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\\'OCR)');\n}\n\n/** Dernière version enregistrée dans le registre des prompts. */\nfunction derniereVersionPrompt(registre) {\n  const versions = Object.keys(registre);\n  if (!versions.length) throw new Error('registre des prompts vide');\n  return versions[versions.length - 1];\n}\n\n/**\n * Enregistrement d'une extraction faite par le LLM : validation du schéma\n * strict, puis contrôle des identifiants dans le texte source.\n * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}\n */\nfunction payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {\n  if (contrat.code_resultat === 'quota_journalier_epuise') {\n    return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };\n  }\n  const base = {\n    facture_id: reservation.facture_id,\n    code_resultat: contrat.code_resultat,\n    methode_lecture: lecture.methode_lecture,\n    duree_lecture_ms: lecture.duree_lecture_ms,\n    fournisseur_llm: contrat.fournisseur_llm,\n    modele: contrat.modele,\n    version_prompt: contrat.version_prompt,\n    empreinte_prompt: contrat.empreinte_prompt,\n    parametres_generation: contrat.parametres_generation,\n    duree_llm_ms: contrat.duree_ms,\n    jetons_entree: contrat.jetons_entree,\n    jetons_sortie: contrat.jetons_sortie,\n    jetons_reflexion: contrat.jetons_reflexion,\n    tentatives: contrat.tentatives,\n    execution_n8n_id: executionId,\n  };\n  if (contrat.code_resultat !== 'ok') {\n    return {\n      arret_quota: false, appel_llm: true, message: contrat.message_erreur,\n      payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },\n    };\n  }\n  const validation = deps.validerExtraction(schema, contrat.donnees);\n  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];\n  return {\n    arret_quota: false, appel_llm: true, message: null,\n    payload: {\n      ...base,\n      resultat: validation.valide ? 'valide' : 'invalide',\n      donnees: contrat.donnees,\n      erreurs: validation.erreurs,\n      verifications_source: verifications,\n      alertes_source: deps.alertesSource(verifications),\n    },\n  };\n}\n\n/** Réutilisation d'une extraction valide du même fichier (aucun appel au LLM). */\nfunction payloadReutilisation(reservation, existante, executionId) {\n  return {\n    arret_quota: false, appel_llm: false, message: null,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'reutilisee',\n      code_resultat: 'reutilisation',\n      reutilise_de: existante.extraction_id,\n      methode_lecture: existante.methode_lecture,\n      donnees: existante.donnees,\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */\nfunction payloadEchec(reservation, code, message, executionId, appelLlm) {\n  return {\n    arret_quota: false, appel_llm: appelLlm, message,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'erreur',\n      code_resultat: code,\n      donnees: null,\n      erreurs: [message],\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Message lisible depuis un item de la sortie d'erreur d'un nœud n8n. */\nfunction messageErreur(item) {\n  const e = item?.error ?? item;\n  return String(e?.message ?? e?.description ?? (typeof e === 'string' ? e : JSON.stringify(e ?? 'erreur inconnue'))).slice(0, 1000);\n}\n// >>>\n\n// Un PDF scanné n'a pas (ou presque pas) de texte : il passera par l'OCR.\nreturn $input.all().map((i) => ({ json: { ...i.json, texte_suffisant: texteSuffisant(i.json.text) } }));\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000029",
+      "name": "Évaluer le texte du PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000030",
+              "leftValue": "={{ $json.texte_suffisant === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000031",
+      "name": "Texte PDF exploitable ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3080,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ '/data/entrant/' + $('Réserver une facture').last().json.fichier_nom }}",
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000032",
+      "name": "Relire le fichier pour l'OCR",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        3300,
+        60
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ocr:8884/ocr",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "={{ $binary.data.mimeType }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000033",
+      "name": "OCR (Tesseract)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        3520,
+        160
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/extractionWorkflow.js\n// Logique des nœuds Code du workflow « Réception et extraction » (D-035 à\n// D-040, D-047). Les fonctions des autres modules sont reçues en paramètre\n// (« deps ») : ce fichier n'importe rien et peut être recopié dans un nœud\n// Code (D-041).\n\n// En dessous de ce nombre de lettres et de chiffres, le texte d'un PDF est\n// jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.\nconst SEUIL_CARACTERES_PDF = 50;\n\n/** Vrai si le texte contient assez de lettres et de chiffres. */\nfunction texteSuffisant(texte) {\n  return (String(texte ?? '').match(/[\\p{L}\\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;\n}\n\n/**\n * Texte à envoyer au LLM, depuis la sortie du nœud Extract From File (« text »)\n * ou du nœud HTTP vers l'OCR (« body.texte »).\n * @returns {{texte: string, methode_lecture: 'texte_pdf'|'ocr', duree_lecture_ms: number|null, version_prompt: string}}\n */\nfunction texteAExtraire(entree, versionPrompt) {\n  if (typeof entree?.body?.texte === 'string') {\n    return { texte: entree.body.texte, methode_lecture: 'ocr', duree_lecture_ms: entree.body.duree_ms ?? null, version_prompt: versionPrompt };\n  }\n  if (typeof entree?.text === 'string') {\n    return { texte: entree.text, methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: versionPrompt };\n  }\n  throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\\'OCR)');\n}\n\n/** Dernière version enregistrée dans le registre des prompts. */\nfunction derniereVersionPrompt(registre) {\n  const versions = Object.keys(registre);\n  if (!versions.length) throw new Error('registre des prompts vide');\n  return versions[versions.length - 1];\n}\n\n/**\n * Enregistrement d'une extraction faite par le LLM : validation du schéma\n * strict, puis contrôle des identifiants dans le texte source.\n * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}\n */\nfunction payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {\n  if (contrat.code_resultat === 'quota_journalier_epuise') {\n    return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };\n  }\n  const base = {\n    facture_id: reservation.facture_id,\n    code_resultat: contrat.code_resultat,\n    methode_lecture: lecture.methode_lecture,\n    duree_lecture_ms: lecture.duree_lecture_ms,\n    fournisseur_llm: contrat.fournisseur_llm,\n    modele: contrat.modele,\n    version_prompt: contrat.version_prompt,\n    empreinte_prompt: contrat.empreinte_prompt,\n    parametres_generation: contrat.parametres_generation,\n    duree_llm_ms: contrat.duree_ms,\n    jetons_entree: contrat.jetons_entree,\n    jetons_sortie: contrat.jetons_sortie,\n    jetons_reflexion: contrat.jetons_reflexion,\n    tentatives: contrat.tentatives,\n    execution_n8n_id: executionId,\n  };\n  if (contrat.code_resultat !== 'ok') {\n    return {\n      arret_quota: false, appel_llm: true, message: contrat.message_erreur,\n      payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },\n    };\n  }\n  const validation = deps.validerExtraction(schema, contrat.donnees);\n  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];\n  return {\n    arret_quota: false, appel_llm: true, message: null,\n    payload: {\n      ...base,\n      resultat: validation.valide ? 'valide' : 'invalide',\n      donnees: contrat.donnees,\n      erreurs: validation.erreurs,\n      verifications_source: verifications,\n      alertes_source: deps.alertesSource(verifications),\n    },\n  };\n}\n\n/** Réutilisation d'une extraction valide du même fichier (aucun appel au LLM). */\nfunction payloadReutilisation(reservation, existante, executionId) {\n  return {\n    arret_quota: false, appel_llm: false, message: null,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'reutilisee',\n      code_resultat: 'reutilisation',\n      reutilise_de: existante.extraction_id,\n      methode_lecture: existante.methode_lecture,\n      donnees: existante.donnees,\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */\nfunction payloadEchec(reservation, code, message, executionId, appelLlm) {\n  return {\n    arret_quota: false, appel_llm: appelLlm, message,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'erreur',\n      code_resultat: code,\n      donnees: null,\n      erreurs: [message],\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Message lisible depuis un item de la sortie d'erreur d'un nœud n8n. */\nfunction messageErreur(item) {\n  const e = item?.error ?? item;\n  return String(e?.message ?? e?.description ?? (typeof e === 'string' ? e : JSON.stringify(e ?? 'erreur inconnue'))).slice(0, 1000);\n}\n// >>>\n// <<< src/prompts-versions.json as VERSIONS_PROMPT\nconst VERSIONS_PROMPT = {\n  \"v1\": \"4efd7bb81469588fd91c42b399b9fbfea351ea41b40d066284300f4f81153909\"\n};\n// >>>\n\n// Texte du PDF ou de l'OCR, et version du prompt à utiliser (la plus récente).\nreturn [{ json: texteAExtraire($input.first().json, derniereVersionPrompt(VERSIONS_PROMPT)) }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000034",
+      "name": "Texte à extraire",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000035",
+      "name": "Extraction LLM (sous-workflow)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3960,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/extractionWorkflow.js\n// Logique des nœuds Code du workflow « Réception et extraction » (D-035 à\n// D-040, D-047). Les fonctions des autres modules sont reçues en paramètre\n// (« deps ») : ce fichier n'importe rien et peut être recopié dans un nœud\n// Code (D-041).\n\n// En dessous de ce nombre de lettres et de chiffres, le texte d'un PDF est\n// jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.\nconst SEUIL_CARACTERES_PDF = 50;\n\n/** Vrai si le texte contient assez de lettres et de chiffres. */\nfunction texteSuffisant(texte) {\n  return (String(texte ?? '').match(/[\\p{L}\\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;\n}\n\n/**\n * Texte à envoyer au LLM, depuis la sortie du nœud Extract From File (« text »)\n * ou du nœud HTTP vers l'OCR (« body.texte »).\n * @returns {{texte: string, methode_lecture: 'texte_pdf'|'ocr', duree_lecture_ms: number|null, version_prompt: string}}\n */\nfunction texteAExtraire(entree, versionPrompt) {\n  if (typeof entree?.body?.texte === 'string') {\n    return { texte: entree.body.texte, methode_lecture: 'ocr', duree_lecture_ms: entree.body.duree_ms ?? null, version_prompt: versionPrompt };\n  }\n  if (typeof entree?.text === 'string') {\n    return { texte: entree.text, methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: versionPrompt };\n  }\n  throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\\'OCR)');\n}\n\n/** Dernière version enregistrée dans le registre des prompts. */\nfunction derniereVersionPrompt(registre) {\n  const versions = Object.keys(registre);\n  if (!versions.length) throw new Error('registre des prompts vide');\n  return versions[versions.length - 1];\n}\n\n/**\n * Enregistrement d'une extraction faite par le LLM : validation du schéma\n * strict, puis contrôle des identifiants dans le texte source.\n * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}\n */\nfunction payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {\n  if (contrat.code_resultat === 'quota_journalier_epuise') {\n    return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };\n  }\n  const base = {\n    facture_id: reservation.facture_id,\n    code_resultat: contrat.code_resultat,\n    methode_lecture: lecture.methode_lecture,\n    duree_lecture_ms: lecture.duree_lecture_ms,\n    fournisseur_llm: contrat.fournisseur_llm,\n    modele: contrat.modele,\n    version_prompt: contrat.version_prompt,\n    empreinte_prompt: contrat.empreinte_prompt,\n    parametres_generation: contrat.parametres_generation,\n    duree_llm_ms: contrat.duree_ms,\n    jetons_entree: contrat.jetons_entree,\n    jetons_sortie: contrat.jetons_sortie,\n    jetons_reflexion: contrat.jetons_reflexion,\n    tentatives: contrat.tentatives,\n    execution_n8n_id: executionId,\n  };\n  if (contrat.code_resultat !== 'ok') {\n    return {\n      arret_quota: false, appel_llm: true, message: contrat.message_erreur,\n      payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },\n    };\n  }\n  const validation = deps.validerExtraction(schema, contrat.donnees);\n  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];\n  return {\n    arret_quota: false, appel_llm: true, message: null,\n    payload: {\n      ...base,\n      resultat: validation.valide ? 'valide' : 'invalide',\n      donnees: contrat.donnees,\n      erreurs: validation.erreurs,\n      verifications_source: verifications,\n      alertes_source: deps.alertesSource(verifications),\n    },\n  };\n}\n\n/** Réutilisation d'une extraction valide du même fichier (aucun appel au LLM). */\nfunction payloadReutilisation(reservation, existante, executionId) {\n  return {\n    arret_quota: false, appel_llm: false, message: null,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'reutilisee',\n      code_resultat: 'reutilisation',\n      reutilise_de: existante.extraction_id,\n      methode_lecture: existante.methode_lecture,\n      donnees: existante.donnees,\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */\nfunction payloadEchec(reservation, code, message, executionId, appelLlm) {\n  return {\n    arret_quota: false, appel_llm: appelLlm, message,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'erreur',\n      code_resultat: code,\n      donnees: null,\n      erreurs: [message],\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Message lisible depuis un item de la sortie d'erreur d'un nœud n8n. */\nfunction messageErreur(item) {\n  const e = item?.error ?? item;\n  return String(e?.message ?? e?.description ?? (typeof e === 'string' ? e : JSON.stringify(e ?? 'erreur inconnue'))).slice(0, 1000);\n}\n// >>>\n// <<< src/validationExtraction.js\n// Validation d'une extraction, sans dépendance : ce fichier est recopié tel\n// quel dans un nœud Code de n8n, qui ne peut pas importer de module (D-041).\n// 1. validerSchema : interprète le sous-ensemble de JSON Schema (2020-12)\n//    utilisé par src/schemas/extraction-facture.schema.json. Un mot-clé\n//    inconnu lève une erreur au lieu d'être ignoré en silence.\n// 2. verifierCompatibiliteBase : contrôles que le schéma ne peut pas exprimer\n//    mais qu'exigent les colonnes PostgreSQL (décimales, ordres de grandeur).\n\nconst MOTS_CLES_ANNOTATION = new Set(['$schema', '$id', 'title', 'description']);\nconst MOTS_CLES_GERES = new Set([\n  'type', 'enum', 'pattern', 'minLength', 'format', 'properties', 'required',\n  'additionalProperties', 'items', 'minItems', 'minimum', 'maximum', 'exclusiveMinimum',\n]);\n\nfunction typeJson(valeur) {\n  if (valeur === null) return 'null';\n  if (Array.isArray(valeur)) return 'array';\n  if (typeof valeur === 'number') return Number.isInteger(valeur) ? 'integer' : 'number';\n  return typeof valeur;\n}\n\nfunction correspondAuType(valeur, attendu) {\n  const reel = typeJson(valeur);\n  if (attendu === 'number') return reel === 'number' || reel === 'integer';\n  return reel === attendu;\n}\n\n// Date calendaire réelle au format AAAA-MM-JJ (comme le format « date » d'ajv-formats).\nfunction estDateValide(texte) {\n  const m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(texte);\n  if (!m) return false;\n  const annee = Number(m[1]);\n  const mois = Number(m[2]);\n  const jour = Number(m[3]);\n  if (mois < 1 || mois > 12 || jour < 1) return false;\n  const bissextile = (annee % 4 === 0 && annee % 100 !== 0) || annee % 400 === 0;\n  const joursParMois = [31, bissextile ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];\n  return jour <= joursParMois[mois - 1];\n}\n\n/**\n * Valide une valeur contre un schéma ; renvoie la liste des erreurs (vide si valide).\n * @param {object} schema\n * @param {unknown} valeur\n * @param {string} [chemin]\n * @returns {string[]}\n */\nfunction validerSchema(schema, valeur, chemin = '') {\n  for (const cle of Object.keys(schema)) {\n    if (!MOTS_CLES_GERES.has(cle) && !MOTS_CLES_ANNOTATION.has(cle)) {\n      throw new Error(`mot-clé de schéma non pris en charge : ${cle} (${chemin || '/'})`);\n    }\n  }\n  const ici = chemin || '/';\n  const erreurs = [];\n\n  if (schema.type !== undefined) {\n    const types = Array.isArray(schema.type) ? schema.type : [schema.type];\n    if (!types.some((t) => correspondAuType(valeur, t))) {\n      return [`${ici} doit être de type ${types.join(' ou ')}`];\n    }\n  }\n  if (schema.enum !== undefined && !schema.enum.some((v) => v === valeur)) {\n    erreurs.push(`${ici} doit valoir ${schema.enum.join(', ')}`);\n  }\n\n  if (typeof valeur === 'string') {\n    if (schema.minLength !== undefined && [...valeur].length < schema.minLength) {\n      erreurs.push(`${ici} doit contenir au moins ${schema.minLength} caractère(s)`);\n    }\n    if (schema.pattern !== undefined && !new RegExp(schema.pattern, 'u').test(valeur)) {\n      erreurs.push(`${ici} ne respecte pas le motif ${schema.pattern}`);\n    }\n    if (schema.format !== undefined) {\n      if (schema.format !== 'date') throw new Error(`format non pris en charge : ${schema.format}`);\n      if (!estDateValide(valeur)) erreurs.push(`${ici} doit être une date AAAA-MM-JJ valide`);\n    }\n  }\n\n  if (typeof valeur === 'number') {\n    if (schema.minimum !== undefined && valeur < schema.minimum) erreurs.push(`${ici} doit être ≥ ${schema.minimum}`);\n    if (schema.maximum !== undefined && valeur > schema.maximum) erreurs.push(`${ici} doit être ≤ ${schema.maximum}`);\n    if (schema.exclusiveMinimum !== undefined && valeur <= schema.exclusiveMinimum) {\n      erreurs.push(`${ici} doit être > ${schema.exclusiveMinimum}`);\n    }\n  }\n\n  if (Array.isArray(valeur)) {\n    if (schema.minItems !== undefined && valeur.length < schema.minItems) {\n      erreurs.push(`${ici} doit contenir au moins ${schema.minItems} élément(s)`);\n    }\n    if (schema.items !== undefined) {\n      valeur.forEach((element, i) => erreurs.push(...validerSchema(schema.items, element, `${chemin}/${i}`)));\n    }\n  }\n\n  if (typeJson(valeur) === 'object') {\n    const proprietes = schema.properties ?? {};\n    for (const requise of schema.required ?? []) {\n      if (!Object.hasOwn(valeur, requise)) erreurs.push(`${ici} doit contenir la propriété « ${requise} »`);\n    }\n    for (const [cle, sousValeur] of Object.entries(valeur)) {\n      if (Object.hasOwn(proprietes, cle)) {\n        erreurs.push(...validerSchema(proprietes[cle], sousValeur, `${chemin}/${cle}`));\n      } else if (schema.additionalProperties === false) {\n        erreurs.push(`${ici} contient une propriété non prévue : « ${cle} »`);\n      }\n    }\n  }\n  return erreurs;\n}\n\n// Nombre de décimales d'un nombre JSON (null si notation exponentielle).\nfunction nombreDecimales(nombre) {\n  const texte = String(nombre);\n  if (/e/i.test(texte)) return null;\n  const point = texte.indexOf('.');\n  return point === -1 ? 0 : texte.length - point - 1;\n}\n\n/**\n * Contrôles imposés par les colonnes PostgreSQL : NUMERIC(15,3) pour les\n * montants, NUMERIC(18,6) pour quantités et prix, NUMERIC(7,4) pour les taux.\n * À n'appeler que sur une extraction conforme au schéma.\n * @param {object} donnees\n * @returns {string[]}\n */\nfunction verifierCompatibiliteBase(donnees) {\n  const erreurs = [];\n  const verifier = (valeur, chemin, decimalesMax, limite) => {\n    if (valeur === null || valeur === undefined) return;\n    const decimales = nombreDecimales(valeur);\n    if (decimales === null || decimales > decimalesMax) {\n      erreurs.push(`${chemin} a plus de ${decimalesMax} décimales`);\n    }\n    if (Math.abs(valeur) >= limite) erreurs.push(`${chemin} dépasse la capacité de la colonne`);\n  };\n  for (const champ of ['montant_ht', 'montant_tva', 'droit_timbre', 'montant_ttc']) {\n    verifier(donnees[champ], `/${champ}`, 3, 1e12);\n  }\n  (donnees.lignes ?? []).forEach((ligne, i) => {\n    verifier(ligne.quantite, `/lignes/${i}/quantite`, 6, 1e12);\n    verifier(ligne.prix_unitaire_ht, `/lignes/${i}/prix_unitaire_ht`, 6, 1e12);\n    verifier(ligne.taux_tva, `/lignes/${i}/taux_tva`, 4, 1e3);\n    verifier(ligne.montant_ht, `/lignes/${i}/montant_ht`, 3, 1e12);\n  });\n  return erreurs;\n}\n\n/**\n * Validation complète : schéma strict, puis compatibilité avec la base.\n * @param {object} schema\n * @param {unknown} donnees\n * @returns {{valide: boolean, erreurs: string[]}}\n */\nfunction validerExtraction(schema, donnees) {\n  const erreursSchema = validerSchema(schema, donnees);\n  const erreurs = erreursSchema.length ? erreursSchema : verifierCompatibiliteBase(donnees);\n  return { valide: erreurs.length === 0, erreurs };\n}\n// >>>\n// <<< src/verificationSource.js\n// Contrôle déterministe (D-047) : chaque identifiant extrait doit figurer tel\n// quel dans le texte source (texte du PDF ou texte reconnu par l'OCR). Un\n// identifiant absent signale une extraction suspecte : valeur inventée,\n// modifiée, ou reprise d'une consigne injectée.\n// Recopié dans un nœud Code (D-041) : aucun import.\n\n// L'identifiant doit apparaître EN ENTIER : des espaces sont tolérés entre\n// ses caractères (le texte peut couper un identifiant sur plusieurs blocs) ;\n// pour le RIB, aussi des points et des tirets, car le prompt demande les\n// chiffres sans séparateurs. Il ne doit être ni précédé ni suivi d'une lettre\n// ou d'un chiffre : un identifiant tronqué n'est pas accepté. Sensible à la casse.\nconst ESPACES = '\\\\s*';\nconst SEPARATEURS_RIB = '[\\\\s.\\\\-]*';\n\n// Frontières. Texte (numéro, matricule) : seul le caractère immédiatement\n// voisin compte — une lettre, un chiffre, ou un caractère de liaison (- / . _)\n// collé à une lettre ou un chiffre prolongerait l'identifiant (« FA-2026 »\n// dans « FA-2026-0157 »). On ne saute pas les espaces : le mot suivant d'une\n// phrase n'est pas la suite de l'identifiant.\n// RIB (chiffres) : aucun chiffre ne doit le prolonger, même au-delà des\n// séparateurs (un RIB de 18 chiffres suivi de « 65 » n'est pas le RIB imprimé).\nconst FRONTIERES_TEXTE = {\n  avant: '(?<![\\\\p{L}\\\\p{N}]|[\\\\p{L}\\\\p{N}][\\\\-/._])',\n  apres: '(?![\\\\p{L}\\\\p{N}]|[\\\\-/._][\\\\p{L}\\\\p{N}])',\n};\nconst FRONTIERES_RIB = {\n  avant: '(?<!\\\\p{N}[\\\\s.\\\\-]*)',\n  apres: '(?![\\\\s.\\\\-]*\\\\p{N})',\n};\n\nconst IDENTIFIANTS = [\n  { champ: 'numero', lire: (d) => d.numero, entre: ESPACES, frontieres: FRONTIERES_TEXTE },\n  { champ: 'fournisseur.matricule_fiscal', lire: (d) => d.fournisseur?.matricule_fiscal, entre: ESPACES, frontieres: FRONTIERES_TEXTE },\n  { champ: 'fournisseur.rib', lire: (d) => d.fournisseur?.rib, entre: SEPARATEURS_RIB, frontieres: FRONTIERES_RIB },\n  { champ: 'client.matricule_fiscal', lire: (d) => d.client?.matricule_fiscal, entre: ESPACES, frontieres: FRONTIERES_TEXTE },\n  { champ: 'facture_origine_numero', lire: (d) => d.facture_origine_numero, entre: ESPACES, frontieres: FRONTIERES_TEXTE },\n];\n\nconst echapperRegex = (c) => c.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n\n// Expression qui reconnaît la valeur entière, séparateurs tolérés entre ses\n// caractères, encadrée par les frontières du champ.\nfunction motif(valeur, entre, frontieres) {\n  const caracteres = [...String(valeur).replace(/\\s+/g, '')].map(echapperRegex);\n  return new RegExp(`${frontieres.avant}${caracteres.join(entre)}${frontieres.apres}`, 'u');\n}\n\n/**\n * @param {object} donnees extraction conforme au schéma\n * @param {string} texteSource texte transmis au LLM\n * @returns {{champ: string, valeur: string, present: boolean}[]} identifiants non nuls vérifiés\n */\nfunction verifierIdentifiantsDansSource(donnees, texteSource) {\n  const resultats = [];\n  for (const { champ, lire, entre, frontieres } of IDENTIFIANTS) {\n    const valeur = lire(donnees ?? {});\n    if (valeur === null || valeur === undefined || String(valeur).trim() === '') continue;\n    resultats.push({ champ, valeur: String(valeur), present: motif(valeur, entre, frontieres).test(String(texteSource ?? '')) });\n  }\n  return resultats;\n}\n\n/**\n * Identifiants absents du texte source (alertes à enregistrer).\n * @returns {string[]}\n */\nfunction alertesSource(verifications) {\n  return verifications.filter((v) => !v.present).map((v) => `${v.champ} « ${v.valeur} » absent du texte source`);\n}\n// >>>\n// <<< src/schemas/extraction-facture.schema.json as SCHEMA_EXTRACTION\nconst SCHEMA_EXTRACTION = {\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://mizan.example/schemas/extraction-facture.schema.json\",\n  \"title\": \"Extraction d'une facture ou d'un avoir fournisseur\",\n  \"description\": \"Champs lus sur le document, tels qu'imprimés (même s'ils sont faux). Tous les champs sont obligatoires ; une information absente vaut null. Montants en nombres décimaux, dans la devise du document.\",\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"required\": [\n    \"type_document\",\n    \"numero\",\n    \"date_facture\",\n    \"date_echeance\",\n    \"devise\",\n    \"fournisseur\",\n    \"client\",\n    \"lignes\",\n    \"montant_ht\",\n    \"montant_tva\",\n    \"droit_timbre\",\n    \"montant_ttc\",\n    \"facture_origine_numero\"\n  ],\n  \"properties\": {\n    \"type_document\": {\n      \"enum\": [\n        \"facture\",\n        \"avoir\"\n      ]\n    },\n    \"numero\": {\n      \"type\": \"string\",\n      \"minLength\": 1\n    },\n    \"date_facture\": {\n      \"type\": \"string\",\n      \"format\": \"date\"\n    },\n    \"date_echeance\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ],\n      \"format\": \"date\"\n    },\n    \"devise\": {\n      \"type\": \"string\",\n      \"pattern\": \"^[A-Z]{3}$\"\n    },\n    \"fournisseur\": {\n      \"type\": \"object\",\n      \"additionalProperties\": false,\n      \"required\": [\n        \"raison_sociale\",\n        \"matricule_fiscal\",\n        \"adresse\",\n        \"rib\"\n      ],\n      \"properties\": {\n        \"raison_sociale\": {\n          \"type\": \"string\",\n          \"minLength\": 1\n        },\n        \"matricule_fiscal\": {\n          \"type\": [\n            \"string\",\n            \"null\"\n          ]\n        },\n        \"adresse\": {\n          \"type\": [\n            \"string\",\n            \"null\"\n          ]\n        },\n        \"rib\": {\n          \"type\": [\n            \"string\",\n            \"null\"\n          ]\n        }\n      }\n    },\n    \"client\": {\n      \"type\": \"object\",\n      \"additionalProperties\": false,\n      \"required\": [\n        \"raison_sociale\",\n        \"matricule_fiscal\"\n      ],\n      \"properties\": {\n        \"raison_sociale\": {\n          \"type\": \"string\",\n          \"minLength\": 1\n        },\n        \"matricule_fiscal\": {\n          \"type\": [\n            \"string\",\n            \"null\"\n          ]\n        }\n      }\n    },\n    \"lignes\": {\n      \"type\": \"array\",\n      \"minItems\": 1,\n      \"items\": {\n        \"type\": \"object\",\n        \"additionalProperties\": false,\n        \"required\": [\n          \"designation\",\n          \"quantite\",\n          \"prix_unitaire_ht\",\n          \"taux_tva\",\n          \"montant_ht\"\n        ],\n        \"properties\": {\n          \"designation\": {\n            \"type\": \"string\",\n            \"minLength\": 1\n          },\n          \"quantite\": {\n            \"type\": \"number\",\n            \"exclusiveMinimum\": 0\n          },\n          \"prix_unitaire_ht\": {\n            \"type\": \"number\",\n            \"minimum\": 0\n          },\n          \"taux_tva\": {\n            \"type\": \"number\",\n            \"minimum\": 0,\n            \"maximum\": 100\n          },\n          \"montant_ht\": {\n            \"type\": \"number\",\n            \"minimum\": 0\n          }\n        }\n      }\n    },\n    \"montant_ht\": {\n      \"type\": \"number\",\n      \"minimum\": 0\n    },\n    \"montant_tva\": {\n      \"type\": \"number\",\n      \"minimum\": 0\n    },\n    \"droit_timbre\": {\n      \"type\": [\n        \"number\",\n        \"null\"\n      ],\n      \"minimum\": 0\n    },\n    \"montant_ttc\": {\n      \"type\": \"number\",\n      \"minimum\": 0\n    },\n    \"facture_origine_numero\": {\n      \"type\": [\n        \"string\",\n        \"null\"\n      ]\n    }\n  }\n};\n// >>>\n\n// Schéma strict (hors LLM), puis identifiants présents dans le texte source (D-047).\nconst resultat = payloadExtraction({\n  reservation: $('Réserver une facture').last().json,\n  lecture: $('Texte à extraire').last().json,\n  contrat: $input.first().json,\n  schema: SCHEMA_EXTRACTION,\n  executionId: $execution.id,\n}, { validerExtraction, verifierIdentifiantsDansSource, alertesSource });\nreturn [{ json: resultat }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000036",
+      "name": "Valider et vérifier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4180,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000037",
+              "leftValue": "={{ $json.arret_quota === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000038",
+      "name": "Quota journalier épuisé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4400,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH liberation AS (SELECT liberer_facture($1::bigint) AS liberee)\nINSERT INTO journal_audit (acteur, action, entite, entite_id, donnees_apres, execution_n8n_id)\nSELECT 'n8n:extraction', 'extraction.quota_journalier_epuise', 'factures', $2,\n       jsonb_build_object('liberee', liberation.liberee, 'message', $3::text), $4\nFROM liberation RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [ $('Réserver une facture').last().json.facture_id, String($('Réserver une facture').last().json.facture_id), $json.message, $execution.id ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000039",
+      "name": "Libérer la facture et arrêter",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4620,
+        -200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/extractionWorkflow.js\n// Logique des nœuds Code du workflow « Réception et extraction » (D-035 à\n// D-040, D-047). Les fonctions des autres modules sont reçues en paramètre\n// (« deps ») : ce fichier n'importe rien et peut être recopié dans un nœud\n// Code (D-041).\n\n// En dessous de ce nombre de lettres et de chiffres, le texte d'un PDF est\n// jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.\nconst SEUIL_CARACTERES_PDF = 50;\n\n/** Vrai si le texte contient assez de lettres et de chiffres. */\nfunction texteSuffisant(texte) {\n  return (String(texte ?? '').match(/[\\p{L}\\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;\n}\n\n/**\n * Texte à envoyer au LLM, depuis la sortie du nœud Extract From File (« text »)\n * ou du nœud HTTP vers l'OCR (« body.texte »).\n * @returns {{texte: string, methode_lecture: 'texte_pdf'|'ocr', duree_lecture_ms: number|null, version_prompt: string}}\n */\nfunction texteAExtraire(entree, versionPrompt) {\n  if (typeof entree?.body?.texte === 'string') {\n    return { texte: entree.body.texte, methode_lecture: 'ocr', duree_lecture_ms: entree.body.duree_ms ?? null, version_prompt: versionPrompt };\n  }\n  if (typeof entree?.text === 'string') {\n    return { texte: entree.text, methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: versionPrompt };\n  }\n  throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\\'OCR)');\n}\n\n/** Dernière version enregistrée dans le registre des prompts. */\nfunction derniereVersionPrompt(registre) {\n  const versions = Object.keys(registre);\n  if (!versions.length) throw new Error('registre des prompts vide');\n  return versions[versions.length - 1];\n}\n\n/**\n * Enregistrement d'une extraction faite par le LLM : validation du schéma\n * strict, puis contrôle des identifiants dans le texte source.\n * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}\n */\nfunction payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {\n  if (contrat.code_resultat === 'quota_journalier_epuise') {\n    return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };\n  }\n  const base = {\n    facture_id: reservation.facture_id,\n    code_resultat: contrat.code_resultat,\n    methode_lecture: lecture.methode_lecture,\n    duree_lecture_ms: lecture.duree_lecture_ms,\n    fournisseur_llm: contrat.fournisseur_llm,\n    modele: contrat.modele,\n    version_prompt: contrat.version_prompt,\n    empreinte_prompt: contrat.empreinte_prompt,\n    parametres_generation: contrat.parametres_generation,\n    duree_llm_ms: contrat.duree_ms,\n    jetons_entree: contrat.jetons_entree,\n    jetons_sortie: contrat.jetons_sortie,\n    jetons_reflexion: contrat.jetons_reflexion,\n    tentatives: contrat.tentatives,\n    execution_n8n_id: executionId,\n  };\n  if (contrat.code_resultat !== 'ok') {\n    return {\n      arret_quota: false, appel_llm: true, message: contrat.message_erreur,\n      payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },\n    };\n  }\n  const validation = deps.validerExtraction(schema, contrat.donnees);\n  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];\n  return {\n    arret_quota: false, appel_llm: true, message: null,\n    payload: {\n      ...base,\n      resultat: validation.valide ? 'valide' : 'invalide',\n      donnees: contrat.donnees,\n      erreurs: validation.erreurs,\n      verifications_source: verifications,\n      alertes_source: deps.alertesSource(verifications),\n    },\n  };\n}\n\n/** Réutilisation d'une extraction valide du même fichier (aucun appel au LLM). */\nfunction payloadReutilisation(reservation, existante, executionId) {\n  return {\n    arret_quota: false, appel_llm: false, message: null,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'reutilisee',\n      code_resultat: 'reutilisation',\n      reutilise_de: existante.extraction_id,\n      methode_lecture: existante.methode_lecture,\n      donnees: existante.donnees,\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */\nfunction payloadEchec(reservation, code, message, executionId, appelLlm) {\n  return {\n    arret_quota: false, appel_llm: appelLlm, message,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'erreur',\n      code_resultat: code,\n      donnees: null,\n      erreurs: [message],\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Message lisible depuis un item de la sortie d'erreur d'un nœud n8n. */\nfunction messageErreur(item) {\n  const e = item?.error ?? item;\n  return String(e?.message ?? e?.description ?? (typeof e === 'string' ? e : JSON.stringify(e ?? 'erreur inconnue'))).slice(0, 1000);\n}\n// >>>\n\nreturn [{ json: payloadEchec($('Réserver une facture').last().json, 'erreur_fournisseur', messageErreur($input.first().json), $execution.id, true) }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000040",
+      "name": "Échec du sous-workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4180,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/extractionWorkflow.js\n// Logique des nœuds Code du workflow « Réception et extraction » (D-035 à\n// D-040, D-047). Les fonctions des autres modules sont reçues en paramètre\n// (« deps ») : ce fichier n'importe rien et peut être recopié dans un nœud\n// Code (D-041).\n\n// En dessous de ce nombre de lettres et de chiffres, le texte d'un PDF est\n// jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.\nconst SEUIL_CARACTERES_PDF = 50;\n\n/** Vrai si le texte contient assez de lettres et de chiffres. */\nfunction texteSuffisant(texte) {\n  return (String(texte ?? '').match(/[\\p{L}\\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;\n}\n\n/**\n * Texte à envoyer au LLM, depuis la sortie du nœud Extract From File (« text »)\n * ou du nœud HTTP vers l'OCR (« body.texte »).\n * @returns {{texte: string, methode_lecture: 'texte_pdf'|'ocr', duree_lecture_ms: number|null, version_prompt: string}}\n */\nfunction texteAExtraire(entree, versionPrompt) {\n  if (typeof entree?.body?.texte === 'string') {\n    return { texte: entree.body.texte, methode_lecture: 'ocr', duree_lecture_ms: entree.body.duree_ms ?? null, version_prompt: versionPrompt };\n  }\n  if (typeof entree?.text === 'string') {\n    return { texte: entree.text, methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: versionPrompt };\n  }\n  throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\\'OCR)');\n}\n\n/** Dernière version enregistrée dans le registre des prompts. */\nfunction derniereVersionPrompt(registre) {\n  const versions = Object.keys(registre);\n  if (!versions.length) throw new Error('registre des prompts vide');\n  return versions[versions.length - 1];\n}\n\n/**\n * Enregistrement d'une extraction faite par le LLM : validation du schéma\n * strict, puis contrôle des identifiants dans le texte source.\n * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}\n */\nfunction payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {\n  if (contrat.code_resultat === 'quota_journalier_epuise') {\n    return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };\n  }\n  const base = {\n    facture_id: reservation.facture_id,\n    code_resultat: contrat.code_resultat,\n    methode_lecture: lecture.methode_lecture,\n    duree_lecture_ms: lecture.duree_lecture_ms,\n    fournisseur_llm: contrat.fournisseur_llm,\n    modele: contrat.modele,\n    version_prompt: contrat.version_prompt,\n    empreinte_prompt: contrat.empreinte_prompt,\n    parametres_generation: contrat.parametres_generation,\n    duree_llm_ms: contrat.duree_ms,\n    jetons_entree: contrat.jetons_entree,\n    jetons_sortie: contrat.jetons_sortie,\n    jetons_reflexion: contrat.jetons_reflexion,\n    tentatives: contrat.tentatives,\n    execution_n8n_id: executionId,\n  };\n  if (contrat.code_resultat !== 'ok') {\n    return {\n      arret_quota: false, appel_llm: true, message: contrat.message_erreur,\n      payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },\n    };\n  }\n  const validation = deps.validerExtraction(schema, contrat.donnees);\n  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];\n  return {\n    arret_quota: false, appel_llm: true, message: null,\n    payload: {\n      ...base,\n      resultat: validation.valide ? 'valide' : 'invalide',\n      donnees: contrat.donnees,\n      erreurs: validation.erreurs,\n      verifications_source: verifications,\n      alertes_source: deps.alertesSource(verifications),\n    },\n  };\n}\n\n/** Réutilisation d'une extraction valide du même fichier (aucun appel au LLM). */\nfunction payloadReutilisation(reservation, existante, executionId) {\n  return {\n    arret_quota: false, appel_llm: false, message: null,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'reutilisee',\n      code_resultat: 'reutilisation',\n      reutilise_de: existante.extraction_id,\n      methode_lecture: existante.methode_lecture,\n      donnees: existante.donnees,\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */\nfunction payloadEchec(reservation, code, message, executionId, appelLlm) {\n  return {\n    arret_quota: false, appel_llm: appelLlm, message,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'erreur',\n      code_resultat: code,\n      donnees: null,\n      erreurs: [message],\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Message lisible depuis un item de la sortie d'erreur d'un nœud n8n. */\nfunction messageErreur(item) {\n  const e = item?.error ?? item;\n  return String(e?.message ?? e?.description ?? (typeof e === 'string' ? e : JSON.stringify(e ?? 'erreur inconnue'))).slice(0, 1000);\n}\n// >>>\n\n// Fichier introuvable ou illisible, PDF illisible, OCR indisponible.\nconst item = $input.first().json;\nconst message = item.fileName === undefined && !item.error ? 'fichier introuvable dans /data/entrant' : messageErreur(item);\nreturn [{ json: payloadEchec($('Réserver une facture').last().json, 'erreur_lecture', message, $execution.id, false) }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000041",
+      "name": "Échec de lecture",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Point de passage unique avant l'écriture en base.\nreturn $input.all();\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000042",
+      "name": "Enregistrement à faire",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT enregistrer_extraction($1::jsonb) AS extraction_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.payload ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000043",
+      "name": "Enregistrer l'extraction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5060,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/extractionWorkflow.js\n// Logique des nœuds Code du workflow « Réception et extraction » (D-035 à\n// D-040, D-047). Les fonctions des autres modules sont reçues en paramètre\n// (« deps ») : ce fichier n'importe rien et peut être recopié dans un nœud\n// Code (D-041).\n\n// En dessous de ce nombre de lettres et de chiffres, le texte d'un PDF est\n// jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.\nconst SEUIL_CARACTERES_PDF = 50;\n\n/** Vrai si le texte contient assez de lettres et de chiffres. */\nfunction texteSuffisant(texte) {\n  return (String(texte ?? '').match(/[\\p{L}\\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;\n}\n\n/**\n * Texte à envoyer au LLM, depuis la sortie du nœud Extract From File (« text »)\n * ou du nœud HTTP vers l'OCR (« body.texte »).\n * @returns {{texte: string, methode_lecture: 'texte_pdf'|'ocr', duree_lecture_ms: number|null, version_prompt: string}}\n */\nfunction texteAExtraire(entree, versionPrompt) {\n  if (typeof entree?.body?.texte === 'string') {\n    return { texte: entree.body.texte, methode_lecture: 'ocr', duree_lecture_ms: entree.body.duree_ms ?? null, version_prompt: versionPrompt };\n  }\n  if (typeof entree?.text === 'string') {\n    return { texte: entree.text, methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: versionPrompt };\n  }\n  throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\\'OCR)');\n}\n\n/** Dernière version enregistrée dans le registre des prompts. */\nfunction derniereVersionPrompt(registre) {\n  const versions = Object.keys(registre);\n  if (!versions.length) throw new Error('registre des prompts vide');\n  return versions[versions.length - 1];\n}\n\n/**\n * Enregistrement d'une extraction faite par le LLM : validation du schéma\n * strict, puis contrôle des identifiants dans le texte source.\n * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}\n */\nfunction payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {\n  if (contrat.code_resultat === 'quota_journalier_epuise') {\n    return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };\n  }\n  const base = {\n    facture_id: reservation.facture_id,\n    code_resultat: contrat.code_resultat,\n    methode_lecture: lecture.methode_lecture,\n    duree_lecture_ms: lecture.duree_lecture_ms,\n    fournisseur_llm: contrat.fournisseur_llm,\n    modele: contrat.modele,\n    version_prompt: contrat.version_prompt,\n    empreinte_prompt: contrat.empreinte_prompt,\n    parametres_generation: contrat.parametres_generation,\n    duree_llm_ms: contrat.duree_ms,\n    jetons_entree: contrat.jetons_entree,\n    jetons_sortie: contrat.jetons_sortie,\n    jetons_reflexion: contrat.jetons_reflexion,\n    tentatives: contrat.tentatives,\n    execution_n8n_id: executionId,\n  };\n  if (contrat.code_resultat !== 'ok') {\n    return {\n      arret_quota: false, appel_llm: true, message: contrat.message_erreur,\n      payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },\n    };\n  }\n  const validation = deps.validerExtraction(schema, contrat.donnees);\n  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];\n  return {\n    arret_quota: false, appel_llm: true, message: null,\n    payload: {\n      ...base,\n      resultat: validation.valide ? 'valide' : 'invalide',\n      donnees: contrat.donnees,\n      erreurs: validation.erreurs,\n      verifications_source: verifications,\n      alertes_source: deps.alertesSource(verifications),\n    },\n  };\n}\n\n/** Réutilisation d'une extraction valide du même fichier (aucun appel au LLM). */\nfunction payloadReutilisation(reservation, existante, executionId) {\n  return {\n    arret_quota: false, appel_llm: false, message: null,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'reutilisee',\n      code_resultat: 'reutilisation',\n      reutilise_de: existante.extraction_id,\n      methode_lecture: existante.methode_lecture,\n      donnees: existante.donnees,\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */\nfunction payloadEchec(reservation, code, message, executionId, appelLlm) {\n  return {\n    arret_quota: false, appel_llm: appelLlm, message,\n    payload: {\n      facture_id: reservation.facture_id,\n      resultat: 'erreur',\n      code_resultat: code,\n      donnees: null,\n      erreurs: [message],\n      execution_n8n_id: executionId,\n    },\n  };\n}\n\n/** Message lisible depuis un item de la sortie d'erreur d'un nœud n8n. */\nfunction messageErreur(item) {\n  const e = item?.error ?? item;\n  return String(e?.message ?? e?.description ?? (typeof e === 'string' ? e : JSON.stringify(e ?? 'erreur inconnue'))).slice(0, 1000);\n}\n// >>>\n\nconst appelLlm = $('Enregistrement à faire').last().json.appel_llm === true;\nreturn [{ json: payloadEchec($('Réserver une facture').last().json, 'erreur_ecriture', messageErreur($input.first().json), $execution.id, appelLlm) }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000044",
+      "name": "Échec d'écriture",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5280,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT enregistrer_extraction($1::jsonb) AS extraction_id;",
+        "options": {
+          "queryReplacement": "={{ [ $json.payload ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000045",
+      "name": "Enregistrer l'échec d'écriture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5500,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000046",
+              "leftValue": "={{ $('Enregistrement à faire').last().json.appel_llm === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000047",
+      "name": "Pause après un appel au LLM ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 7,
+        "unit": "seconds"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000049",
+      "name": "Pause de 7 secondes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5940,
+        -100
+      ],
+      "webhookId": "3a170000-0000-4000-8000-000000000048"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "connections": {
+    "Toutes les minutes": {
+      "main": [
+        [
+          {
+            "node": "Lister les fichiers reçus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lister les fichiers reçus": {
+      "main": [
+        [
+          {
+            "node": "Fichier reçu ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fichier reçu ?": {
+      "main": [
+        [
+          {
+            "node": "Empreinte SHA-256",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fin de la réception",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empreinte SHA-256": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer la réception",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enregistrer la réception": {
+      "main": [
+        [
+          {
+            "node": "Fin de la réception",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fin de la réception": {
+      "main": [
+        [
+          {
+            "node": "Réserver une facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réserver une facture": {
+      "main": [
+        [
+          {
+            "node": "Extraction déjà faite ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraction déjà faite ?": {
+      "main": [
+        [
+          {
+            "node": "Réutiliser l'extraction ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réutiliser l'extraction ?": {
+      "main": [
+        [
+          {
+            "node": "Préparer la réutilisation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lire le fichier réservé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer la réutilisation": {
+      "main": [
+        [
+          {
+            "node": "Enregistrement à faire",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire le fichier réservé": {
+      "main": [
+        [
+          {
+            "node": "Fichier trouvé ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Échec de lecture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fichier trouvé ?": {
+      "main": [
+        [
+          {
+            "node": "PDF ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Échec de lecture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF ?": {
+      "main": [
+        [
+          {
+            "node": "Lire le texte du PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OCR (Tesseract)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire le texte du PDF": {
+      "main": [
+        [
+          {
+            "node": "Évaluer le texte du PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Échec de lecture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Évaluer le texte du PDF": {
+      "main": [
+        [
+          {
+            "node": "Texte PDF exploitable ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texte PDF exploitable ?": {
+      "main": [
+        [
+          {
+            "node": "Texte à extraire",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Relire le fichier pour l'OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relire le fichier pour l'OCR": {
+      "main": [
+        [
+          {
+            "node": "OCR (Tesseract)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Échec de lecture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR (Tesseract)": {
+      "main": [
+        [
+          {
+            "node": "Texte à extraire",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Échec de lecture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texte à extraire": {
+      "main": [
+        [
+          {
+            "node": "Extraction LLM (sous-workflow)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraction LLM (sous-workflow)": {
+      "main": [
+        [
+          {
+            "node": "Valider et vérifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Échec du sous-workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valider et vérifier": {
+      "main": [
+        [
+          {
+            "node": "Quota journalier épuisé ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quota journalier épuisé ?": {
+      "main": [
+        [
+          {
+            "node": "Libérer la facture et arrêter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enregistrement à faire",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Échec du sous-workflow": {
+      "main": [
+        [
+          {
+            "node": "Enregistrement à faire",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Échec de lecture": {
+      "main": [
+        [
+          {
+            "node": "Enregistrement à faire",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enregistrement à faire": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer l'extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enregistrer l'extraction": {
+      "main": [
+        [
+          {
+            "node": "Pause après un appel au LLM ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Échec d'écriture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Échec d'écriture": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer l'échec d'écriture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enregistrer l'échec d'écriture": {
+      "main": [
+        [
+          {
+            "node": "Pause après un appel au LLM ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pause après un appel au LLM ?": {
+      "main": [
+        [
+          {
+            "node": "Pause de 7 secondes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Réserver une facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pause de 7 secondes": {
+      "main": [
+        [
+          {
+            "node": "Réserver une facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

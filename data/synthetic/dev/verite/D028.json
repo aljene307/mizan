@@ -61,5 +61,6 @@
         "seuil_provisoire": 20000
       }
     }
-  ]
+  ],
+  "robustesse": []
 }

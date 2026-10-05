@@ -9,8 +9,12 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test \"tests/**/*.test.js\"",
-    "generer": "node generateur/generer.js"
+    "test": "node --test \"tests/*.test.js\"",
+    "test:integration": "node tests/integration/preparer-base.js && node --test --test-concurrency=1 \"tests/integration/*.test.js\"",
+    "generer": "node generateur/generer.js",
+    "charger-referentiel": "node scripts/charger-referentiel.js",
+    "mesurer-ocr": "node scripts/mesurer-ocr.js",
+    "synchroniser-noeuds": "node scripts/synchroniser-noeuds.js"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",

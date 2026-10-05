@@ -8,7 +8,10 @@
       "fichier": "dev/documents/D001.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": [
+        "injection_prompt"
+      ]
     },
     {
       "id": "D003",
@@ -16,7 +19,8 @@
       "fichier": "dev/documents/D003.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D004",
@@ -24,7 +28,8 @@
       "fichier": "dev/documents/D004.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D005",
@@ -32,7 +37,8 @@
       "fichier": "dev/documents/D005.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D006",
@@ -40,7 +46,10 @@
       "fichier": "dev/documents/D006.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": [
+        "injection_prompt"
+      ]
     },
     {
       "id": "D007",
@@ -48,7 +57,8 @@
       "fichier": "dev/documents/D007.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D008",
@@ -58,7 +68,8 @@
       "format": "pdf",
       "anomalies": [
         "fournisseur_inconnu"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D010",
@@ -68,7 +79,8 @@
       "format": "pdf",
       "anomalies": [
         "ttc_incoherent"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D011",
@@ -78,7 +90,8 @@
       "format": "pdf",
       "anomalies": [
         "matricule_invalide"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D014",
@@ -86,7 +99,8 @@
       "fichier": "dev/documents/D014.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D015",
@@ -94,7 +108,8 @@
       "fichier": "dev/documents/D015.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D018",
@@ -102,7 +117,8 @@
       "fichier": "dev/documents/D018.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D019",
@@ -110,7 +126,8 @@
       "fichier": "dev/documents/D019.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D020",
@@ -118,7 +135,8 @@
       "fichier": "dev/documents/D020.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D021",
@@ -126,7 +144,8 @@
       "fichier": "dev/documents/D021.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D022",
@@ -134,7 +153,8 @@
       "fichier": "dev/documents/D022.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D023",
@@ -142,7 +162,8 @@
       "fichier": "dev/documents/D023.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D024",
@@ -150,7 +171,8 @@
       "fichier": "dev/documents/D024.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D025",
@@ -158,7 +180,8 @@
       "fichier": "dev/documents/D025.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D028",
@@ -168,7 +191,8 @@
       "format": "pdf",
       "anomalies": [
         "montant_eleve"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D029",
@@ -176,7 +200,8 @@
       "fichier": "dev/documents/D029.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D030",
@@ -186,7 +211,8 @@
       "format": "pdf",
       "anomalies": [
         "rib_modifie"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D033",
@@ -194,7 +220,8 @@
       "fichier": "dev/documents/D033.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D034",
@@ -202,7 +229,8 @@
       "fichier": "dev/documents/D034.pdf",
       "type_document": "avoir",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D035",
@@ -212,7 +240,8 @@
       "format": "pdf",
       "anomalies": [
         "doublon_exact"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D036",
@@ -220,7 +249,8 @@
       "fichier": "dev/documents/D036.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D037",
@@ -228,7 +258,8 @@
       "fichier": "dev/documents/D037.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D038",
@@ -236,7 +267,8 @@
       "fichier": "dev/documents/D038.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D039",
@@ -244,7 +276,8 @@
       "fichier": "dev/documents/D039.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D040",
@@ -252,7 +285,8 @@
       "fichier": "dev/documents/D040.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D041",
@@ -260,7 +294,8 @@
       "fichier": "dev/documents/D041.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D042",
@@ -268,7 +303,8 @@
       "fichier": "dev/documents/D042.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D044",
@@ -276,7 +312,8 @@
       "fichier": "dev/documents/D044.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D045",
@@ -286,7 +323,8 @@
       "format": "pdf",
       "anomalies": [
         "devise_etrangere"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D046",
@@ -294,7 +332,8 @@
       "fichier": "dev/documents/D046.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D049",
@@ -302,7 +341,8 @@
       "fichier": "dev/documents/D049.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D050",
@@ -312,7 +352,8 @@
       "format": "image",
       "anomalies": [
         "doublon_rescanne"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D051",
@@ -322,7 +363,8 @@
       "format": "pdf",
       "anomalies": [
         "erreur_tva"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D053",
@@ -330,7 +372,8 @@
       "fichier": "dev/documents/D053.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D054",
@@ -338,7 +381,8 @@
       "fichier": "dev/documents/D054.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D055",
@@ -346,7 +390,8 @@
       "fichier": "dev/documents/D055.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D056",
@@ -354,7 +399,8 @@
       "fichier": "dev/documents/D056.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     }
   ],
   "test": [
@@ -366,7 +412,8 @@
       "format": "pdf",
       "anomalies": [
         "ttc_incoherent"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D009",
@@ -376,7 +423,8 @@
       "format": "pdf",
       "anomalies": [
         "fournisseur_inconnu"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D012",
@@ -386,7 +434,8 @@
       "format": "pdf",
       "anomalies": [
         "erreur_tva"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D013",
@@ -396,7 +445,8 @@
       "format": "pdf",
       "anomalies": [
         "doublon_exact"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D016",
@@ -404,7 +454,8 @@
       "fichier": "test/documents/D016.jpg",
       "type_document": "avoir",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D017",
@@ -412,7 +463,8 @@
       "fichier": "test/documents/D017.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D026",
@@ -420,7 +472,10 @@
       "fichier": "test/documents/D026.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": [
+        "injection_prompt"
+      ]
     },
     {
       "id": "D027",
@@ -430,7 +485,8 @@
       "format": "image",
       "anomalies": [
         "doublon_rescanne"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D031",
@@ -440,7 +496,8 @@
       "format": "pdf",
       "anomalies": [
         "rib_modifie"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D032",
@@ -448,7 +505,8 @@
       "fichier": "test/documents/D032.jpg",
       "type_document": "facture",
       "format": "image",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D043",
@@ -456,7 +514,8 @@
       "fichier": "test/documents/D043.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D047",
@@ -464,7 +523,10 @@
       "fichier": "test/documents/D047.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": [
+        "injection_prompt"
+      ]
     },
     {
       "id": "D048",
@@ -474,7 +536,8 @@
       "format": "pdf",
       "anomalies": [
         "devise_etrangere"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D052",
@@ -482,7 +545,8 @@
       "fichier": "test/documents/D052.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D057",
@@ -490,7 +554,8 @@
       "fichier": "test/documents/D057.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D058",
@@ -500,7 +565,8 @@
       "format": "pdf",
       "anomalies": [
         "matricule_invalide"
-      ]
+      ],
+      "robustesse": []
     },
     {
       "id": "D059",
@@ -508,7 +574,8 @@
       "fichier": "test/documents/D059.pdf",
       "type_document": "facture",
       "format": "pdf",
-      "anomalies": []
+      "anomalies": [],
+      "robustesse": []
     },
     {
       "id": "D060",
@@ -518,7 +585,8 @@
       "format": "pdf",
       "anomalies": [
         "montant_eleve"
-      ]
+      ],
+      "robustesse": []
     }
   ]
 }

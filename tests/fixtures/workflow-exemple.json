@@ -1,0 +1,17 @@
+{
+  "name": "Exemple de test (synchronisation)",
+  "nodes": [
+    {
+      "name": "Valider",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// <<< src/schemas/extraction-facture.schema.json as SCHEMA_EXTRACTION\nconst SCHEMA_EXTRACTION = {};\n// >>>\n// <<< src/validationExtraction.js\nfunction validerExtraction() { return { valide: true, erreurs: [] }; }\n// >>>\nconst resultat = validerExtraction(SCHEMA_EXTRACTION, $json.donnees);\nreturn [{ json: resultat }];\n"
+      }
+    },
+    {
+      "name": "Autre nœud",
+      "type": "n8n-nodes-base.set",
+      "parameters": {}
+    }
+  ]
+}

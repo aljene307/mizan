@@ -126,3 +126,84 @@ auteur et dates conservés), puis poussé avec `--force-with-lease`.
 **Vérifié (étape 2) :** 40 tests Node passent ; deux générations successives
 donnent les 126 mêmes fichiers, octet par octet ; inspection visuelle des 4
 mises en page et de 2 scans (lot dev uniquement).
+
+## Étape 3 — Réception et extraction (en cours, 2026-10-05)
+
+**Décisions :** D-032 (OCR Tesseract, images seulement), D-033 (Gemini en
+offre gratuite, modèle fixé d'après les quotas réels, seuil de 100 requêtes
+par jour), D-034 (offre gratuite réservée aux données synthétiques), D-035
+(débit limité et reprise sur 429, pas de second appel pour une même
+empreinte, traçabilité de chaque extraction).
+
+**Points relevés pendant la préparation**
+- n8n 2.x désactive par défaut le nœud *Local File Trigger* (`NODES_EXCLUDE`)
+  et restreint l'accès aux fichiers (`N8N_RESTRICT_FILE_ACCESS_TO`).
+- Les quotas Gemini s'appliquent par projet Google, pas par clé, et le quota
+  journalier repart à zéro à minuit, heure du Pacifique.
+- Décisions complémentaires : D-036 (Gemini 3.5 Flash-Lite, pause de 7 s),
+  D-037 (conception validée), D-038 (pas de double traitement), D-039
+  (sous-workflow LLM au contrat stable), D-040 (gestion des erreurs, arrêt
+  propre si le quota journalier est épuisé), D-041 (code des nœuds Code
+  généré depuis `src/` et vérifié par un test).
+
+**Fait (première partie)**
+- Migration n° 10 : statut `en_extraction`, référence de la source,
+  contrainte d'unicité de la réception, table `extractions` en ajout seul,
+  fonctions `enregistrer_reception`, `reserver_facture_a_extraire`
+  (`FOR UPDATE SKIP LOCKED`), `liberer_facture`,
+  `extraction_valide_existante`, `enregistrer_extraction` (atomique).
+  Annulation et réapplication vérifiées.
+- 38 tests SQL de plus (89 au total), dont 34 exécutés par `mizan_app`.
+- 3 tests d'intégration de concurrence sur une base dédiée `mizan_test`,
+  recréée à chaque exécution (`npm run test:integration`).
+- `src/validationExtraction.js` : validateur sans dépendance, même verdict
+  qu'ajv sur les 42 vérités terrain du lot dev, 29 mutations ciblées et 500
+  mutations aléatoires ; un validateur volontairement saboté est détecté.
+
+**Problèmes rencontrés**
+- Un test SQL mal écrit (colonne `montant_ht` ambiguë entre deux tables) :
+  erreur du test, pas de la fonction ; corrigé.
+- Le test de concurrence exige des données réellement validées en base :
+  il tourne sur une base de test séparée pour ne jamais toucher `mizan`.
+
+**Fait (deuxième partie)**
+- Prompt v1 (`src/promptExtraction.js`) : instructions et document séparés,
+  document balisé comme donnée non fiable, balises neutralisées, empreinte
+  enregistrée (D-042). Schéma simplifié pour Gemini (`src/schemaFournisseur.js`).
+- Service OCR (`ocr/`) : Tesseract 5.5.0, psm 3 choisi sur les 11 scans du
+  lot dev (D-043). n8n l'atteint sur le réseau interne ; aucun port publié.
+- Référentiel fictif chargé dans `mizan` (12 fournisseurs, 12 RIB) ; script
+  idempotent (D-044).
+- Script `npm run synchroniser-noeuds` et test de synchronisation (D-041).
+- Tests : 60 unitaires, 12 d'intégration (`mizan_test`, D-045), 89 SQL.
+
+**Problèmes rencontrés**
+- Le lanceur de tests de Node exécute les fichiers en parallèle : les tests
+  d'intégration partageant `mizan_test`, ils sont désormais lancés un par un.
+- Piège « injection de prompt » ajouté (D-046) : 4 documents modifiés
+  (D001, D006, D026, D047), 56 documents et le relevé inchangés octet par
+  octet, génération toujours reproductible (127 fichiers identiques d'une
+  génération à l'autre). 62 tests unitaires, 12 d'intégration.
+- Credentials n8n créés par Mohamed (Gemini, PostgreSQL `mizan_app`) ;
+  requête de test réussie (200) : identifiant `gemini-3.5-flash-lite`
+  confirmé (version 3.5-flash-lite-07-2026), schéma simplifié accepté, JSON
+  conforme au schéma strict, 882 jetons en entrée et 357 en sortie.
+- RIB extrait à 18 chiffres : la facture de test (mal construite) n'en
+  contenait que 18 ; Gemini n'a rien perdu. Facture de test corrigée.
+- Contrôle « identifiant présent dans le texte source » (D-047) : 0 fausse
+  alerte sur 125 identifiants des 31 PDF dev. Paramètres de génération fixés
+  et enregistrés (D-048) : température 1.0 selon Google, réflexion `low`.
+- Migration n° 11 ; 95 tests SQL, 79 tests unitaires.
+- Seconde requête de test (température 1.0, réflexion `low`) : 200, paramètres
+  acceptés, mais un zéro ajouté dans le RIB (21 chiffres au lieu de 20).
+  Attrapé par D-047 et par la clé RIB ; réponse conservée comme jeu d'essai,
+  test ajouté (80 tests unitaires). Piste d'amélioration du prompt notée pour
+  la mesure de stabilité.
+- Contrôle des identifiants revu deux fois après des défauts trouvés par les
+  tests (RIB tronqué à une frontière de groupe, numéro coupé avant un tiret,
+  mot de la ligne suivante pris pour une suite). Mesures dev : 0 alerte sur
+  125 identifiants des PDF ; 6 sur 44 pour les scans, toutes dues à l'OCR.
+- Sous-workflow LLM (8 nœuds) et workflow principal (31 nœuds) générés par
+  `scripts/construire-workflows.js` (D-049) ; 103 tests unitaires.
+- Jeu d'essai copié dans `data/entrant/` (ignoré par Git) : D006 (injection),
+  D007, D034 (avoir), D041 (scan), D056 et son doublon exact D035.

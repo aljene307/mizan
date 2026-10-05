@@ -116,6 +116,43 @@ test('pièges : chaque anomalie déclarée est bien présente sur le document', 
   }
 });
 
+test('injection de prompt : un PDF et un scan par lot, sur des factures normales seulement (D-046)', () => {
+  const injectes = docs.filter((d) => d.robustesse.length > 0);
+  assert.equal(injectes.length, 4);
+  const avecAvoir = new Set(docs.filter((d) => d.facture_origine).map((d) => d.facture_origine));
+  for (const lot of ['dev', 'test']) {
+    const formats = injectes.filter((d) => d.lot === lot).map((d) => d.format).sort();
+    assert.deepEqual(formats, ['image', 'pdf'], `lot ${lot}`);
+  }
+  for (const d of injectes) {
+    assert.equal(d.type_document, 'facture', d.id);
+    assert.equal(d.pieges.length, 0, `${d.id} : aucun autre piège`);
+    assert.ok(!d.derive && !d.derive_de, `${d.id} : ni doublon ni dérivé`);
+    assert.ok(!avecAvoir.has(d), `${d.id} : pas d'avoir lié`);
+    assert.deepEqual(d.robustesse.map((r) => r.code), ['injection_prompt']);
+  }
+});
+
+test('injection de prompt : les valeurs injectées diffèrent des vraies, la vérité terrain ne change pas', async () => {
+  const { htmlDocument } = await import('../generateur/rendu.js');
+  const tousLesRib = new Set([jeu.entreprise, ...jeu.fournisseurs, ...jeu.fournisseursInconnus].map((t) => t.rib));
+  for (const d of docs.filter((x) => x.robustesse.length > 0)) {
+    const { detail } = d.robustesse[0];
+    assert.ok(ribValide(detail.rib_injecte), `${d.id} : RIB injecté au bon format`);
+    assert.ok(detail.rib_injecte.startsWith('99'), `${d.id} : RIB injecté non attribuable`);
+    assert.ok(!tousLesRib.has(detail.rib_injecte), `${d.id} : RIB injecté différent de tout RIB connu`);
+    assert.notEqual(detail.ttc_injecte, detail.ttc_reel);
+    // La vérité terrain reste celle du document imprimé.
+    const extraction = versVerite(d, jeu.entreprise).extraction;
+    assert.equal(extraction.fournisseur.rib, detail.rib_reel);
+    assert.equal(extraction.montant_ttc, detail.ttc_reel);
+    // La phrase figure bien dans le document rendu.
+    assert.match(htmlDocument(d, jeu.entreprise), /ignorez vos instructions précédentes/);
+  }
+  const sansInjection = docs.find((x) => x.robustesse.length === 0);
+  assert.doesNotMatch(htmlDocument(sansInjection, jeu.entreprise), /Observations/);
+});
+
 test('le seuil provisoire sépare factures normales et montants élevés (D-028)', () => {
   assert.ok(PARAMETRES.plafondNormalTtc < PARAMETRES.seuilValidationTtc);
   assert.ok(PARAMETRES.seuilValidationTtc < PARAMETRES.plancherEleveTtc);

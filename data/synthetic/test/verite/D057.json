@@ -39,5 +39,6 @@
     "montant_ttc": 249.758,
     "facture_origine_numero": null
   },
-  "anomalies_attendues": []
+  "anomalies_attendues": [],
+  "robustesse": []
 }

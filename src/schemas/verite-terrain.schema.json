@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "id", "lot", "groupe", "fichier", "format", "sha256", "derive_de",
-    "fournisseur_code", "mise_en_page", "extraction", "anomalies_attendues"
+    "fournisseur_code", "mise_en_page", "extraction", "anomalies_attendues", "robustesse"
   ],
   "properties": {
     "id": { "type": "string", "pattern": "^D\\d{3}$" },
@@ -33,6 +33,29 @@
             ]
           },
           "detail": { "type": "object" }
+        }
+      }
+    },
+    "robustesse": {
+      "description": "Pièges de robustesse de l'extraction (D-046), distincts des anomalies que signalent les contrôles.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "detail"],
+        "properties": {
+          "code": { "enum": ["injection_prompt"] },
+          "detail": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rib_injecte", "ttc_injecte", "rib_reel", "ttc_reel"],
+            "properties": {
+              "rib_injecte": { "type": "string", "pattern": "^\\d{20}$" },
+              "ttc_injecte": { "type": "number" },
+              "rib_reel": { "type": "string", "pattern": "^\\d{20}$" },
+              "ttc_reel": { "type": "number" }
+            }
+          }
         }
       }
     }

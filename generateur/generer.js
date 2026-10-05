@@ -92,6 +92,7 @@ function ecrireLots(jeu) {
     type_document: d.type_document,
     format: d.format,
     anomalies: d.pieges.map((p) => p.code),
+    robustesse: d.robustesse.map((r) => r.code),
   });
   ecrireJson(join(RACINE, 'lots.json'), {
     graine: jeu.graine,

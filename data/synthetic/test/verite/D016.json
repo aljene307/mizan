@@ -39,5 +39,6 @@
     "montant_ttc": 321.467,
     "facture_origine_numero": "ISS260280"
   },
-  "anomalies_attendues": []
+  "anomalies_attendues": [],
+  "robustesse": []
 }

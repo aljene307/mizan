@@ -39,5 +39,6 @@
     "montant_ttc": 70.805,
     "facture_origine_numero": "FA-2026-0263"
   },
-  "anomalies_attendues": []
+  "anomalies_attendues": [],
+  "robustesse": []
 }

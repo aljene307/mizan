@@ -74,6 +74,16 @@ services:
       N8N_RUNNERS_TASK_BROKER_URI: http://n8n:5679
       N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT: "15"
 
+  # OCR (Tesseract, français) pour les images et les PDF scannés (D-032).
+  # Aucun port publié : n8n l'appelle sur http://ocr:8884 (réseau Docker interne).
+  ocr:
+    build: ./ocr
+    image: mizan-ocr:1
+    restart: unless-stopped
+    environment:
+      OCR_LANGUE: fra
+      OCR_PSM: "3"
+
   # Outil de migrations, lancé à la demande (profil « outils ») :
   #   docker compose run --rm dbmate up       applique les migrations en attente
   #   docker compose run --rm dbmate status   liste les migrations appliquées

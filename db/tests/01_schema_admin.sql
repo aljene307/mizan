@@ -158,4 +158,16 @@ SELECT pg_temp.doit_echouer($$DELETE FROM journal_audit WHERE acteur = 'test'$$,
 SELECT pg_temp.doit_echouer($$TRUNCATE journal_audit$$,
     'MZ001', 'TRUNCATE refusé sur journal_audit');
 
+-- Historique des extractions : ajout seul, même pour l'administrateur ----------
+SELECT pg_temp.doit_reussir($$
+    INSERT INTO extractions (facture_id, fichier_sha256, resultat, code_resultat)
+    SELECT id, fichier_sha256, 'erreur', 'erreur_fournisseur' FROM factures WHERE fichier_nom = 'test-1.pdf'
+$$, 'ajout d''une extraction');
+SELECT pg_temp.doit_echouer($$UPDATE extractions SET code_resultat = 'ok'$$,
+    'MZ001', 'UPDATE refusé sur extractions');
+SELECT pg_temp.doit_echouer($$DELETE FROM extractions$$,
+    'MZ001', 'DELETE refusé sur extractions');
+SELECT pg_temp.doit_echouer($$TRUNCATE extractions$$,
+    'MZ001', 'TRUNCATE refusé sur extractions');
+
 ROLLBACK;
