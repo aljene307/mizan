@@ -1,0 +1,195 @@
+[
+  {
+    "type": "TVA",
+    "cas": "écart égal à la tolérance (1 millime par ligne)",
+    "attendu": "accepte",
+    "regle": "coherence_tva",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "TVA",
+    "cas": "tolérance + 1 millime",
+    "attendu": "detecte",
+    "regle": "coherence_tva",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "TVA",
+    "cas": "TVA + 1,000 TND",
+    "attendu": "detecte",
+    "regle": "coherence_tva",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "TTC",
+    "cas": "écart égal à la tolérance (0 millime)",
+    "attendu": "accepte",
+    "regle": "coherence_ttc",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "TTC",
+    "cas": "tolérance + 1 millime",
+    "attendu": "detecte",
+    "regle": "coherence_ttc",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "TTC",
+    "cas": "TTC − 1,000 TND",
+    "attendu": "detecte",
+    "regle": "coherence_ttc",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "Ligne",
+    "cas": "écart égal à la tolérance (1 millime), HT et TTC ajustés",
+    "attendu": "accepte",
+    "regle": "coherence_lignes",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "Ligne",
+    "cas": "tolérance + 1 millime, HT et TTC ajustés",
+    "attendu": "detecte",
+    "regle": "coherence_lignes",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "Ligne",
+    "cas": "montant de ligne + 1,000 TND, HT non ajusté",
+    "attendu": "detecte",
+    "regle": "coherence_lignes",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {
+      "coherence_tva": 33
+    }
+  },
+  {
+    "type": "RIB",
+    "cas": "autre RIB valide, inconnu du référentiel",
+    "attendu": "detecte",
+    "regle": "changement_rib",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "RIB",
+    "cas": "RIB valide d'un autre fournisseur du référentiel",
+    "attendu": "detecte",
+    "regle": "changement_rib",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {
+      "incoherence_identite": 33
+    }
+  },
+  {
+    "type": "Matricule",
+    "cas": "un chiffre supprimé",
+    "attendu": "detecte",
+    "regle": "matricule_format",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {
+      "fournisseur_inconnu": 33,
+      "matricule_lecture_probable": 33
+    }
+  },
+  {
+    "type": "Matricule",
+    "cas": "lettre clé supprimée",
+    "attendu": "detecte",
+    "regle": "matricule_format",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {
+      "fournisseur_inconnu": 33,
+      "matricule_lecture_probable": 33
+    }
+  },
+  {
+    "type": "Matricule",
+    "cas": "un chiffre remplacé (format valide, matricule inconnu)",
+    "attendu": "detecte",
+    "regle": "fournisseur_inconnu",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {
+      "matricule_lecture_probable": 33,
+      "avoir_origine": 1
+    }
+  },
+  {
+    "type": "Date",
+    "cas": "échéance la veille de la date de facture",
+    "attendu": "detecte",
+    "regle": "dates",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "Date",
+    "cas": "échéance le jour de la facture (limite)",
+    "attendu": "accepte",
+    "regle": "dates",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "Date",
+    "cas": "date de facture au lendemain de la date de référence",
+    "attendu": "detecte",
+    "regle": "dates",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  },
+  {
+    "type": "Date",
+    "cas": "date de facture égale à la date de référence (limite)",
+    "attendu": "accepte",
+    "regle": "dates",
+    "conformes": 33,
+    "total": 33,
+    "echecs": [],
+    "autresRegles": {}
+  }
+]

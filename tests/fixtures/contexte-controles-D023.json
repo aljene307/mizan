@@ -1,0 +1,406 @@
+{
+    "lignes": [
+        {
+            "id": 86,
+            "quantite": 37.000000,
+            "taux_tva": 19.0000,
+            "facture_id": 188,
+            "montant_ht": 348.910,
+            "designation": "Ramette papier A4 80 g (500 feuilles)",
+            "montant_tva": null,
+            "numero_ligne": 1,
+            "prix_unitaire_ht": 9.430000
+        },
+        {
+            "id": 87,
+            "quantite": 17.000000,
+            "taux_tva": 19.0000,
+            "facture_id": 188,
+            "montant_ht": 96.390,
+            "designation": "Classeur à levier dos 75 mm",
+            "montant_tva": null,
+            "numero_ligne": 2,
+            "prix_unitaire_ht": 5.670000
+        }
+    ],
+    "regles": [
+        {
+            "regle": "avoir_origine",
+            "derogeable": true
+        },
+        {
+            "regle": "champs_obligatoires",
+            "derogeable": true
+        },
+        {
+            "regle": "changement_rib",
+            "derogeable": false
+        },
+        {
+            "regle": "coherence_lignes",
+            "derogeable": true
+        },
+        {
+            "regle": "coherence_ttc",
+            "derogeable": true
+        },
+        {
+            "regle": "coherence_tva",
+            "derogeable": true
+        },
+        {
+            "regle": "dates",
+            "derogeable": true
+        },
+        {
+            "regle": "devise",
+            "derogeable": true
+        },
+        {
+            "regle": "doublon_fichier",
+            "derogeable": false
+        },
+        {
+            "regle": "doublon_numero",
+            "derogeable": false
+        },
+        {
+            "regle": "doublon_probable",
+            "derogeable": true
+        },
+        {
+            "regle": "droit_timbre",
+            "derogeable": true
+        },
+        {
+            "regle": "fournisseur_inconnu",
+            "derogeable": true
+        },
+        {
+            "regle": "identifiants_absents_du_texte",
+            "derogeable": true
+        },
+        {
+            "regle": "incoherence_identite",
+            "derogeable": false
+        },
+        {
+            "regle": "matricule_format",
+            "derogeable": true
+        },
+        {
+            "regle": "matricule_lecture_probable",
+            "derogeable": true
+        },
+        {
+            "regle": "matricule_suffixe",
+            "derogeable": true
+        },
+        {
+            "regle": "plusieurs_rib",
+            "derogeable": true
+        },
+        {
+            "regle": "rib_cle",
+            "derogeable": true
+        },
+        {
+            "regle": "seuil_validation",
+            "derogeable": true
+        },
+        {
+            "regle": "signalements_extraction",
+            "derogeable": true
+        }
+    ],
+    "facture": {
+        "id": 188,
+        "devise": "TND",
+        "numero": "FA-2026-0247",
+        "statut": "extraite",
+        "cree_le": "2026-10-06T09:36:43.165193+00:00",
+        "recue_le": "2026-10-06T09:36:43.165193+00:00",
+        "modifie_le": "2026-10-06T09:39:14.99752+00:00",
+        "montant_ht": 445.300,
+        "fichier_nom": "D023.pdf",
+        "montant_ttc": 530.907,
+        "montant_tva": 84.607,
+        "reservee_le": null,
+        "rib_facture": null,
+        "date_facture": "2026-02-11",
+        "droit_timbre": 1.000,
+        "date_echeance": "2026-03-13",
+        "format_source": "pdf",
+        "type_document": "facture",
+        "fichier_sha256": "d73c1f84ec73963bcbf71b7d68ef140b2b8265fb1caea6006adb770be7ae5213",
+        "fournisseur_id": null,
+        "canal_reception": "dossier",
+        "numero_normalise": "FA-2026-0247",
+        "reference_source": "D023.pdf",
+        "facture_origine_id": null,
+        "fournisseur_source": null,
+        "methode_extraction": "texte_llm",
+        "raison_sociale_lue": "Papeterie Ennour Bureautique",
+        "matricule_fiscal_lu": "9979067J/A/M/000"
+    },
+    "extraction": {
+        "id": 51,
+        "resultat": "valide",
+        "propositions": [
+        ],
+        "reutilise_de": null,
+        "alertes_source": [
+        ],
+        "methode_lecture": "texte_pdf",
+        "signalements_code": [
+        ],
+        "verifications_source": [
+            {
+                "champ": "numero",
+                "valeur": "FA-2026-0247",
+                "present": true
+            },
+            {
+                "champ": "fournisseur.matricule_fiscal",
+                "valeur": "9979067J/A/M/000",
+                "present": true
+            },
+            {
+                "champ": "client.matricule_fiscal",
+                "valeur": "9925897C/A/M/000",
+                "present": true
+            }
+        ],
+        "facture_origine_numero": null
+    },
+    "parametres": {
+        "seuil_validation_ttc": 20000.000,
+        "tolerance.ttc_millimes": 0.000,
+        "tolerance.ligne_millimes": 1.000,
+        "justification.longueur_min": 15.000,
+        "tolerance.tva_millimes_par_ligne": 1.000
+    },
+    "aujourd_hui": "2026-10-06",
+    "referentiel": [
+        {
+            "id": 17,
+            "ribs": [
+                {
+                    "rib": "99932238223510373255",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Papeterie Ennour Bureautique",
+            "matricule_fiscal": "9979067J"
+        },
+        {
+            "id": 18,
+            "ribs": [
+                {
+                    "rib": "99132202812094401873",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "InfoSahel Systèmes",
+            "matricule_fiscal": "9911705Y"
+        },
+        {
+            "id": 19,
+            "ribs": [
+                {
+                    "rib": "99438639017355887241",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Yasmine Services Nettoyage",
+            "matricule_fiscal": "9978595K"
+        },
+        {
+            "id": 20,
+            "ribs": [
+                {
+                    "rib": "99532548060714626340",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Trans-Cap Logistique",
+            "matricule_fiscal": "9911957K"
+        },
+        {
+            "id": 21,
+            "ribs": [
+                {
+                    "rib": "99720551704430393594",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Emballages Kerkennah",
+            "matricule_fiscal": "9925036W"
+        },
+        {
+            "id": 22,
+            "ribs": [
+                {
+                    "rib": "99607512589123410209",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Bizerte Nord Maintenance Industrielle",
+            "matricule_fiscal": "9942665K"
+        },
+        {
+            "id": 23,
+            "ribs": [
+                {
+                    "rib": "99803767839070687023",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Électricité Générale Hammamet",
+            "matricule_fiscal": "9900614F"
+        },
+        {
+            "id": 24,
+            "ribs": [
+                {
+                    "rib": "99717238554545339497",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "El Manar Graphique",
+            "matricule_fiscal": "9996911S"
+        },
+        {
+            "id": 25,
+            "ribs": [
+                {
+                    "rib": "99463183057963294105",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Médina Connect Télécom",
+            "matricule_fiscal": "9917566L"
+        },
+        {
+            "id": 26,
+            "ribs": [
+                {
+                    "rib": "99766956919106488239",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Atlas Bureau Mobilier",
+            "matricule_fiscal": "9916548K"
+        },
+        {
+            "id": 27,
+            "ribs": [
+                {
+                    "rib": "99303070463216990768",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Oasis Gardiennage et Sécurité",
+            "matricule_fiscal": "9928250F"
+        },
+        {
+            "id": 28,
+            "ribs": [
+                {
+                    "rib": "99071173390949753806",
+                    "valide_au": null,
+                    "valide_du": "2026-01-01"
+                }
+            ],
+            "actif": true,
+            "raison_sociale": "Mejerda Agro-Fournitures",
+            "matricule_fiscal": "9957695G"
+        }
+    ],
+    "config_fiscale": {
+        "timbre.facture": {
+            "unite": "TND",
+            "valeur": 1.0000,
+            "conditions": {
+            },
+            "a_confirmer": true
+        },
+        "tva.taux_normal": {
+            "unite": "pourcent",
+            "valeur": 19.0000,
+            "conditions": {
+            },
+            "a_confirmer": true
+        },
+        "tva.taux_reduit": {
+            "unite": "pourcent",
+            "valeur": 7.0000,
+            "conditions": {
+            },
+            "a_confirmer": true
+        },
+        "tva.taux_intermediaire": {
+            "unite": "pourcent",
+            "valeur": 13.0000,
+            "conditions": {
+            },
+            "a_confirmer": true
+        },
+        "timbre.facture.grande_surface.50_100": {
+            "unite": "TND",
+            "valeur": 1.5000,
+            "conditions": {
+                "emetteur": "grande_surface",
+                "montant_max_inclus": 100,
+                "montant_min_inclus": 50
+            },
+            "a_confirmer": true
+        },
+        "timbre.facture.grande_surface.plus_100": {
+            "unite": "TND",
+            "valeur": 2.0000,
+            "conditions": {
+                "emetteur": "grande_surface",
+                "montant_min_exclu": 100
+            },
+            "a_confirmer": true
+        }
+    },
+    "autres_factures": [
+        {
+            "id": 320,
+            "numero": "FA-2026-0247",
+            "statut": "extraite",
+            "recue_le": "2026-10-06T19:37:44.596961+00:00",
+            "montant_ttc": 530.907,
+            "date_facture": "2026-02-11",
+            "type_document": "facture",
+            "fichier_sha256": "6fd8a82061b523b31b2cb3890a3bc86f8a52f211316624d6f3f1d8ea093d6946",
+            "fournisseur_id": null,
+            "numero_normalise": "FA-2026-0247",
+            "matricule_fiscal_lu": "9979067J/A/M/000"
+        }
+    ]
+}

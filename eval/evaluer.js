@@ -8,7 +8,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import pg from 'pg';
 import { CHAMPS_ENTETE, CHAMPS_LIGNE, comparerExtraction } from '../src/comparaison.js';
 import { verifierIdentifiantsDansSource } from '../src/verificationSource.js';
+import { validerExtraction } from '../src/validationExtraction.js';
 import { estCopieEssai } from './mesure-commun.js';
+
+const schemaStrict = JSON.parse(readFileSync('src/schemas/extraction-facture.schema.json', 'utf8'));
 
 const arg = (nom) => { const i = process.argv.indexOf(nom); return i > -1 ? process.argv[i + 1] : undefined; };
 const lot = arg('--lot') ?? 'dev';
@@ -33,7 +36,8 @@ async function lireExtractions() {
       SELECT DISTINCT ON (f.id) f.fichier_nom, e.id AS extraction_id, e.resultat, e.code_resultat,
              e.methode_lecture, e.modele, e.version_prompt, e.duree_lecture_ms, e.duree_llm_ms,
              e.jetons_entree, e.jetons_sortie, e.jetons_reflexion, e.tentatives, e.reutilise_de,
-             e.donnees, e.alertes_source, e.verifications_source, e.texte_source
+             e.donnees, e.alertes_source, e.verifications_source, e.texte_source,
+             e.donnees_brutes, e.version_chaine, e.corrections_code, e.signalements_code, e.propositions
       FROM factures f JOIN extractions e ON e.facture_id = f.id
       WHERE f.canal_reception = 'dossier'
       ORDER BY f.id, e.id DESC`);
@@ -44,10 +48,14 @@ async function lireExtractions() {
   }
 }
 
-function evaluer(lotJson, extractions) {
+// vue « corrigee » : données enregistrées (après corrections par le code, D-053) ;
+// vue « brute » : sortie brute du modèle (D-053, demande pour l'étape 8 :
+// les deux côte à côte). Une extraction antérieure aux corrections n'a pas de
+// sortie brute distincte : ses données servent aux deux vues.
+function evaluer(lotJson, extractions, vue = 'corrigee') {
   const documents = lotJson[lot];
   const res = {
-    lot, documents: documents.length, absents: [], reutilisees: [], erreurs: [], invalides: [],
+    lot, vue, documents: documents.length, versionsChaine: new Set(), corrections: [], absents: [], reutilisees: [], erreurs: [], invalides: [],
     champs: Object.fromEntries([...CHAMPS_ENTETE, ...CHAMPS_LIGNE.map((c) => ({ ...c, chemin: `lignes.${c.chemin}` }))]
       .map((c) => [c.chemin, { strict: 0, normalise: 0, total: 0 }])),
     parFormat: {}, lignes: { attendues: 0, extraites: 0, enTrop: 0, exactesStrict: 0, exactesNormalise: 0 },
@@ -62,13 +70,18 @@ function evaluer(lotJson, extractions) {
     if (!ex) { res.absents.push(nom); continue; }
     if (ex.resultat === 'reutilisee') { res.reutilisees.push(`${nom} (reprend l'extraction n° ${ex.reutilise_de})`); continue; }
     if (ex.resultat === 'erreur') res.erreurs.push(`${nom} : ${ex.code_resultat}`);
-    if (ex.resultat === 'invalide') res.invalides.push(nom);
+    const donnees = ex.resultat === 'erreur' ? null : (vue === 'brute' ? (ex.donnees_brutes ?? ex.donnees) : ex.donnees);
+    const utilisable = vue === 'brute' ? donnees !== null && validerExtraction(schemaStrict, donnees).valide : ex.resultat === 'valide';
+    if (ex.resultat !== 'erreur' && !utilisable) res.invalides.push(nom);
     res.evalues += 1;
-    if (ex.resultat === 'valide') res.utilisables += 1;
-    res.modeles.add(ex.modele); res.versions.add(ex.version_prompt);
+    if (utilisable) res.utilisables += 1;
+    res.modeles.add(ex.modele); res.versions.add(ex.version_prompt); res.versionsChaine.add(ex.version_chaine ?? 'antérieure');
     for (const cle of Object.keys(res.mesures)) if (ex[cle] !== null && ex[cle] !== undefined) res.mesures[cle].push(Number(ex[cle]));
+    if (ex.corrections_code?.length || ex.signalements_code?.length || ex.propositions?.length) {
+      res.corrections.push({ document: nom, corrections: ex.corrections_code ?? [], signalements: ex.signalements_code ?? [], propositions: ex.propositions ?? [] });
+    }
 
-    const c = comparerExtraction(ex.resultat === 'erreur' ? null : ex.donnees, verite.extraction);
+    const c = comparerExtraction(donnees, verite.extraction);
     const format = res.parFormat[verite.format] ??= { documents: 0, strict: 0, normalise: 0, total: 0 };
     format.documents += 1;
     for (const champ of [...c.entete, ...c.lignes.champs]) {
@@ -84,7 +97,7 @@ function evaluer(lotJson, extractions) {
     // Alertes D-047 : l'identifiant signalé est-il vraiment faux ? Recalculées
     // avec le code actuel quand le texte source est conservé (D-051).
     let verifications = ex.verifications_source ?? [];
-    if (ex.texte_source && ex.donnees) { verifications = verifierIdentifiantsDansSource(ex.donnees, ex.texte_source); res.alertesRecalculees += 1; }
+    if (ex.texte_source && donnees) { verifications = verifierIdentifiantsDansSource(donnees, ex.texte_source); res.alertesRecalculees += 1; }
     for (const v of verifications) {
       const champ = c.entete.find((x) => x.chemin === v.champ);
       if (!v.present) res.alertes.push({ document: nom, format: verite.format, champ: v.champ, valeur: v.valeur, vraimentFaux: champ ? !champ.strict : null });
@@ -97,21 +110,39 @@ function evaluer(lotJson, extractions) {
     for (const r of verite.robustesse ?? []) {
       res.robustesse.push({
         document: nom, format: verite.format, code: r.code,
-        ribExtrait: ex.donnees?.fournisseur?.rib ?? null, ribReel: r.detail.rib_reel, ribInjecte: r.detail.rib_injecte,
-        ttcExtrait: ex.donnees?.montant_ttc ?? null, ttcReel: r.detail.ttc_reel, ttcInjecte: r.detail.ttc_injecte,
+        ribExtrait: donnees?.fournisseur?.rib ?? null, ribReel: r.detail.rib_reel, ribInjecte: r.detail.rib_injecte,
+        ttcExtrait: donnees?.montant_ttc ?? null, ttcReel: r.detail.ttc_reel, ttcInjecte: r.detail.ttc_injecte,
       });
     }
   }
   return res;
 }
 
-function rapport(r) {
+function rapport(r, b) {
   const l = [];
   const entete = Object.entries(r.champs).filter(([k]) => !k.startsWith('lignes.'));
   const somme = (liste, mode) => liste.reduce((s, [, v]) => s + v[mode], 0);
   const totalEntete = somme(entete, 'total');
+  const enteteB = Object.entries(b.champs).filter(([k]) => !k.startsWith('lignes.'));
   l.push(`# Précision de l'extraction — lot « ${r.lot} »`, '');
-  l.push(`Règle de comparaison : D-050 (scores stricts et normalisés, nombres bruts). Modèle(s) : ${[...r.modeles].join(', ')} ; prompt : ${[...r.versions].join(', ')}.`, '');
+  l.push(`Règle de comparaison : D-050 (scores stricts et normalisés, nombres bruts). Modèle(s) : ${[...r.modeles].join(', ')} ; prompt : ${[...r.versions].join(', ')} ; `
+    + `version de chaîne : ${[...r.versionsChaine].join(', ')} (D-059).`, '');
+  l.push('## Sortie brute du modèle et résultat après corrections par le code (D-053)', '');
+  l.push('| Mesure | Sortie brute | Après corrections |', '|---|---|---|');
+  l.push(`| Extractions utilisables (conformes au schéma) | ${pct(b.utilisables, b.evalues)} | ${pct(r.utilisables, r.evalues)} |`);
+  l.push(`| Champs d'en-tête exacts (strict) | ${pct(somme(enteteB, 'strict'), somme(enteteB, 'total'))} | ${pct(somme(entete, 'strict'), totalEntete)} |`);
+  l.push(`| Champs d'en-tête exacts (normalisé) | ${pct(somme(enteteB, 'normalise'), somme(enteteB, 'total'))} | ${pct(somme(entete, 'normalise'), totalEntete)} |`);
+  l.push(`| Lignes exactes (normalisé) | ${pct(b.lignes.exactesNormalise, b.lignes.attendues)} | ${pct(r.lignes.exactesNormalise, r.lignes.attendues)} |`);
+  l.push(`| Documents entièrement exacts (normalisé) | ${pct(b.documentsExacts.normalise, b.evalues)} | ${pct(r.documentsExacts.normalise, r.evalues)} |`);
+  for (const champ of ['fournisseur.rib', 'devise', 'fournisseur.matricule_fiscal', 'fournisseur.raison_sociale', 'montant_ttc']) {
+    l.push(`| \`${champ}\` (strict) | ${pct(b.champs[champ].strict, b.champs[champ].total)} | ${pct(r.champs[champ].strict, r.champs[champ].total)} |`);
+  }
+  l.push('', `Corrections, signalements et propositions enregistrés (${r.corrections.length} extraction(s)) :`, '');
+  for (const c of r.corrections) {
+    const parts = [...c.corrections, ...c.signalements.map((s) => `signalé : ${s}`), ...c.propositions.map((p) => `proposé : ${p.champ} ${p.valeur}`)];
+    l.push(`- ${c.document} : ${parts.join(' ; ')}`);
+  }
+  l.push('', 'La suite du rapport détaille le **résultat après corrections** (données enregistrées, celles que les contrôles utilisent).', '');
   l.push('## Périmètre', '');
   l.push(`- Documents du lot : ${r.documents}`);
   l.push(`- Extractions évaluées (faites par le LLM) : ${r.evalues}`);
@@ -160,9 +191,11 @@ function rapport(r) {
 }
 
 const lotJson = JSON.parse(readFileSync('data/synthetic/lots.json', 'utf8'));
-const resultat = evaluer(lotJson, await lireExtractions());
-const texte = rapport(resultat);
+const extractions = await lireExtractions();
+const resultat = evaluer(lotJson, extractions, 'corrigee');
+const brut = evaluer(lotJson, extractions, 'brute');
+const texte = rapport(resultat, brut);
 mkdirSync('eval/resultats', { recursive: true });
 writeFileSync(`eval/resultats/precision-${lot}.md`, texte);
-writeFileSync(`eval/resultats/precision-${lot}.json`, `${JSON.stringify({ ...resultat, modeles: [...resultat.modeles], versions: [...resultat.versions] }, null, 2)}\n`);
+writeFileSync(`eval/resultats/precision-${lot}.json`, `${JSON.stringify({ corrige: { ...resultat, modeles: [...resultat.modeles], versions: [...resultat.versions], versionsChaine: [...resultat.versionsChaine] }, brut: { ...brut, modeles: [...brut.modeles], versions: [...brut.versions], versionsChaine: [...brut.versionsChaine], ecarts: brut.ecarts } }, null, 2)}\n`);
 console.log(texte);

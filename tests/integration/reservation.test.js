@@ -56,7 +56,9 @@ test('réservation : une facture verrouillée par une exécution est sautée par
 
 test('réservation : deux exécutions concurrentes se partagent 30 factures sans doublon', async () => {
   // Vide la file avant ce test (factures restantes des tests précédents).
-  await a.query("UPDATE factures SET statut = 'erreur_extraction' WHERE statut IN ('recue', 'en_extraction')");
+  // (deux étapes : seules les transitions prévues sont permises à mizan_app, D-056)
+  await a.query("UPDATE factures SET statut = 'en_extraction' WHERE statut = 'recue'");
+  await a.query("UPDATE factures SET statut = 'erreur_extraction' WHERE statut = 'en_extraction'");
   const attendues = new Set();
   for (let i = 0; i < 30; i += 1) {
     const { rows } = await a.query(

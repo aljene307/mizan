@@ -253,3 +253,65 @@ empreinte, traçabilité de chaque extraction).
   « RIB du référentiel » dans le workflow principal (32 nœuds). Ajout : un
   texte contenant plusieurs RIB valides est signalé. 111 tests SQL,
   134 unitaires, 12 d'intégration.
+
+### Contrôles déterministes : modèle de données (2026-10-06)
+- Commit `a83407c` poussé (corrections par le code, configuration figée).
+- Choix validés : workflow « Contrôles » séparé, tolérance mixte,
+  fournisseur probable proposé seulement, statut `a_valider` (D-055) ; deux
+  rôles, quatre règles non dérogeables, méthode de vérification obligatoire,
+  création de fournisseur soumise à la même discipline que le changement de
+  RIB (D-056).
+- Migrations n° 14 et 15 : statuts `en_controle` et `a_valider`, garde des
+  transitions, catalogue de 22 règles, paramètres de contrôle datés,
+  utilisateurs, décisions humaines, demandes et décisions sur le
+  référentiel, fonctions de réservation, de contexte et d'enregistrement des
+  contrôles. `mizan_app` n'écrit plus dans le référentiel.
+- Tests : 167 SQL (nouveau fichier `04_controles.sql`), 135 unitaires,
+  13 d'intégration. Annulation et réapplication des migrations vérifiées.
+- Règles de contrôle v1 (`src/controles/regles.js`, 22 règles, D-057) et
+  31 tests unitaires (166 au total). Premier essai d'un test des lignes
+  faux (3 × 0,333333 arrondi donne exactement 1,000) : exemple corrigé.
+- Mesure sur la vérité terrain du lot dev (`eval/evaluer-controles.js`) :
+  9 pièges sur 9 détectés par la règle prévue, 0 fausse alerte sur
+  33 factures sans piège, 42 statuts sur 42 conformes à l'attendu. Aucune
+  tolérance d'arrondi n'a servi (données synthétiques régulières).
+- Principe D-058 : paiement toujours sur le RIB actif du référentiel, jamais
+  sur le RIB lu ; le RIB extrait ne sert qu'aux contrôles.
+- Test par mutation (`npm run test:mutations`, sans LLM) : 18 mutations sur
+  chacune des 33 factures sans piège (TVA, TTC, ligne, RIB, matricule,
+  dates), limites des tolérances comprises : 594 / 594 conformes.
+- Workflow « Contrôles » généré (5 nœuds : déclencheur, réservation,
+  contexte, règles, enregistrement, en boucle). Test du code généré sur le
+  vrai contexte de la base (D023). 171 tests unitaires.
+- Constat (Mohamed) confirmé en base : lot dev extrait avant D-053 (6 en
+  erreur « DT », dont le piège D028 ; 36 avec d'anciennes données) ; une
+  relance aurait réutilisé les anciennes extractions. D-059 : colonne
+  `version_chaine`, réutilisation limitée à la même version (migration
+  n° 16), script `reextraire-lot-dev.js` (simulation par défaut).
+  169 tests SQL, 173 unitaires, 17 d'intégration. Simulation sur `mizan` :
+  42 factures à réextraire, 0 refus.
+- Réextraction du lot dev appliquée (42 factures remises en « recue »,
+  42 entrées au journal), puis exécution du workflow par Mohamed :
+  41 appels à Gemini, 1 réutilisation (D056 ← D035), aucune erreur,
+  41/41 extractions utilisables. Les 36 textes comparables sont identiques
+  à ceux conservés lors de la mesure.
+- Rapport de précision dev mis à jour (`eval/evaluer.js`, sortie brute et
+  résultat corrigé côte à côte) : utilisables 35/41 → 41/41 ; en-tête
+  normalisé 636/656 → 646/656 ; RIB 36/41 → 39/41 ; devise 35/41 → 41/41 ;
+  injection suivie 0/2 ; 5 identifiants faux sans alerte, tous des erreurs
+  de l'OCR présentes dans le texte (suffixes de matricule, numéro D024).
+- Workflow « Contrôles » importé et exécuté par Mohamed : 45 passages
+  (990 résultats). Mesure sur l'extraction réelle
+  (`eval/evaluer-controles-reel.js`) : 9 pièges sur 9 détectés par la règle
+  prévue ; 2 fausses alertes sur 31 factures normales hors injection (D005 :
+  prix unitaire mal lu par l'OCR ; D018 : entités HTML malformées) ;
+  signalement « plusieurs RIB » sur les 2 factures piégées par injection ;
+  40/42 statuts attendus.
+- Défaut trouvé par cette mesure : contexte des contrôles sans historique du
+  fournisseur (règle `matricule_suffixe` aveugle). Corrigé (D-060, migration
+  n° 17, test SQL) ; aucun effet sur les alertes ni les statuts.
+- README : contrôles (trois mesures et leurs limites, fausses alertes D005
+  et D018 avec leur cause), import du workflow « Contrôles », commandes.
+  Piste notée pour plus tard (D-061) : signalement d'entités HTML sur des
+  champs seulement descriptifs ramené à « info ».
+- Étape validée par Mohamed ; commit et push.

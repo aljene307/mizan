@@ -1,10 +1,12 @@
-// Construit les deux workflows n8n (fichiers JSON à importer) :
+// Construit les trois workflows n8n (fichiers JSON à importer) :
 //   workflows/extraction-llm.json        sous-workflow « Extraction LLM » (D-039)
 //   workflows/reception-extraction.json  workflow principal (D-035 à D-040, D-047)
+//   workflows/controles.json             contrôles déterministes (D-055)
 // Le code des nœuds Code est recopié depuis src/ (D-041). Paramètres des nœuds
 // relevés dans n8n 2.41.7. Usage : node scripts/construire-workflows.js
 import { readFileSync, writeFileSync } from 'node:fs';
 import { synchroniserWorkflow } from './synchroniser-noeuds.js';
+import { VERSION_CHAINE_EXTRACTION } from '../src/extractionWorkflow.js';
 
 const CRED_POSTGRES = { postgres: { id: '', name: 'PostgreSQL Mizan (mizan_app)' } };
 const CRED_GEMINI = { googlePalmApi: { id: '', name: 'Gemini Mizan' } };
@@ -159,8 +161,9 @@ return [{ json: { nouvelles_factures: nouvelles } }];`),
 
     // --- Phase 2 : extraction, une facture réservée à la fois -----------------
     postgres(N_RESERVER, [1320, 0], 'SELECT * FROM reserver_facture_a_extraire();', null, { executeOnce: true }),
-    postgres('Extraction déjà faite ?', [1540, 0], 'SELECT * FROM extraction_valide_existante($1);',
-      '[ $json.fichier_sha256 ]', { alwaysOutputData: true }),
+    // Réutilisation limitée à une extraction de la même version de chaîne (D-059).
+    postgres('Extraction déjà faite ?', [1540, 0], 'SELECT * FROM extraction_valide_existante($1, $2);',
+      `[ $json.fichier_sha256, '${VERSION_CHAINE_EXTRACTION}' ]`, { alwaysOutputData: true }),
     si('Réutiliser l\'extraction ?', [1760, 0], '!!$json.extraction_id'),
     code('Préparer la réutilisation', [1980, -260], ['src/extractionWorkflow.js'],
       `// Même fichier déjà extrait : aucun appel au LLM (D-035, point 2).
@@ -297,5 +300,48 @@ principal.connections = connexions([
   [`Pause de ${PAUSE_APRES_LLM_S} secondes`, 0, N_RESERVER],
 ]);
 
+// =============================================================================
+// Workflow « Contrôles » (D-055, A1) : une facture extraite à la fois, toutes
+// les règles, puis enregistrement du passage (statut calculé par la base).
+// Une erreur arrête l'exécution, visible dans n8n : la facture reste
+// « en_controle » et sera reprise après 15 minutes (règles déterministes :
+// réessayer aussitôt donnerait la même erreur).
+// =============================================================================
+const N_RESERVER_CONTROLE = 'Réserver une facture à contrôler';
+const controles = {
+  name: 'Mizan – Contrôles',
+  nodes: [
+    noeud('Toutes les minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, [0, 0], {
+      rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] },
+    }),
+    postgres(N_RESERVER_CONTROLE, [220, 0], 'SELECT * FROM reserver_facture_a_controler();', null, { executeOnce: true }),
+    postgres('Contexte des contrôles', [440, 0], 'SELECT contexte_controles($1::bigint) AS contexte;', '[ $json.facture_id ]'),
+    code('Exécuter toutes les règles', [660, 0],
+      ['src/controles/regles.js', 'src/montants.js', 'src/matricule.js', 'src/rib.js'],
+      `// Toutes les règles du catalogue, sans s'arrêter à la première anomalie (D-055).
+const r = controlerFacture($input.first().json.contexte, {
+  enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide,
+});
+return [{ json: { payload: {
+  facture_id: $('${N_RESERVER_CONTROLE}').last().json.facture_id,
+  fournisseur_id: r.fournisseur_id,
+  execution_n8n_id: $execution.id,
+  resultats: r.resultats,
+} } }];`),
+    postgres('Enregistrer le passage', [880, 0], 'SELECT enregistrer_controles($1::jsonb) AS passage;', '[ $json.payload ]'),
+  ],
+  settings: { executionOrder: 'v1' },
+  pinData: {},
+};
+controles.connections = connexions([
+  ['Toutes les minutes', 0, N_RESERVER_CONTROLE],
+  [N_RESERVER_CONTROLE, 0, 'Contexte des contrôles'],
+  ['Contexte des contrôles', 0, 'Exécuter toutes les règles'],
+  ['Exécuter toutes les règles', 0, 'Enregistrer le passage'],
+  // Boucle : facture suivante, jusqu'à ce que la réservation ne renvoie plus rien.
+  ['Enregistrer le passage', 0, N_RESERVER_CONTROLE],
+]);
+
 ecrire('workflows/extraction-llm.json', sousWorkflow);
 ecrire('workflows/reception-extraction.json', principal);
+ecrire('workflows/controles.json', controles);

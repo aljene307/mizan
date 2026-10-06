@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import pg from 'pg';
 import { chargerReferentiel } from '../../scripts/charger-referentiel.js';
+import { chargerUtilisateursDemo } from '../../scripts/charger-utilisateurs-demo.js';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 const fournisseurs = JSON.parse(readFileSync('data/synthetic/referentiel/fournisseurs.json', 'utf8'));
 const client = new pg.Client({
-  host: 'localhost', port: 5432, user: 'mizan_app', password: process.env.MIZAN_APP_PASSWORD, database: 'mizan_test',
+  host: 'localhost', port: 5432, user: process.env.POSTGRES_USER, password: process.env.POSTGRES_PASSWORD, database: 'mizan_test',
 });
 const compter = async (sql) => (await client.query(sql)).rows[0].n;
 
@@ -40,4 +41,11 @@ test('les fournisseurs « inconnus » des pièges ne sont pas dans le référent
   const noms = fournisseurs.map((f) => f.raison_sociale);
   assert.ok(!noms.includes('Djerba Express Fournitures'));
   assert.ok(!noms.includes('Kairouan Pro Équipement'));
+});
+
+test('utilisateur de démonstration : créé une fois, marqué fictif, tracé au journal', async () => {
+  assert.equal(await chargerUtilisateursDemo(client), 1);
+  assert.equal(await chargerUtilisateursDemo(client), 0, 'idempotent');
+  assert.equal(await compter("SELECT count(*)::int AS n FROM utilisateurs WHERE fictif AND role = 'responsable' AND nom LIKE '%fictif%'"), 1);
+  assert.equal(await compter("SELECT count(*)::int AS n FROM journal_audit WHERE action = 'utilisateur.cree'"), 1);
 });

@@ -125,8 +125,8 @@ $$, '23514', 'une facture sans fournisseur ne peut pas être validée');
 
 -- Résultats de contrôles -----------------------------------------------------
 SELECT pg_temp.doit_echouer($$
-    INSERT INTO resultats_controles (facture_id, regle, version_regle, resultat, gravite)
-    SELECT id, 'test', '1', 'anomalie', 'critique' FROM factures WHERE fichier_nom = 'test-1.pdf'
+    INSERT INTO resultats_controles (facture_id, passage, regle, version_regle, resultat, gravite)
+    SELECT id, nextval('passages_controle_seq'), 'devise', '1', 'anomalie', 'critique' FROM factures WHERE fichier_nom = 'test-1.pdf'
 $$, '23514', 'gravité inconnue refusée');
 
 -- Relevés --------------------------------------------------------------------

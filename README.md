@@ -39,7 +39,7 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 | 1 | Modèle de données | ✅ |
 | 2 | Données synthétiques | ✅ |
 | 3 | Réception et extraction (OCR, Gemini, corrections par le code) | ✅ |
-| 4 | Contrôles | à venir |
+| 4 | Contrôles déterministes (22 règles, décisions humaines tracées) | ✅ |
 | 5 | Validation humaine (Telegram) | à venir |
 | 6 | Rapprochement bancaire | à venir |
 | 7 | Restitution | à venir |
@@ -87,6 +87,61 @@ Mesure du 2026-10-06 sur les 36 textes conservés du lot de développement
 - **Détail :** [eval/resultats/mesure-2026-10-06/rapport.md](eval/resultats/mesure-2026-10-06/rapport.md)
   et les décisions D-050 à D-054.
 
+## Contrôles déterministes
+
+Chaque facture extraite passe par **22 règles**, toutes exécutées, sans LLM
+(`src/controles/regles.js`). Elles couvrent :
+- l'identité du fournisseur : matricule, RIB, raison sociale ;
+- le changement de RIB ;
+- les doublons ;
+- la cohérence des lignes, de la TVA et du TTC ;
+- le droit de timbre, la devise, les dates, les avoirs ;
+- le seuil de validation.
+
+Le statut découle de la gravité la plus forte : `bloquee`, `anomalie`,
+`a_valider` ou `conforme`. Le seuil et les tolérances d'arrondi sont dans une
+table de configuration.
+
+**Garde-fous :**
+- un paiement se fait toujours sur le RIB du référentiel, jamais sur celui
+  de la facture (D-058) ;
+- une sortie de blocage exige une décision tracée d'un responsable, avec
+  justification ;
+- quatre règles ne sont pas dérogeables : changement de RIB, incohérence
+  d'identité et les deux règles de doublon ;
+- la création d'un fournisseur ou le changement d'un RIB passe par une
+  demande approuvée par une **seconde personne**, avec une méthode de
+  vérification (D-056).
+
+Trois mesures sur le lot de développement (nombres bruts) :
+
+| Mesure | Ce qu'elle teste | Résultat |
+|---|---|---|
+| Vérité terrain | la logique seule, sur les valeurs imprimées | 9 pièges sur 9 détectés par la règle prévue ; 0 fausse alerte sur 33 factures sans piège ; 42 statuts sur 42 attendus |
+| Mutations (sans LLM) | chaque type d'erreur introduit dans chacune des 33 factures sans piège, limites des tolérances comprises | 594 cas sur 594 conformes (un écart égal à la tolérance est accepté ; un millime de plus est détecté) |
+| Extraction réelle | toute la chaîne : OCR, Gemini, corrections, contrôles | 9 pièges sur 9 détectés ; **2 fausses alertes** sur 31 factures normales ; 40 statuts sur 42 attendus |
+
+**Les deux fausses alertes**, comptées comme telles :
+- **D005** est bloquée : l'OCR a lu un prix unitaire de 126,649 au lieu de
+  126,64, et quantité × prix ne donne plus le montant de la ligne. La
+  facture est juste, mais l'alerte signale une vraie erreur de lecture.
+- **D018** est mise en anomalie : le modèle a renvoyé des entités HTML
+  malformées dans l'adresse et le nom du client. Elles sont signalées, pas
+  devinées.
+
+Sur les deux factures piégées par une consigne injectée, le bon RIB est
+extrait, et la présence de deux RIB valides est signalée, comme prévu.
+
+> **Limites.**
+> - **Un seul exemple par type de piège** dans le lot de développement : un
+>   9 sur 9 montre que chaque règle fonctionne, pas un taux de détection.
+> - **Des documents synthétiques réguliers**, calculés avec la même méthode
+>   d'arrondi que les règles : sur la vérité terrain, aucune tolérance
+>   d'arrondi n'a servi.
+> - **Le lot de test** reste réservé à l'évaluation finale.
+>
+> Détail : `eval/resultats/controles-*.md` et les décisions D-055 à D-060.
+
 ## Workflows n8n
 
 Les workflows sont générés dans `workflows/` par
@@ -95,10 +150,23 @@ Les workflows sont générés dans `workflows/` par
 Pour les importer dans n8n (menu ⋯ → *Import from File…*) :
 1. importer d'abord `extraction-llm.json` (le sous-workflow) ;
 2. puis importer `reception-extraction.json` ;
-3. créer dans n8n les credentials « PostgreSQL Mizan (mizan_app) » et
+3. puis importer `controles.json` ;
+4. créer dans n8n les credentials « PostgreSQL Mizan (mizan_app) » et
    « Gemini Mizan ». Aucune clé n'est dans le dépôt.
 
-Les factures sont à déposer dans `data/entrant/`, qui est ignoré par Git.
+Pour réimporter un workflow existant, vider d'abord son canevas
+(Ctrl + A, Suppr). Les factures sont à déposer dans `data/entrant/`, qui est
+ignoré par Git.
+
+Préparation de la base et mesures :
+
+```powershell
+npm run charger-referentiel          # référentiel fictif (compte administrateur)
+npm run charger-utilisateurs-demo    # second utilisateur, fictif (quatre yeux)
+npm run evaluer-controles            # contrôles sur la vérité terrain
+npm run test:mutations               # test par mutation des contrôles
+npm run evaluer-controles-reel       # contrôles sur l'extraction réelle
+```
 
 ## Prérequis
 

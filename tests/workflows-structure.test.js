@@ -8,10 +8,11 @@ import vm from 'node:vm';
 const lire = (chemin) => JSON.parse(readFileSync(chemin, 'utf8'));
 const sous = lire('workflows/extraction-llm.json');
 const principal = lire('workflows/reception-extraction.json');
+const controles = lire('workflows/controles.json');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DECLENCHEURS = new Set(['n8n-nodes-base.scheduleTrigger', 'n8n-nodes-base.executeWorkflowTrigger', 'n8n-nodes-base.manualTrigger']);
 
-for (const [nom, wf] of [['sous-workflow', sous], ['workflow principal', principal]]) {
+for (const [nom, wf] of [['sous-workflow', sous], ['workflow principal', principal], ['workflow Contrôles', controles]]) {
   test(`${nom} : noms uniques, connexions valides, aucun nœud orphelin`, () => {
     const noms = wf.nodes.map((n) => n.name);
     assert.equal(new Set(noms).size, noms.length, 'noms de nœuds uniques');
@@ -134,4 +135,39 @@ test('workflow principal : le référentiel des RIB est lu entre le sous-workflo
   assert.equal(referentiel.onError, 'continueRegularOutput', 'une panne n\'arrête pas le lot');
   assert.deepEqual(principal.connections['Extraction LLM (sous-workflow)'].main[0].map((l) => l.node), ['RIB du référentiel']);
   assert.deepEqual(principal.connections['RIB du référentiel'].main[0].map((l) => l.node), ['Valider et vérifier']);
+});
+
+// --- Workflow « Contrôles » (D-055) ----------------------------------------------------------
+test('workflow Contrôles : réservation unique, boucle jusqu\'à épuisement, statut calculé par la base', () => {
+  const reserver = noeud(controles, 'Réserver une facture à contrôler');
+  assert.equal(reserver.executeOnce, true);
+  assert.match(reserver.parameters.query, /reserver_facture_a_controler\(\)/);
+  assert.match(noeud(controles, 'Contexte des contrôles').parameters.query, /contexte_controles\(\$1::bigint\)/);
+  assert.match(noeud(controles, 'Enregistrer le passage').parameters.query, /enregistrer_controles\(\$1::jsonb\)/);
+  assert.deepEqual(controles.connections['Enregistrer le passage'].main[0].map((l) => l.node), ['Réserver une facture à contrôler']);
+});
+
+test('workflow Contrôles : le code généré, sur le vrai contexte de la base (D023), donne le même passage que src/', async () => {
+  const contexte = lire('tests/fixtures/contexte-controles-D023.json');
+  const sortie = await executer(controles, 'Exécuter toutes les règles', {
+    entree: { contexte }, sorties: { 'Réserver une facture à contrôler': { facture_id: contexte.facture.id } },
+  });
+  const { controlerFacture, statutSelonGravite } = await import('../src/controles/regles.js');
+  const { enMillimes, diviserArrondi, montantTva } = await import('../src/montants.js');
+  const { formeCourteMatricule, normaliserMatricule } = await import('../src/matricule.js');
+  const { ribValide } = await import('../src/rib.js');
+  const direct = controlerFacture(contexte, { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide });
+  assert.deepEqual(sortie.payload.resultats, JSON.parse(JSON.stringify(direct.resultats)));
+  assert.equal(sortie.payload.facture_id, contexte.facture.id);
+  assert.equal(sortie.payload.execution_n8n_id, 'exec-test');
+  assert.equal(sortie.payload.resultats.length, contexte.regles.length, 'toutes les règles du catalogue');
+  assert.notEqual(sortie.payload.fournisseur_id, null, 'D023 : fournisseur identifié par son matricule');
+  assert.equal(statutSelonGravite(sortie.payload.resultats), 'conforme');
+});
+
+test('workflow principal : la réutilisation ne vise que la version de chaîne en service (D-059)', async () => {
+  const { VERSION_CHAINE_EXTRACTION } = await import('../src/extractionWorkflow.js');
+  const n = noeud(principal, 'Extraction déjà faite ?');
+  assert.match(n.parameters.query, /extraction_valide_existante\(\$1, \$2\)/);
+  assert.equal(n.parameters.options.queryReplacement, `={{ [ $json.fichier_sha256, '${VERSION_CHAINE_EXTRACTION}' ] }}`);
 });

@@ -7,6 +7,12 @@
 // jugé inexploitable (PDF scanné sans couche de texte) : on passe par l'OCR.
 const SEUIL_CARACTERES_PDF = 50;
 
+// Version de la chaîne d'extraction (D-059) : configuration figée par D-053
+// (prompt v1, devise libre, paramètres D-048, corrections par le code). À
+// changer, par une nouvelle décision, si l'un de ces éléments change : les
+// extractions d'une autre version ne sont alors plus réutilisées.
+const VERSION_CHAINE_EXTRACTION = 'D-053';
+
 /** Vrai si le texte contient assez de lettres et de chiffres. */
 function texteSuffisant(texte) {
   return (String(texte ?? '').match(/[\p{L}\p{N}]/gu) ?? []).length >= SEUIL_CARACTERES_PDF;
@@ -58,6 +64,7 @@ function payloadExtraction({ reservation, lecture, contrat, ribsReferentiel, sch
     execution_n8n_id: executionId,
     // Texte transmis au LLM (D-051) : audit et mesures rejouables.
     texte_source: lecture.texte ?? null,
+    version_chaine: VERSION_CHAINE_EXTRACTION,
   };
   if (contrat.code_resultat !== 'ok') {
     return {
@@ -118,6 +125,7 @@ function payloadEchec(reservation, code, message, executionId, appelLlm, texteSo
       erreurs: [message],
       execution_n8n_id: executionId,
       texte_source: texteSource,
+      version_chaine: VERSION_CHAINE_EXTRACTION,
     },
   };
 }
@@ -129,6 +137,6 @@ function messageErreur(item) {
 }
 
 export {
-  SEUIL_CARACTERES_PDF, texteSuffisant, texteAExtraire,
+  SEUIL_CARACTERES_PDF, VERSION_CHAINE_EXTRACTION, texteSuffisant, texteAExtraire,
   payloadExtraction, payloadReutilisation, payloadEchec, messageErreur,
 };

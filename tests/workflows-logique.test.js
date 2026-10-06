@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MAX_TENTATIVES_LLM, preparerAppel, traiterReponse } from '../src/sousWorkflowLlm.js';
 import {
-  texteSuffisant, texteAExtraire, payloadExtraction,
+  VERSION_CHAINE_EXTRACTION, texteSuffisant, texteAExtraire, payloadExtraction,
   payloadReutilisation, payloadEchec, messageErreur,
 } from '../src/extractionWorkflow.js';
 import { PARAMETRES_GENERATION_GEMINI, construireRequeteGemini, urlGemini, lireReponseGemini, attenteAvantNouvelEssai } from '../src/gemini.js';
@@ -182,4 +182,12 @@ test('réutilisation et échecs hors LLM', () => {
   assert.equal(panneLlm.payload.texte_source, 'FACTURE N° 1', 'texte déjà lu conservé');
   assert.equal(messageErreur({ error: { message: 'ENOENT' } }), 'ENOENT');
   assert.equal(messageErreur({ error: 'texte brut' }), 'texte brut');
+});
+
+test('version de la chaîne d\'extraction (D-059) : enregistrée avec chaque extraction, réussie ou non', () => {
+  const r = payloadExtraction({ reservation, lecture: { texte: texteSource, methode_lecture: 'texte_pdf' },
+    contrat: contratDe(reponseOk), ribsReferentiel: {}, schema: schemaStrict, executionId: 'e9' }, depsControle);
+  assert.equal(r.payload.version_chaine, VERSION_CHAINE_EXTRACTION);
+  assert.equal(VERSION_CHAINE_EXTRACTION, 'D-053', 'configuration figée par D-053');
+  assert.equal(payloadEchec(reservation, 'erreur_lecture', 'x', 'e10', false).payload.version_chaine, VERSION_CHAINE_EXTRACTION);
 });

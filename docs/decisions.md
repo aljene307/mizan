@@ -1087,6 +1087,208 @@ Validée par Mohamed le 2026-10-06.
   doublons d'une facture déjà reçue (même numéro, même fournisseur) ; le
   contrôle des doublons de l'étape 4 devra les signaler, ce qui est attendu.
 
+### D-055 · Contrôles déterministes : choix d'organisation
+Validés par Mohamed le 2026-10-06 (le plan détaillé suit, à valider).
+- **A1 :** workflow « Contrôles » séparé de l'extraction ; il réserve les
+  factures `extraite` une à une et peut être relancé.
+- **B2 :** tolérance d'arrondi mixte : HT + TVA + timbre = TTC au millime
+  près ; TVA recalculée par taux, tolérance d'un millime par ligne à ce
+  taux ; ±1 millime par ligne (quantité × prix unitaire). Écarts tolérés
+  tracés en info.
+- **C1 :** un fournisseur probable (matricule mal formé ou mal lu) est
+  **proposé** à la personne qui valide, jamais rattaché par le code.
+- **D1 :** nouveau statut `a_valider` pour une facture sans anomalie mais
+  au-dessus du seuil de validation.
+- **Précisions de Mohamed :**
+  1. la sortie de blocage (qui, justification obligatoire, trace au journal
+     d'audit) et la mise à jour du référentiel après un changement de RIB
+     légitime sont prévues dès maintenant dans les statuts et le modèle de
+     données ; leur réalisation peut attendre la validation humaine ;
+  2. toutes les règles s'exécutent sur chaque facture, sans s'arrêter à la
+     première anomalie ; la mesure donne, en nombres bruts, les pièges
+     détectés par type et les fausses alertes sur les factures normales ;
+  3. le seuil de validation et les tolérances d'arrondi sont dans une table
+     de configuration, pas dans le code.
+- **Écartés :** contrôles en fin de workflow d'extraction (impossible à
+  relancer seuls) ; contrôles en SQL (la logique métier reste dans `src/`,
+  avec ses tests) ; tolérance exacte partout (fausses alertes sur les
+  factures arrondies ligne à ligne) ; tolérance en pourcentage (laisserait
+  passer une vraie erreur sur une grosse facture) ; rattachement
+  automatique du fournisseur probable.
+
+### D-056 · Sortie de blocage et discipline du référentiel
+Validée par Mohamed le 2026-10-06 (migrations `20261006110000` et
+`20261006110100`). Réalisation de l'interface à l'étape 5 ; le modèle, les
+statuts et les garde-fous sont en place dès maintenant.
+- **Statuts :** ajout de `en_controle` et `a_valider`. Table
+  `transitions_statut` : toute transition absente est refusée pour le rôle
+  applicatif (MZ010) ; les transitions humaines (sortie de `a_valider`,
+  `anomalie`, `bloquee`, `erreur_extraction`) exigent une **décision humaine
+  enregistrée dans la même transaction** (MZ011). Limite (comme D-015) :
+  l'administrateur de la base n'est pas soumis à cette garde.
+- **Deux rôles** (table `utilisateurs`, gérée par l'administrateur seul) :
+  `validateur` (valide ou rejette une facture `a_valider` ou `anomalie`) et
+  `responsable` (en plus : sortie de `bloquee`, renvoi aux contrôles,
+  relance d'une extraction, approbation des demandes sur le référentiel).
+- **Décisions humaines** (`decisions_humaines`, ajout seul) : insérer la
+  décision est l'action ; un déclencheur vérifie l'utilisateur, son rôle, la
+  justification (longueur minimale dans `parametres_controle`), les règles
+  non dérogeables, puis change le statut et écrit au journal d'audit.
+- **Quatre règles non dérogeables :** `changement_rib`,
+  `incoherence_identite`, `doublon_fichier`, `doublon_numero`. Une facture
+  bloquée par l'une d'elles est rejetée, ou corrigée puis renvoyée aux
+  contrôles ; jamais validée par dérogation (MZ015).
+- **Référentiel (ajout de Mohamed : le faux fournisseur est la même fraude
+  que le faux RIB) :** création de fournisseur et changement de RIB passent
+  par `demandes_referentiel` puis `decisions_referentiel` (ajout seul) :
+  demande par tout utilisateur actif, avec justification ; décision par un
+  **responsable**, **différent du demandeur** (quatre yeux, MZ018), avec une
+  **méthode de vérification** obligatoire prise dans une liste fermée propre
+  au type de demande (`methodes_verification`). L'approbation, dans la même
+  transaction : crée le fournisseur et son RIB, ou clôt l'ancien RIB et
+  ouvre le nouveau (historique D-014) ; écrit au journal ; renvoie aux
+  contrôles la facture de la demande (rattachée au fournisseur créé) et,
+  pour un changement de RIB, les autres factures bloquées du fournisseur.
+- **Conséquence sur les droits (révise D-018) :** `mizan_app` ne peut plus
+  écrire dans `fournisseurs` ni `fournisseur_ribs`. Sans cela, n8n pourrait
+  contourner les quatre yeux. Seule une décision approuvée modifie le
+  référentiel (fonction `SECURITY DEFINER`). Le chargement initial du
+  référentiel fictif (`npm run charger-referentiel`) se fait donc avec le
+  compte administrateur.
+- **Utilisateur de démonstration :** les quatre yeux exigent deux personnes.
+  `npm run charger-utilisateurs-demo` crée « Démo – Responsable fictif
+  (second contrôleur) », marqué `fictif`. Le compte de Mohamed sera créé à
+  l'étape 5 avec son identifiant Telegram.
+- **Limite :** la base vérifie le rôle de l'utilisateur dont n8n lui
+  transmet l'identité ; l'authenticité de cette identité (Telegram) sera
+  traitée à l'étape 5.
+- **Tests :** `db/tests/04_controles.sql` (refus compris : transition
+  interdite, décision sans rôle, justification trop courte, utilisateur
+  inactif, règle non dérogeable, quatre yeux, méthode inadaptée, RIB à clé
+  fausse).
+
+### D-057 · Règles de contrôle, version 1 : choix de détail
+Code : `src/controles/regles.js` (22 règles, toutes exécutées sur chaque
+facture ; une règle qui échoue donne une `erreur` bloquante, sans arrêter les
+autres). Tests : `tests/controles.test.js`. Choix faits en écrivant les
+règles, à relire :
+- **Identification :** seul le matricule court reconnu (ou une décision
+  humaine, C1) rattache la facture. RIB, raison sociale (sans accents, casse
+  ni ponctuation) et matricule à une distance d'édition de 1 ne font que
+  **proposer** un fournisseur probable, ou révéler une **incohérence
+  d'identité** (matricule → A, RIB ou raison sociale → B).
+- **`matricule_lecture_probable`** n'alerte que si le matricule proche est
+  corroboré par le RIB ou la raison sociale.
+- **`matricule_suffixe`** compare le suffixe (`/A/M/000`) à celui des
+  factures précédentes du même matricule : le référentiel ne stocke que la
+  forme courte. Gravité « info » : elle ne change pas le statut.
+- **Doublons :** la facture marquée est celle reçue en second (identifiant
+  le plus grand) ; les factures `rejetee`, `erreur_extraction`, `recue` ou
+  `en_extraction` ne servent pas de référence. Le fournisseur d'une autre
+  facture pas encore contrôlée est déduit de son matricule lu.
+- **Arrondis :** au millime en TND ; au centime (10 millimes) pour une
+  devise à deux décimales. La somme des lignes doit égaler le HT exactement
+  (valeurs imprimées).
+- **TVA :** un taux absent de `config_fiscale` à la date de la facture donne
+  un avertissement (pas un blocage) : la table ne dit pas quel taux
+  s'applique à quel bien (D-020).
+- **Timbre :** non applicable aux avoirs (exonération non vérifiée, D-020) et
+  aux devises étrangères (D-029) ; clé `timbre.facture` seule (D-022).
+- **Seuil :** non applicable à une devise étrangère (pas de taux de change) ;
+  la règle `devise` impose déjà une validation humaine.
+- **RIB absent de la facture :** pas d'alerte ; le RIB du référentiel sera
+  utilisé. Sauf proposition différente trouvée dans le texte (D-053).
+- **Mesure sur la vérité terrain** (`eval/evaluer-controles.js`, lot de
+  développement seul) : date de référence fixe (2026-10-06) pour un rapport
+  reproductible ; paire de doublons comptée comme une unité.
+
+### D-058 · Un paiement se fait toujours sur le RIB actif du référentiel
+Principe posé par Mohamed le 2026-10-06.
+- **Règle :** un paiement (virement préparé, rapprochement attendu) se fait
+  **toujours sur le RIB actif du référentiel** du fournisseur, **jamais sur
+  le RIB lu sur la facture**. Le RIB extrait ne sert qu'aux contrôles :
+  détecter un changement de RIB (`changement_rib`), une incohérence
+  d'identité, une consigne injectée.
+- **Conséquence :** une facture sans RIB, et sans proposition de RIB trouvée
+  dans le texte, ne déclenche pas d'alerte (D-057) : elle ne fait courir
+  aucun risque, puisque le paiement utilisera le RIB du référentiel.
+- **Seul chemin pour payer sur un autre RIB :** une demande de changement de
+  RIB approuvée (D-056 : responsable, quatre yeux, méthode de vérification),
+  qui met à jour le référentiel.
+- **À appliquer aux étapes 5 à 7** (validation, rapprochement,
+  restitution) : aucun écran ni aucun export ne propose le RIB de la
+  facture comme RIB de paiement.
+
+### D-059 · Version de chaîne d'extraction et réextraction du lot de développement
+Validée par Mohamed le 2026-10-06.
+- **Constat :** les factures de développement en base avaient été extraites
+  avant les corrections par le code et le gel de la configuration (D-053) :
+  6 en `erreur_extraction` (devise « DT »), dont le piège `montant_eleve`
+  (D028), et 36 avec d'anciennes données (7 RIB vides). Une simple relance
+  aurait **réutilisé** ces anciennes extractions (même SHA-256, D-035), sans
+  appel au LLM ni corrections.
+- **Choix :** colonne `extractions.version_chaine` (migration
+  `20261006120000`), valeur `D-053` pour la configuration figée
+  (`VERSION_CHAINE_EXTRACTION`, `src/extractionWorkflow.js`).
+  `extraction_valide_existante` ne réutilise qu'une extraction **de la même
+  version** ; une réutilisation reprend la version de l'extraction
+  d'origine. Les anciennes extractions gardent une version vide (ajout seul).
+- **Garde-fou durable :** toute évolution du prompt, du schéma, des
+  paramètres ou des corrections exige une nouvelle version, donc une
+  nouvelle décision ; aucune extraction d'une autre configuration n'est
+  recopiée en silence.
+- **Réextraction :** `scripts/reextraire-lot-dev.js` (simulation par défaut,
+  `--appliquer` pour agir ; compte administrateur, opération de
+  maintenance). Seuls les 42 fichiers du lot dev ; refus en bloc si une
+  facture a déjà des résultats de contrôle ou un statut autre que
+  `extraite` / `erreur_extraction`. Par facture, en une transaction : lignes
+  supprimées (données dérivées), champs extraits vidés, statut `recue`,
+  entrée `facture.reextraction` au journal avec l'état précédent. Les
+  extractions précédentes restent.
+- **Coût :** 41 appels à Gemini (D056 réutilise la nouvelle extraction de
+  D035) ; copies d'essai non touchées.
+
+### D-060 · Correctif : historique du fournisseur dans le contexte des contrôles
+- **Défaut trouvé par la mesure sur l'extraction réelle :** `contexte_controles`
+  ne transmettait, parmi les autres factures, que les candidats doublons
+  (même fichier, même numéro, même montant et même date). La règle
+  `matricule_suffixe`, qui compare le suffixe aux factures précédentes du
+  fournisseur, ne voyait donc jamais l'historique. La mesure sur la vérité
+  terrain ne pouvait pas le révéler : son contexte, construit hors base,
+  contient toutes les factures.
+- **Correctif (migration `20261006130000`) :** le contexte ajoute les
+  factures dont le matricule lu a les mêmes 8 premiers caractères
+  alphanumériques (forme courte), ou rattachées au même fournisseur. Test
+  SQL ajouté.
+- **Effet sur le passage du 2026-10-06 :** rejouées sur le contexte corrigé,
+  les règles ne changent aucune alerte ni aucun statut ; seule D005 reçoit
+  un résultat « info ». Pas de nouveau passage : une « info » ne change pas
+  le statut.
+- **Limite de la règle, constatée :** elle signale un **changement** de
+  suffixe. Quand les premières factures d'un fournisseur sont mal lues
+  (`/008` sur D001 et D004), c'est la facture suivante, juste, qui reçoit
+  l'info. Sans conséquence (gravité « info »), à garder en tête pour
+  l'étape 5.
+- **Leçon :** une mesure sur la vérité terrain construite hors base ne
+  teste pas le contrat SQL → JavaScript ; d'où l'intérêt de la mesure sur
+  l'extraction réelle, et du test du nœud sur un vrai contexte de la base.
+
+### D-061 · Piste pour plus tard : gravité des signalements d'entités HTML
+Notée à la demande de Mohamed le 2026-10-06 ; **rien n'est modifié**.
+- **Constat :** sur l'extraction réelle, D018 passe en `anomalie` à cause
+  d'entités HTML malformées dans l'adresse du fournisseur et la raison
+  sociale du client, deux champs descriptifs qui n'entrent dans aucun
+  contrôle décisif.
+- **Piste :** un signalement d'entités qui ne touche **que** des champs
+  descriptifs (adresse, raison sociale du client) pourrait être ramené à
+  « info ». Il resterait un avertissement dès qu'il touche un champ utilisé
+  par un contrôle : identifiants, numéro, montants, raison sociale du
+  fournisseur (identité), désignations.
+- **Condition :** une décision explicite, une nouvelle version de la règle
+  `signalements_extraction`, et une mesure avant/après sur le lot de
+  développement. Ce changement ne touche pas l'extraction : il n'exige donc
+  pas une nouvelle version de chaîne (D-059).
+
 ### D-045 · Tests d'intégration sur une base dédiée
 - Les tests qui ont besoin de données validées en base (concurrence,
   référentiel) tournent sur `mizan_test`, recréée par dbmate à chaque

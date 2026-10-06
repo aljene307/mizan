@@ -1,7 +1,10 @@
 // Charge le référentiel fictif (data/synthetic/referentiel/fournisseurs.json)
 // dans la base : fournisseurs connus et leur RIB actif. Idempotent : relancer
 // le script ne crée aucun doublon. Une seule transaction ; chaque création est
-// tracée au journal d'audit. Rôle utilisé : mizan_app (droits limités).
+// tracée au journal d'audit. Rôle utilisé : l'administrateur de la base, car
+// mizan_app ne peut plus écrire dans le référentiel (D-056) : le chargement
+// initial est un acte d'administration ; ensuite, toute création ou tout
+// changement de RIB passe par une demande approuvée (quatre yeux).
 // Usage : npm run charger-referentiel [-- --base mizan_test]
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -74,7 +77,7 @@ async function principal() {
   const base = indexBase > -1 ? process.argv[indexBase + 1] : (process.env.MIZAN_DB ?? 'mizan');
   const fournisseurs = JSON.parse(readFileSync('data/synthetic/referentiel/fournisseurs.json', 'utf8'));
   const client = new pg.Client({
-    host: 'localhost', port: 5432, user: 'mizan_app', password: process.env.MIZAN_APP_PASSWORD, database: base,
+    host: 'localhost', port: 5432, user: process.env.POSTGRES_USER, password: process.env.POSTGRES_PASSWORD, database: base,
   });
   await client.connect();
   try {

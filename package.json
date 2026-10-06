@@ -14,7 +14,12 @@
     "generer": "node generateur/generer.js",
     "charger-referentiel": "node scripts/charger-referentiel.js",
     "mesurer-ocr": "node scripts/mesurer-ocr.js",
-    "synchroniser-noeuds": "node scripts/synchroniser-noeuds.js"
+    "synchroniser-noeuds": "node scripts/synchroniser-noeuds.js",
+    "charger-utilisateurs-demo": "node scripts/charger-utilisateurs-demo.js",
+    "evaluer-controles": "node eval/evaluer-controles.js",
+    "test:mutations": "node eval/mutations-controles.js",
+    "reextraire-lot-dev": "node scripts/reextraire-lot-dev.js",
+    "evaluer-controles-reel": "node eval/evaluer-controles-reel.js"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",

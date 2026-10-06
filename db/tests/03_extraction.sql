@@ -10,8 +10,9 @@ BEGIN;
 \o /dev/null
 
 -- Isole le test des factures déjà présentes (annulé par le ROLLBACK final).
-UPDATE factures SET statut = 'erreur_extraction', reservee_le = NULL
-WHERE statut IN ('recue', 'en_extraction');
+-- (deux étapes : seules les transitions prévues sont permises, D-056)
+UPDATE factures SET statut = 'en_extraction' WHERE statut = 'recue';
+UPDATE factures SET statut = 'erreur_extraction', reservee_le = NULL WHERE statut = 'en_extraction';
 
 -- Réception --------------------------------------------------------------------
 SELECT pg_temp.doit_valoir($$
@@ -67,7 +68,7 @@ SELECT pg_temp.doit_reussir($$
         'fournisseur_llm', 'google', 'modele', 'gemini-3.5-flash-lite',
         'version_prompt', 'v1', 'empreinte_prompt', repeat('a', 64),
         'duree_lecture_ms', 120, 'duree_llm_ms', 2300, 'jetons_entree', 1800, 'jetons_sortie', 400,
-        'tentatives', 1, 'execution_n8n_id', 'exec-1',
+        'tentatives', 1, 'execution_n8n_id', 'exec-1', 'version_chaine', 'test-v',
         'donnees', '{
           "type_document": "facture", "numero": "FA-2026-0001", "date_facture": "2026-03-01",
           "date_echeance": "2026-03-31", "devise": "TND",
@@ -108,14 +109,14 @@ $$, 'MZ003', 'une facture non réservée ne peut pas recevoir d''extraction');
 -- Réutilisation pour un même fichier (D-035, point 2) --------------------------
 SELECT pg_temp.doit_valoir($$
     SELECT (extraction_id IS NOT NULL)::text || '/' || (donnees ->> 'numero')
-    FROM extraction_valide_existante(repeat('1', 64))
+    FROM extraction_valide_existante(repeat('1', 64), 'test-v')
 $$, 'true/FA-2026-0001', 'l''extraction valide du même fichier est retrouvée');
 SELECT pg_temp.doit_reussir($$
     SELECT enregistrer_extraction(jsonb_build_object(
         'facture_id', (SELECT id FROM factures WHERE fichier_nom = 'T1-copie.pdf'),
         'resultat', 'reutilisee', 'code_resultat', 'reutilisation',
         'reutilise_de', e.extraction_id, 'methode_lecture', e.methode_lecture, 'donnees', e.donnees))
-    FROM extraction_valide_existante(repeat('1', 64)) e
+    FROM extraction_valide_existante(repeat('1', 64), 'test-v') e
 $$, 'le doublon réutilise l''extraction existante, sans appel au LLM');
 SELECT pg_temp.doit_valoir($$
     SELECT concat_ws('|', f.statut, f.numero, (SELECT count(*) FROM lignes_facture l WHERE l.facture_id = f.id))
@@ -125,6 +126,13 @@ SELECT pg_temp.doit_valoir($$
     SELECT (count(*) FILTER (WHERE resultat = 'valide'))::text || '/' || count(*)::text
     FROM extractions WHERE fichier_sha256 = repeat('1', 64)
 $$, '1/2', 'une seule extraction « valide » (un seul appel au LLM) pour deux factures');
+SELECT pg_temp.doit_valoir($$
+    SELECT count(*)::text FROM extraction_valide_existante(repeat('1', 64), 'autre-version')
+$$, '0', 'une extraction d''une autre version de chaîne n''est pas réutilisée (D-059)');
+SELECT pg_temp.doit_valoir($$
+    SELECT string_agg(coalesce(e.version_chaine, 'null'), ',' ORDER BY e.id) FROM extractions e
+    WHERE e.fichier_sha256 = repeat('1', 64)
+$$, 'test-v,test-v', 'la réutilisation reprend la version de l''extraction d''origine');
 SELECT pg_temp.doit_echouer($$
     INSERT INTO extractions (facture_id, fichier_sha256, resultat, code_resultat, donnees)
     SELECT id, fichier_sha256, 'reutilisee', 'reutilisation', '{}' FROM factures WHERE fichier_nom = 'T1-copie.pdf'
@@ -133,8 +141,8 @@ $$, '23514', 'une réutilisation doit indiquer l''extraction d''origine');
 -- Paramètres de génération et alertes « identifiant absent du texte » (D-047, D-048)
 SELECT pg_temp.doit_reussir($$
     SELECT enregistrer_reception('dossier', 'T4.pdf', 'pdf', 'T4.pdf', repeat('4', 64));
-    UPDATE factures SET statut = 'erreur_extraction'
-    WHERE statut = 'recue' AND fichier_nom <> 'T4.pdf';
+    UPDATE factures SET statut = 'en_extraction' WHERE statut = 'recue' AND fichier_nom <> 'T4.pdf';
+    UPDATE factures SET statut = 'erreur_extraction' WHERE statut = 'en_extraction' AND fichier_nom <> 'T4.pdf';
 $$, 'réception de T4 (seule facture en attente)');
 SELECT pg_temp.doit_valoir($$SELECT fichier_nom FROM reserver_facture_a_extraire()$$, 'T4.pdf',
     'réservation de T4');
@@ -146,7 +154,7 @@ SELECT pg_temp.doit_reussir($$
         'parametres_generation', '{"temperature": 1.0, "thinkingLevel": "low", "maxOutputTokens": 8192}'::jsonb,
         'verifications_source', '[{"champ": "fournisseur.rib", "valeur": "99999000000000000651", "present": false}]'::jsonb,
         'alertes_source', '["fournisseur.rib « 99999000000000000651 » absent du texte source"]'::jsonb,
-        'donnees', (SELECT donnees FROM extraction_valide_existante(repeat('1', 64)))))
+        'donnees', (SELECT donnees FROM extraction_valide_existante(repeat('1', 64), 'test-v'))))
 $$, 'extraction valide avec une alerte');
 SELECT pg_temp.doit_valoir($$
     SELECT concat_ws('|', e.parametres_generation ->> 'thinkingLevel', e.parametres_generation ->> 'temperature',
@@ -166,7 +174,8 @@ $$, '0|0', 'sans alerte transmise, les listes sont vides (valeur par défaut)');
 -- Texte transmis au LLM (D-051) -------------------------------------------------
 SELECT pg_temp.doit_reussir($$
     SELECT enregistrer_reception('dossier', 'T5.pdf', 'pdf', 'T5.pdf', repeat('5', 64));
-    UPDATE factures SET statut = 'erreur_extraction' WHERE statut = 'recue' AND fichier_nom <> 'T5.pdf';
+    UPDATE factures SET statut = 'en_extraction' WHERE statut = 'recue' AND fichier_nom <> 'T5.pdf';
+    UPDATE factures SET statut = 'erreur_extraction' WHERE statut = 'en_extraction' AND fichier_nom <> 'T5.pdf';
 $$, 'réception de T5 (seule facture en attente)');
 SELECT pg_temp.doit_valoir($$SELECT fichier_nom FROM reserver_facture_a_extraire()$$, 'T5.pdf',
     'réservation de T5');
@@ -185,24 +194,12 @@ SELECT pg_temp.doit_valoir($$
 $$, 'true', 'une réutilisation (aucun appel au LLM) n''a pas de texte source');
 
 -- Corrections par le code et propositions (D-053) ---------------------------------
-SELECT pg_temp.doit_reussir($$
-    WITH f AS (INSERT INTO fournisseurs (raison_sociale, matricule_fiscal)
-               VALUES ('Fournisseur Référentiel', '9912399Z') RETURNING id)
-    INSERT INTO fournisseur_ribs (fournisseur_id, rib) SELECT id, '99001000000000000099' FROM f;
-    WITH f AS (INSERT INTO fournisseurs (raison_sociale, matricule_fiscal)
-               VALUES ('Fournisseur Ancien RIB', '9912398Y') RETURNING id)
-    INSERT INTO fournisseur_ribs (fournisseur_id, rib, valide_du, valide_au)
-    SELECT id, '99001000000000000198', '2026-01-01', '2026-02-01' FROM f;
-$$, 'deux fournisseurs : un RIB actif, un RIB clos');
-SELECT pg_temp.doit_valoir($$SELECT ribs_referentiel() ->> '9912399Z'$$, '99001000000000000099',
-    'le référentiel donne le RIB actif par matricule fiscal');
-SELECT pg_temp.doit_valoir($$SELECT (ribs_referentiel() ? '9912398Y')::text$$, 'false',
-    'un RIB clos n''est pas dans le référentiel');
+-- (référentiel des RIB : testé dans 04_controles.sql, mizan_app n'écrivant plus le référentiel)
 SELECT pg_temp.doit_reussir($$
     SELECT enregistrer_reception('dossier', 'T6.pdf', 'pdf', 'T6.pdf', repeat('6', 64));
     SELECT enregistrer_reception('dossier', 'T6-copie.pdf', 'pdf', 'T6-copie.pdf', repeat('6', 64));
-    UPDATE factures SET statut = 'erreur_extraction'
-    WHERE statut = 'recue' AND fichier_nom NOT IN ('T6.pdf', 'T6-copie.pdf');
+    UPDATE factures SET statut = 'en_extraction' WHERE statut = 'recue' AND fichier_nom NOT IN ('T6.pdf', 'T6-copie.pdf');
+    UPDATE factures SET statut = 'erreur_extraction' WHERE statut = 'en_extraction' AND fichier_nom NOT IN ('T6.pdf', 'T6-copie.pdf');
 $$, 'réception de T6 et de sa copie');
 SELECT pg_temp.doit_valoir($$SELECT fichier_nom FROM reserver_facture_a_extraire()$$, 'T6.pdf',
     'réservation de T6');
@@ -210,8 +207,8 @@ SELECT pg_temp.doit_reussir($$
     SELECT enregistrer_extraction(jsonb_build_object(
         'facture_id', (SELECT id FROM factures WHERE fichier_nom = 'T6.pdf'),
         'resultat', 'valide', 'code_resultat', 'ok', 'methode_lecture', 'texte_pdf',
-        'donnees', (SELECT donnees FROM extraction_valide_existante(repeat('1', 64))),
-        'donnees_brutes', (SELECT donnees || '{"devise": "DT"}' FROM extraction_valide_existante(repeat('1', 64))),
+        'donnees', (SELECT donnees FROM extraction_valide_existante(repeat('1', 64), 'test-v')),
+        'donnees_brutes', (SELECT donnees || '{"devise": "DT"}' FROM extraction_valide_existante(repeat('1', 64), 'test-v')),
         'corrections_code', '["devise : « DT » converti en TND"]'::jsonb,
         'propositions', '[{"champ": "fournisseur.rib", "valeur": "99001000000000000198", "rib_referentiel": null}]'::jsonb))
 $$, 'extraction corrigée par le code, avec une proposition de RIB');

@@ -12,21 +12,19 @@ SELECT pg_temp.doit_valoir($$SELECT current_user::text$$, 'mizan_app',
 
 -- Ce que l'application doit pouvoir faire ------------------------------------
 SELECT pg_temp.doit_reussir($$
-    INSERT INTO fournisseurs (raison_sociale, matricule_fiscal) VALUES ('Fournisseur App', 'TESTAPP1');
-    INSERT INTO fournisseur_ribs (fournisseur_id, rib)
-    SELECT id, '00000000000000000009' FROM fournisseurs WHERE matricule_fiscal = 'TESTAPP1';
-    INSERT INTO factures (fournisseur_id, numero, canal_reception, format_source, fichier_nom, fichier_sha256)
-    SELECT id, 'F-APP', 'telegram', 'image', 'app.jpg', repeat('e', 64)
-    FROM fournisseurs WHERE matricule_fiscal = 'TESTAPP1';
+    INSERT INTO factures (numero, canal_reception, format_source, fichier_nom, fichier_sha256)
+    VALUES ('F-APP', 'telegram', 'image', 'app.jpg', repeat('e', 64));
     INSERT INTO lignes_facture (facture_id, numero_ligne, designation)
     SELECT id, 1, 'Article' FROM factures WHERE fichier_nom = 'app.jpg';
-$$, 'ajouter fournisseur, RIB, facture et ligne');
+$$, 'ajouter une facture et une ligne');
+SELECT pg_temp.doit_valoir($$SELECT count(*)::text FROM fournisseurs WHERE false$$, '0', 'lire le référentiel');
 SELECT pg_temp.doit_reussir($$
-    UPDATE factures SET statut = 'extraite', montant_ttc = 50 WHERE fichier_nom = 'app.jpg'
-$$, 'modifier une facture (statut, montants)');
+    UPDATE factures SET statut = 'en_extraction', montant_ttc = 50 WHERE fichier_nom = 'app.jpg'
+$$, 'modifier une facture (statut prévu, montants)');
 SELECT pg_temp.doit_reussir($$
-    INSERT INTO resultats_controles (facture_id, regle, version_regle, resultat, gravite, detail)
-    SELECT id, 'test', '1', 'ok', 'info', '{"attendu": 1}' FROM factures WHERE fichier_nom = 'app.jpg'
+    INSERT INTO resultats_controles (facture_id, passage, regle, version_regle, resultat, gravite, detail)
+    SELECT id, nextval('passages_controle_seq'), 'devise', '1', 'ok', 'info', '{"attendu": 1}'
+    FROM factures WHERE fichier_nom = 'app.jpg'
 $$, 'enregistrer un résultat de contrôle');
 SELECT pg_temp.doit_reussir($$
     INSERT INTO journal_audit (acteur, action, entite, entite_id)
@@ -50,6 +48,14 @@ SELECT pg_temp.doit_echouer($$DELETE FROM factures WHERE fichier_nom = 'app.jpg'
     '42501', 'supprimer une facture');
 SELECT pg_temp.doit_echouer($$DELETE FROM fournisseurs WHERE matricule_fiscal = 'TESTAPP1'$$,
     '42501', 'supprimer un fournisseur');
+SELECT pg_temp.doit_echouer($$INSERT INTO fournisseurs (raison_sociale, matricule_fiscal) VALUES ('App', 'TESTAPP1')$$,
+    '42501', 'créer un fournisseur sans demande approuvée (D-056)');
+SELECT pg_temp.doit_echouer($$UPDATE fournisseur_ribs SET valide_au = current_date$$,
+    '42501', 'modifier un RIB sans demande approuvée (D-056)');
+SELECT pg_temp.doit_echouer($$INSERT INTO utilisateurs (nom, role) VALUES ('Intrus', 'responsable')$$,
+    '42501', 'créer un utilisateur');
+SELECT pg_temp.doit_echouer($$UPDATE factures SET statut = 'validee' WHERE fichier_nom = 'app.jpg'$$,
+    'MZ010', 'changer un statut hors des transitions prévues');
 SELECT pg_temp.doit_echouer($$UPDATE journal_audit SET acteur = 'pirate'$$,
     '42501', 'modifier le journal d''audit');
 SELECT pg_temp.doit_echouer($$DELETE FROM journal_audit$$,

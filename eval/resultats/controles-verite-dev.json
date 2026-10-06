@@ -1,0 +1,1069 @@
+{
+  "date_reference": "2026-10-06",
+  "parametres": {
+    "seuil_validation_ttc": 20000,
+    "tolerance.ttc_millimes": 0,
+    "tolerance.ligne_millimes": 1,
+    "justification.longueur_min": 15,
+    "tolerance.tva_millimes_par_ligne": 1
+  },
+  "pieges": {
+    "erreur_tva": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D051"
+      ]
+    },
+    "ttc_incoherent": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D010"
+      ]
+    },
+    "rib_modifie": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D030"
+      ]
+    },
+    "matricule_invalide": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D011"
+      ]
+    },
+    "fournisseur_inconnu": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D008"
+      ]
+    },
+    "montant_eleve": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D028"
+      ]
+    },
+    "devise_etrangere": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D045"
+      ]
+    },
+    "doublon_exact": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D035"
+      ]
+    },
+    "doublon_rescanne": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": [],
+      "documents": [
+        "D050"
+      ]
+    }
+  },
+  "fausses_alertes": [],
+  "documents": [
+    {
+      "id": "D001",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [
+        "injection_prompt"
+      ],
+      "statut": "conforme",
+      "fournisseur_id": 3,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D003",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 9,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D004",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 3,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D005",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 3,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D006",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [
+        "injection_prompt"
+      ],
+      "statut": "conforme",
+      "fournisseur_id": 11,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D007",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 6,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D008",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "fournisseur_inconnu"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "bloquee",
+      "fournisseur_id": null,
+      "alertes": [
+        {
+          "regle": "fournisseur_inconnu",
+          "gravite": "bloquant",
+          "message": "fournisseur absent du référentiel : création à demander (quatre yeux)"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 6,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D010",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "ttc_incoherent"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "bloquee",
+      "fournisseur_id": 2,
+      "alertes": [
+        {
+          "regle": "coherence_ttc",
+          "gravite": "bloquant",
+          "message": "HT + TVA + timbre = 8316.815 ≠ TTC imprimé 8378.036"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D011",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "matricule_invalide"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "bloquee",
+      "fournisseur_id": null,
+      "alertes": [
+        {
+          "regle": "fournisseur_inconnu",
+          "gravite": "bloquant",
+          "message": "fournisseur non identifié ; probable : Médina Connect Télécom (rib, raison sociale, matricule à un caractère près)"
+        },
+        {
+          "regle": "matricule_format",
+          "gravite": "bloquant",
+          "message": "matricule « 991756L/A/M/000 » au format non reconnu (7 chiffres et une lettre attendus)"
+        },
+        {
+          "regle": "matricule_lecture_probable",
+          "gravite": "avertissement",
+          "message": "matricule « 991756L/A/M/000 » à un caractère de 9917566L, confirmé par le RIB ou la raison sociale : lecture ou impression probablement erronée"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 8,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D014",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 7,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D015",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 2,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D018",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 12,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D019",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 8,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D020",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 3,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D021",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 12,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D022",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 9,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D023",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 1,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D024",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 2,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D025",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 9,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D028",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "montant_eleve"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "a_valider",
+      "fournisseur_id": 10,
+      "alertes": [
+        {
+          "regle": "seuil_validation",
+          "gravite": "validation",
+          "message": "TTC 95370.289 TND au-dessus du seuil de validation (20000 TND)"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "a_valider"
+    },
+    {
+      "id": "D029",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 3,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D030",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "rib_modifie"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "bloquee",
+      "fournisseur_id": 3,
+      "alertes": [
+        {
+          "regle": "changement_rib",
+          "gravite": "bloquant",
+          "message": "RIB « 99791995090266857260 » différent du RIB actif (RIB actif : 99438639017355887241) : changement à demander et vérifier (quatre yeux)"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D033",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 3,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D034",
+      "format": "pdf",
+      "type_document": "avoir",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 1,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D035",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "doublon_exact"
+      ],
+      "derive_de": "D056",
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 4,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D036",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 4,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D037",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 2,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D038",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 5,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D039",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 12,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D040",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 1,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D041",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 11,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D042",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": "D050",
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 9,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D044",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 9,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D045",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "devise_etrangere"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "anomalie",
+      "fournisseur_id": 2,
+      "alertes": [
+        {
+          "regle": "devise",
+          "gravite": "avertissement",
+          "message": "facture en EUR : montants non comparables au seuil, paiement à vérifier"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 7,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "anomalie"
+    },
+    {
+      "id": "D046",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 12,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D049",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 1,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D050",
+      "format": "image",
+      "type_document": "facture",
+      "pieges": [
+        "doublon_rescanne"
+      ],
+      "derive_de": "D042",
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "bloquee",
+      "fournisseur_id": 9,
+      "alertes": [
+        {
+          "regle": "doublon_numero",
+          "gravite": "bloquant",
+          "message": "facture n° MC2026-00087 déjà reçue de ce fournisseur (facture 42)"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D051",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [
+        "erreur_tva"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "bloquee",
+      "fournisseur_id": 3,
+      "alertes": [
+        {
+          "regle": "coherence_tva",
+          "gravite": "bloquant",
+          "message": "TVA imprimée 86.24 ≠ TVA recalculée 37.24 (écart 49000 millimes)"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": 49000
+      },
+      "resultats": 22,
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D053",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 2,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D054",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 4,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D055",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "robustesse": [],
+      "statut": "conforme",
+      "fournisseur_id": 4,
+      "alertes": [],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D056",
+      "format": "pdf",
+      "type_document": "facture",
+      "pieges": [],
+      "derive_de": null,
+      "doublon_de": "D035",
+      "robustesse": [],
+      "statut": "bloquee",
+      "fournisseur_id": 4,
+      "alertes": [
+        {
+          "regle": "doublon_fichier",
+          "gravite": "bloquant",
+          "message": "fichier identique à la facture 35 déjà reçue"
+        },
+        {
+          "regle": "doublon_numero",
+          "gravite": "bloquant",
+          "message": "facture n° TCL-00329 déjà reçue de ce fournisseur (facture 35)"
+        }
+      ],
+      "infos": [],
+      "nonApplicables": 5,
+      "toleres": {
+        "lignes": 0,
+        "tva_millimes": 0,
+        "tva_detectee_millimes": null
+      },
+      "resultats": 22,
+      "statut_attendu": "bloquee"
+    }
+  ]
+}
