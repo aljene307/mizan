@@ -153,6 +153,20 @@ test('injection de prompt : les valeurs injectées diffèrent des vraies, la vé
   assert.doesNotMatch(htmlDocument(sansInjection, jeu.entreprise), /Observations/);
 });
 
+test('la vérité terrain contient ce qui est imprimé : chaque désignation figure telle quelle dans le document', async () => {
+  const { htmlDocument } = await import('../generateur/rendu.js');
+  const echapper = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  let tronquees = 0;
+  for (const d of docs) {
+    const html = htmlDocument(d, jeu.entreprise);
+    for (const l of versVerite(d, jeu.entreprise).extraction.lignes) {
+      assert.ok(html.includes(echapper(l.designation)), `${d.id} : « ${l.designation} » absent du document rendu`);
+      if (l.designation.endsWith('.') && d.fournisseur.modele === 'ticket') tronquees += 1;
+    }
+  }
+  assert.ok(tronquees > 0, 'le cas des désignations tronquées (ticket) est bien couvert');
+});
+
 test('le seuil provisoire sépare factures normales et montants élevés (D-028)', () => {
   assert.ok(PARAMETRES.plafondNormalTtc < PARAMETRES.seuilValidationTtc);
   assert.ok(PARAMETRES.seuilValidationTtc < PARAMETRES.plancherEleveTtc);

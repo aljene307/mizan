@@ -1,4 +1,4 @@
-// Prompt d'extraction, version v1 (docs/decisions.md D-042).
+// Prompt d'extraction : v1 (docs/decisions.md D-042), v2 à l'essai (D-052).
 // Le texte de la facture est une donnée NON FIABLE : il est transmis à part,
 // entre balises, et ne doit jamais être interprété comme une consigne.
 // Toute modification du texte du prompt impose une nouvelle version : un test
@@ -33,6 +33,19 @@ RÈGLES D'EXTRACTION
 12. droit_timbre : le timbre fiscal s'il est imprimé, sinon null.
 13. montant_ttc : le total toutes taxes comprises ou le net à payer imprimé.`;
 
+// v2 (D-052) : ne change que ce que le code ne peut pas garantir. Identifiants
+// recopiés tels qu'imprimés, espaces compris (le code retire ensuite les
+// séparateurs) ; RIB recopié dès qu'il est imprimé ; caractères Unicode.
+const REGLE_8_V1 = '8. matricule_fiscal : tel qu\'imprimé, sans espaces (par exemple 1234567A/A/M/000), même s\'il paraît mal formé.';
+const REGLE_9_V1 = '9. rib : les chiffres du RIB imprimé, sans espaces.';
+const INSTRUCTIONS_SYSTEME_V2 = `${INSTRUCTIONS_SYSTEME
+  .replace(REGLE_8_V1, '8. matricule_fiscal : tel qu\'imprimé, caractère pour caractère, espaces compris s\'il y en a, même s\'il paraît mal formé.')
+  .replace(REGLE_9_V1, '9. rib : si un RIB est imprimé, recopie-le TEL QU\'IMPRIMÉ, avec ses espaces, sans ajouter, retirer ni modifier aucun chiffre. Ne mets null que si aucun RIB n\'est imprimé.')}
+14. Écris tous les caractères tels qu'ils apparaissent, en Unicode (é, è, à, ç, µ…). N'utilise jamais d'entités HTML ou XML (comme &#233; ou &eacute;).`;
+
+// Instructions système par version.
+const PROMPTS = Object.freeze({ v1: INSTRUCTIONS_SYSTEME, v2: INSTRUCTIONS_SYSTEME_V2 });
+
 /**
  * Neutralise les balises de délimitation présentes dans le texte du document,
  * pour qu'il ne puisse pas « sortir » de son cadre.
@@ -56,14 +69,16 @@ ${BALISE_FERMANTE}`;
 }
 
 /**
- * Texte servant au calcul de l'empreinte du prompt (instructions + gabarit).
+ * Texte servant au calcul de l'empreinte d'une version (instructions + gabarit).
+ * @param {string} [version]
  * @returns {string}
  */
-function texteDuPrompt() {
-  return `${VERSION_PROMPT}\n${INSTRUCTIONS_SYSTEME}\n${construireMessageDocument('{{DOCUMENT}}')}`;
+function texteDuPrompt(version = VERSION_PROMPT) {
+  if (!Object.hasOwn(PROMPTS, version)) throw new Error(`version de prompt inconnue : ${version}`);
+  return `${version}\n${PROMPTS[version]}\n${construireMessageDocument('{{DOCUMENT}}')}`;
 }
 
 export {
-  VERSION_PROMPT, BALISE_OUVRANTE, BALISE_FERMANTE, INSTRUCTIONS_SYSTEME,
+  VERSION_PROMPT, BALISE_OUVRANTE, BALISE_FERMANTE, INSTRUCTIONS_SYSTEME, INSTRUCTIONS_SYSTEME_V2, PROMPTS,
   neutraliserBalises, construireMessageDocument, texteDuPrompt,
 };

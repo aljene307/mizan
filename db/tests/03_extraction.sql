@@ -163,6 +163,84 @@ SELECT pg_temp.doit_valoir($$
     FROM extractions e JOIN factures f ON f.id = e.facture_id WHERE f.fichier_nom = 'T1.pdf'
 $$, '0|0', 'sans alerte transmise, les listes sont vides (valeur par défaut)');
 
+-- Texte transmis au LLM (D-051) -------------------------------------------------
+SELECT pg_temp.doit_reussir($$
+    SELECT enregistrer_reception('dossier', 'T5.pdf', 'pdf', 'T5.pdf', repeat('5', 64));
+    UPDATE factures SET statut = 'erreur_extraction' WHERE statut = 'recue' AND fichier_nom <> 'T5.pdf';
+$$, 'réception de T5 (seule facture en attente)');
+SELECT pg_temp.doit_valoir($$SELECT fichier_nom FROM reserver_facture_a_extraire()$$, 'T5.pdf',
+    'réservation de T5');
+SELECT pg_temp.doit_reussir($$
+    SELECT enregistrer_extraction(jsonb_build_object(
+        'facture_id', (SELECT id FROM factures WHERE fichier_nom = 'T5.pdf'),
+        'resultat', 'erreur', 'code_resultat', 'erreur_fournisseur', 'methode_lecture', 'texte_pdf',
+        'texte_source', E'FACTURE N° T5\nTotal TTC 10,000', 'erreurs', '["HTTP 503"]'::jsonb))
+$$, 'extraction en erreur avec son texte source');
+SELECT pg_temp.doit_valoir($$
+    SELECT e.texte_source FROM extractions e JOIN factures f ON f.id = e.facture_id WHERE f.fichier_nom = 'T5.pdf'
+$$, E'FACTURE N° T5\nTotal TTC 10,000', 'le texte transmis au LLM est conservé, retours à la ligne compris');
+SELECT pg_temp.doit_valoir($$
+    SELECT (e.texte_source IS NULL)::text FROM extractions e JOIN factures f ON f.id = e.facture_id
+    WHERE f.fichier_nom = 'T1-copie.pdf'
+$$, 'true', 'une réutilisation (aucun appel au LLM) n''a pas de texte source');
+
+-- Corrections par le code et propositions (D-053) ---------------------------------
+SELECT pg_temp.doit_reussir($$
+    WITH f AS (INSERT INTO fournisseurs (raison_sociale, matricule_fiscal)
+               VALUES ('Fournisseur Référentiel', '9912399Z') RETURNING id)
+    INSERT INTO fournisseur_ribs (fournisseur_id, rib) SELECT id, '99001000000000000099' FROM f;
+    WITH f AS (INSERT INTO fournisseurs (raison_sociale, matricule_fiscal)
+               VALUES ('Fournisseur Ancien RIB', '9912398Y') RETURNING id)
+    INSERT INTO fournisseur_ribs (fournisseur_id, rib, valide_du, valide_au)
+    SELECT id, '99001000000000000198', '2026-01-01', '2026-02-01' FROM f;
+$$, 'deux fournisseurs : un RIB actif, un RIB clos');
+SELECT pg_temp.doit_valoir($$SELECT ribs_referentiel() ->> '9912399Z'$$, '99001000000000000099',
+    'le référentiel donne le RIB actif par matricule fiscal');
+SELECT pg_temp.doit_valoir($$SELECT (ribs_referentiel() ? '9912398Y')::text$$, 'false',
+    'un RIB clos n''est pas dans le référentiel');
+SELECT pg_temp.doit_reussir($$
+    SELECT enregistrer_reception('dossier', 'T6.pdf', 'pdf', 'T6.pdf', repeat('6', 64));
+    SELECT enregistrer_reception('dossier', 'T6-copie.pdf', 'pdf', 'T6-copie.pdf', repeat('6', 64));
+    UPDATE factures SET statut = 'erreur_extraction'
+    WHERE statut = 'recue' AND fichier_nom NOT IN ('T6.pdf', 'T6-copie.pdf');
+$$, 'réception de T6 et de sa copie');
+SELECT pg_temp.doit_valoir($$SELECT fichier_nom FROM reserver_facture_a_extraire()$$, 'T6.pdf',
+    'réservation de T6');
+SELECT pg_temp.doit_reussir($$
+    SELECT enregistrer_extraction(jsonb_build_object(
+        'facture_id', (SELECT id FROM factures WHERE fichier_nom = 'T6.pdf'),
+        'resultat', 'valide', 'code_resultat', 'ok', 'methode_lecture', 'texte_pdf',
+        'donnees', (SELECT donnees FROM extraction_valide_existante(repeat('1', 64))),
+        'donnees_brutes', (SELECT donnees || '{"devise": "DT"}' FROM extraction_valide_existante(repeat('1', 64))),
+        'corrections_code', '["devise : « DT » converti en TND"]'::jsonb,
+        'propositions', '[{"champ": "fournisseur.rib", "valeur": "99001000000000000198", "rib_referentiel": null}]'::jsonb))
+$$, 'extraction corrigée par le code, avec une proposition de RIB');
+SELECT pg_temp.doit_valoir($$
+    SELECT concat_ws('|', e.donnees_brutes ->> 'devise', e.donnees ->> 'devise', jsonb_array_length(e.corrections_code),
+                     jsonb_array_length(e.signalements_code), e.propositions -> 0 ->> 'valeur', f.devise,
+                     f.extraction_brute ->> 'devise')
+    FROM extractions e JOIN factures f ON f.id = e.facture_id WHERE f.fichier_nom = 'T6.pdf'
+$$, 'DT|TND|1|0|99001000000000000198|TND|DT',
+    'sortie brute et données corrigées conservées ; la facture reçoit les données corrigées');
+SELECT pg_temp.doit_valoir($$
+    SELECT j.action FROM journal_audit j JOIN factures f ON j.entite_id = f.id::text
+    WHERE f.fichier_nom = 'T6.pdf' AND j.acteur = 'n8n:extraction'
+$$, 'facture.extraite_avec_alertes', 'une proposition suffit à signaler la facture au journal');
+SELECT pg_temp.doit_valoir($$SELECT fichier_nom FROM reserver_facture_a_extraire()$$, 'T6-copie.pdf',
+    'réservation de la copie de T6');
+SELECT pg_temp.doit_reussir($$
+    SELECT enregistrer_extraction(jsonb_build_object(
+        'facture_id', (SELECT id FROM factures WHERE fichier_nom = 'T6-copie.pdf'),
+        'resultat', 'reutilisee', 'code_resultat', 'reutilisation',
+        'reutilise_de', (SELECT e.id FROM extractions e JOIN factures f ON f.id = e.facture_id WHERE f.fichier_nom = 'T6.pdf'),
+        'methode_lecture', 'texte_pdf',
+        'donnees', (SELECT e.donnees FROM extractions e JOIN factures f ON f.id = e.facture_id WHERE f.fichier_nom = 'T6.pdf')))
+$$, 'la copie réutilise l''extraction de T6');
+SELECT pg_temp.doit_valoir($$
+    SELECT concat_ws('|', e.propositions -> 0 ->> 'valeur', e.donnees_brutes ->> 'devise', jsonb_array_length(e.corrections_code))
+    FROM extractions e JOIN factures f ON f.id = e.facture_id WHERE f.fichier_nom = 'T6-copie.pdf'
+$$, '99001000000000000198|DT|1', 'une réutilisation garde la proposition de RIB et la sortie brute d''origine');
+
 -- Erreur et libération -----------------------------------------------------------
 SELECT pg_temp.doit_reussir($$
     SELECT enregistrer_reception('dossier', 'T2.jpg', 'image', 'T2.jpg', repeat('2', 64));

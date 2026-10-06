@@ -887,7 +887,7 @@ Validée par Mohamed le 2026-10-05 :
 
 ### D-049 · Les workflows sont générés par un script, puis testés
 - **Choix :** les deux workflows (`workflows/extraction-llm.json`, 8 nœuds, et
-  `workflows/reception-extraction.json`, 31 nœuds) sont produits par
+  `workflows/reception-extraction.json`, 31 nœuds, 32 depuis D-053) sont produits par
   `scripts/construire-workflows.js`, qui y recopie le code de `src/` (D-041).
   Les paramètres de chaque nœud ont été relevés dans le code de n8n 2.41.7
   installé (versions de nœuds, noms de paramètres), pas supposés.
@@ -907,9 +907,185 @@ Validée par Mohamed le 2026-10-05 :
   orphelin, identifiants au format UUID, JavaScript valide, aucun secret) et
   exécution du code généré des nœuds Code comme dans n8n, avec les vraies
   réponses de Gemini.
-- **Hypothèse à confirmer au premier essai réel :** `$('nœud').last()` renvoie
-  la sortie de la **dernière** exécution du nœud dans la boucle ; le
-  workflow s'appuie dessus pour retrouver la facture réservée.
+- **Hypothèse vérifiée au premier essai réel (2026-10-06, exécution n8n n° 5) :**
+  `$('nœud').last()` renvoie la sortie de la **dernière** exécution du nœud
+  dans la boucle. Les 6 extractions de l'essai sont rattachées à la bonne
+  facture, alors que les chemins (réutilisation, texte du PDF, OCR) n'ont pas
+  exécuté les mêmes nœuds le même nombre de fois.
+
+### D-050 · Règle de comparaison entre une extraction et la vérité terrain
+Fixée le 2026-10-06, **avant toute utilisation du lot de test**. Elle
+s'applique telle quelle aux mesures sur le lot de développement et à
+l'évaluation de l'étape 8 ; toute modification devra être décidée et
+consignée ici avant d'ouvrir le lot de test.
+- **Comparaison exacte** (stricte et normalisée identiques) :
+  - montants, quantités, prix unitaires, taux : égalité numérique
+    (`19` et `19.0` sont égaux ; aucune tolérance d'arrondi) ;
+  - dates : égalité de la chaîne `AAAA-MM-JJ` ;
+  - identifiants : numéro, matricule fiscal (fournisseur et client), RIB,
+    numéro de la facture d'origine : égalité caractère pour caractère ;
+  - valeurs codées : type de document, devise.
+- **Comparaison normalisée pour les noms et adresses** (raison sociale du
+  fournisseur et du client, adresse du fournisseur) : insensible à la casse
+  (`toLocaleLowerCase('fr')`) et aux espaces multiples (suites d'espaces
+  réduites à une, espaces de début et de fin retirés), après normalisation
+  Unicode NFC. Les accents comptent (« Sécurité » ≠ « Securite »).
+- **Désignations des lignes :** traitées comme les noms (comparaison
+  normalisée). C'est une extension de la proposition initiale (« noms et
+  adresses ») : une désignation est un libellé, pas une valeur calculée.
+- **Valeurs absentes :** `null` est égal à `null` ; `null` face à une valeur est
+  une erreur, dans les deux sens.
+- **Lignes de facture :** appariées par position (ordre du document). Une
+  ligne est exacte si tous ses champs le sont. Le dénominateur est le nombre
+  de lignes de la vérité terrain ; une ligne manquante est une erreur, une
+  ligne en trop est comptée à part.
+- **Deux scores, toujours affichés ensemble :** *strict* (tout caractère pour
+  caractère, sauf l'égalité numérique) et *normalisé* (règle ci-dessus pour
+  les noms, adresses et désignations). Chaque score est donné en nombres
+  bruts et en pourcentage (D-031), par champ, par format (PDF, scan) et au
+  total.
+- **Origine :** au premier essai, 5 écarts sur 96 étaient des raisons sociales
+  en majuscules, issues des mises en page en petites capitales (le texte du
+  PDF et l'OCR les livrent en majuscules) ; la valeur est juste, seule la
+  casse diffère.
+- **Complément du 2026-10-06 (validé par Mohamed, avant tout usage du lot de
+  test) :**
+  - *périmètre du score* : les extractions faites par le LLM. Une
+    réutilisation (même fichier, aucun appel) est montrée à part, pour ne pas
+    compter deux fois le même résultat ;
+  - *extraction en erreur* (aucune donnée) : tous ses champs sont faux, y
+    compris ceux dont la valeur attendue est `null` ;
+  - *extraction non conforme au schéma* : ses données sont **conservées** pour
+    la précision par champ (le défaut est souvent limité à un champ) ; le
+    **taux d'extractions utilisables** (conformes au schéma, donc
+    enregistrables) est affiché à part.
+
+### D-051 · Le texte transmis au LLM est conservé avec chaque extraction
+- **Choix :** colonne `extractions.texte_source` (migration `20261006090000`),
+  remplie pour chaque appel au LLM, réussi ou non. Vide pour une
+  réutilisation (aucun appel) et pour un échec de lecture (aucun texte lu).
+- **Raisons :** audit (savoir exactement ce que le modèle a vu, y compris les
+  erreurs de l'OCR) ; mesures rejouables (stabilité, comparaison de prompts
+  ou de réglages) sur les mêmes textes, sans relire les fichiers d'une
+  autre manière que n8n.
+- **Vigilance pour un usage réel :** le texte d'une facture contient toutes
+  ses informations ; il relève des mêmes règles de conservation et d'accès
+  que le fichier lui-même.
+- **Outil de mesure (option A, validée par Mohamed) :** script Node qui
+  réutilise les modules de `src/`, lit les textes en base et appelle Gemini
+  directement. Conditions : même pause de 7 secondes entre deux appels que
+  le workflow (D-036) ; la clé est dans `.env` (non versionné) et
+  `.env.example` ne reçoit qu'une valeur fictive.
+
+### D-052 · Mesure : effet du prompt séparé de celui des corrections par le code
+Validée par Mohamed le 2026-10-06. Principe : **ce qui peut être garanti par
+le code ne dépend pas du prompt.**
+- **Partie LLM :** 2 prompts (v1, v2) × 2 schémas envoyés à Gemini (devise
+  libre ; devise en liste fermée) = 4 configurations, sur les textes conservés
+  du lot de développement (D-051), un passage chacune ; puis stabilité :
+  2 passages de plus sur 10 documents, pour v1 et pour la meilleure
+  configuration. Même pause de 7 s entre deux appels que le workflow (D-036).
+- **Prompt v2**, limité à ce que le code ne peut pas garantir : caractères
+  Unicode et jamais d'entités HTML ; RIB recopié s'il est imprimé, tel
+  qu'imprimé, espaces compris ; identifiants recopiés avec leurs espaces
+  (le code retire ensuite les séparateurs du RIB et les espaces du
+  matricule).
+- **Partie code (aucun appel), appliquée à chaque sortie brute, d'abord
+  séparément puis ensemble :**
+  1. *devise* : alias explicites convertis (`DT`, `DINAR`, `DINARS` → `TND`) ;
+  2. *entités HTML* : seules les entités bien formées sont décodées, et
+     l'extraction est **signalée** dès qu'une entité (même malformée) est
+     présente ;
+  3. *RIB retrouvé dans le texte* : suites de 20 chiffres à clé valide.
+- **Parades retenues :**
+  - liste fermée de devises avec une valeur `AUTRE` (que le schéma strict
+    rejette, donc signalée), pour qu'une devise imprévue ne soit pas forcée
+    vers une valeur de la liste ;
+  - entités : décodage avec signalement ;
+  - **RIB jamais rempli en silence. Règle de Mohamed :** le RIB retrouvé
+    n'est rempli que s'il est **identique au RIB du référentiel** pour ce
+    fournisseur (il ne fait alors que confirmer une valeur connue) ;
+    sinon, il est **proposé** à la personne qui valide, avec sa provenance
+    (« trouvé par le code dans le texte source »). Raison : sur un scan dont
+    l'OCR a abîmé le vrai RIB, le seul RIB valide restant peut être celui
+    d'une consigne injectée (cas simulé : D001 contient le vrai RIB et le RIB
+    injecté).
+- **Gel :** la configuration retenue à l'issue de la mesure (prompt, schéma,
+  paramètres, corrections par le code) sera **figée et consignée avant
+  toute ouverture du lot de test**.
+
+### D-053 · Configuration d'extraction figée avant le lot de test
+Validée par Mohamed le 2026-10-06, au vu de la mesure D-052
+(`eval/resultats/mesure-2026-10-06/rapport.md`, lot de développement seul).
+- **Configuration figée :**
+  - prompt **v1**, inchangé (empreinte `4efd7bb8…53909`, registre
+    `src/prompts-versions.json`) ; le prompt v2 est écarté (aucun gain, il
+    dégrade les désignations et recopie un RIB abîmé par l'OCR) ;
+  - schéma envoyé à Gemini : **devise libre** (pas de liste fermée) ; la
+    conversion des alias est faite par le code ;
+  - paramètres inchangés (D-048) : `gemini-3.5-flash-lite`, température 1.0,
+    réflexion `low`, 8192 jetons de sortie au plus ;
+  - **corrections par le code**, dans cet ordre
+    (`corrigerExtraction`, `src/correctionsCode.js`) :
+    1. nettoyage des identifiants (séparateurs du RIB, espaces du matricule) ;
+    2. alias de devise (`DT`, `DINAR`, `DINARS` → `TND`) ;
+    3. entités HTML bien formées décodées, extraction **signalée** dès qu'une
+       entité (même malformée) est présente ;
+    4. RIB retrouvé dans le texte source, rempli **seulement s'il est
+       identique au RIB actif du référentiel** pour ce fournisseur, sinon
+       **proposé** avec sa provenance et le RIB du référentiel (ou `null`).
+  - En plus : un texte source contenant **plusieurs RIB valides** est
+    signalé, même si le modèle a extrait le bon (cas de la consigne injectée,
+    D-046).
+- **Résultat sur le lot dev (36 textes, sortie brute → après corrections) :**
+  extractions utilisables 30 → 36 ; en-tête normalisé 561 → 570 sur 576 ;
+  RIB justes 32 → 35 sur 36, dont 3 remplis par confirmation du référentiel
+  et 0 remplissage faux ; stabilité 166 → 168 champs identiques sur 170.
+- **Intégration (migration `20261006100000`) :** chaque extraction garde la
+  sortie brute du modèle (`donnees_brutes`) à côté des données corrigées
+  (`donnees`), avec `corrections_code`, `signalements_code` et
+  `propositions`. Une réutilisation reprend ces quatre informations de
+  l'extraction d'origine. Un signalement ou une proposition suffit à
+  inscrire « facture.extraite_avec_alertes » au journal. Le contrôle D-047
+  porte sur les données corrigées.
+  - Workflow : nœud Postgres « RIB du référentiel » (fonction
+    `ribs_referentiel()`, RIB actif des fournisseurs actifs, par matricule
+    fiscal court) entre le sous-workflow et « Valider et vérifier ». S'il
+    tombe en panne, le lot continue sans référentiel : aucun RIB n'est
+    rempli, l'extraction est signalée.
+- **Gel :** cette configuration est celle qui sera évaluée sur le lot de
+  test à l'étape 8. Toute modification ultérieure du prompt, du schéma, des
+  paramètres ou des corrections exige une nouvelle décision, et les
+  résultats sur le lot de test devront alors être présentés comme
+  postérieurs à son ouverture.
+- **À appliquer à l'étape 4 (demande de Mohamed) :** une **proposition de
+  RIB différente du RIB du référentiel** déclenche l'**alerte de changement
+  de RIB**, même si le champ RIB de l'extraction est vide. Sans cela, une
+  facture frauduleuse dont le RIB n'a pas été extrait passerait pour une
+  facture sans RIB. Le signalement « plusieurs RIB valides dans le texte
+  source » doit aussi être présenté à la personne qui valide.
+- **À appliquer à l'étape 8 (demande de Mohamed) :** le rapport final
+  affiche **côte à côte la sortie brute du modèle et le résultat après
+  corrections par le code** (les deux sont enregistrés pour chaque
+  extraction).
+
+### D-054 · Copies d'essai du workflow, exclues des rapports
+Validée par Mohamed le 2026-10-06.
+- **Besoin :** vérifier le workflow en conditions réelles (OCR, Gemini,
+  corrections, enregistrement) sur des fichiers déjà extraits. Un fichier
+  redéposé tel quel est réutilisé sans appel au LLM (même empreinte SHA-256).
+- **Choix :** copie d'un document du lot de **développement** avec un octet
+  ajouté à la fin (contenu affiché identique, empreinte différente), nommée
+  `<document>-essai.<extension>` (ex. `D023-essai.pdf`). Jamais de copie
+  d'un document du lot de test (D-026).
+- **Exclusion :** les scripts d'évaluation et de mesure (`eval/evaluer.js`,
+  `eval/mesurer.js`) écartent explicitement ces fichiers
+  (`estCopieEssai`, `eval/mesure-commun.js`), en plus de leur association
+  par nom exact aux fichiers de `data/synthetic/lots.json`. Un test vérifie
+  qu'aucun fichier des deux lots n'est pris pour une copie d'essai.
+- **Limite :** ces copies restent en base de développement comme des
+  doublons d'une facture déjà reçue (même numéro, même fournisseur) ; le
+  contrôle des doublons de l'étape 4 devra les signaler, ce qui est attendu.
 
 ### D-045 · Tests d'intégration sur une base dédiée
 - Les tests qui ont besoin de données validées en base (concurrence,

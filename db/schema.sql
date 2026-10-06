@@ -38,12 +38,17 @@ CREATE FUNCTION public.enregistrer_extraction(p jsonb) RETURNS bigint
     AS $$
 DECLARE
     v_facture   factures%ROWTYPE;
+    v_source    extractions%ROWTYPE;
     v_id        BIGINT;
     v_resultat  TEXT := p ->> 'resultat';
     v_donnees   JSONB := p -> 'donnees';
     v_reussie   BOOLEAN := (p ->> 'resultat') IN ('valide', 'reutilisee');
     v_methode   TEXT := p ->> 'methode_lecture';
     v_alertes   JSONB := coalesce(p -> 'alertes_source', '[]'::jsonb);
+    v_brutes    JSONB := p -> 'donnees_brutes';
+    v_corrections  JSONB := p -> 'corrections_code';
+    v_signalements JSONB := p -> 'signalements_code';
+    v_propositions JSONB := p -> 'propositions';
 BEGIN
     SELECT * INTO v_facture FROM factures WHERE id = (p ->> 'facture_id')::BIGINT FOR UPDATE;
     IF NOT FOUND THEN
@@ -54,11 +59,26 @@ BEGIN
             USING ERRCODE = 'MZ003';
     END IF;
 
+    -- Une réutilisation reprend aussi la sortie brute, les corrections, les
+    -- signalements et les propositions de l'extraction d'origine : une
+    -- proposition de RIB ne doit pas disparaître pour un doublon.
+    IF p ->> 'reutilise_de' IS NOT NULL THEN
+        SELECT * INTO v_source FROM extractions WHERE id = (p ->> 'reutilise_de')::BIGINT;
+        v_brutes       := coalesce(v_brutes, v_source.donnees_brutes);
+        v_corrections  := coalesce(v_corrections, v_source.corrections_code);
+        v_signalements := coalesce(v_signalements, v_source.signalements_code);
+        v_propositions := coalesce(v_propositions, v_source.propositions);
+    END IF;
+    v_corrections  := coalesce(v_corrections, '[]'::jsonb);
+    v_signalements := coalesce(v_signalements, '[]'::jsonb);
+    v_propositions := coalesce(v_propositions, '[]'::jsonb);
+
     INSERT INTO extractions (
         facture_id, fichier_sha256, resultat, code_resultat, methode_lecture,
         fournisseur_llm, modele, version_prompt, empreinte_prompt, parametres_generation,
         duree_lecture_ms, duree_llm_ms, jetons_entree, jetons_sortie, jetons_reflexion, tentatives,
-        donnees, erreurs, verifications_source, alertes_source, reutilise_de, execution_n8n_id
+        donnees, erreurs, verifications_source, alertes_source, reutilise_de, execution_n8n_id, texte_source,
+        donnees_brutes, corrections_code, signalements_code, propositions
     ) VALUES (
         v_facture.id, v_facture.fichier_sha256, v_resultat, p ->> 'code_resultat', v_methode,
         p ->> 'fournisseur_llm', p ->> 'modele', p ->> 'version_prompt', p ->> 'empreinte_prompt',
@@ -68,7 +88,8 @@ BEGIN
         (p ->> 'jetons_reflexion')::INTEGER, (p ->> 'tentatives')::INTEGER,
         v_donnees, coalesce(p -> 'erreurs', '[]'::jsonb),
         coalesce(p -> 'verifications_source', '[]'::jsonb), v_alertes,
-        (p ->> 'reutilise_de')::BIGINT, p ->> 'execution_n8n_id'
+        (p ->> 'reutilise_de')::BIGINT, p ->> 'execution_n8n_id', p ->> 'texte_source',
+        v_brutes, v_corrections, v_signalements, v_propositions
     ) RETURNING id INTO v_id;
 
     IF v_reussie THEN
@@ -86,7 +107,8 @@ BEGIN
             raison_sociale_lue  = v_donnees #>> '{fournisseur,raison_sociale}',
             rib_facture         = v_donnees #>> '{fournisseur,rib}',
             methode_extraction  = CASE v_methode WHEN 'ocr' THEN 'ocr_llm' ELSE 'texte_llm' END,
-            extraction_brute    = v_donnees,
+            -- Sortie brute du modèle (avant corrections), si elle est connue.
+            extraction_brute    = coalesce(v_brutes, v_donnees),
             statut              = 'extraite',
             reservee_le         = NULL
         WHERE id = v_facture.id;
@@ -99,7 +121,7 @@ BEGIN
         FROM jsonb_array_elements(v_donnees -> 'lignes') WITH ORDINALITY AS l (ligne, rang);
     ELSE
         UPDATE factures SET statut = 'erreur_extraction', reservee_le = NULL,
-                            extraction_brute = v_donnees
+                            extraction_brute = coalesce(v_brutes, v_donnees)
         WHERE id = v_facture.id;
     END IF;
 
@@ -107,7 +129,9 @@ BEGIN
     VALUES (
         'n8n:extraction',
         CASE
-            WHEN v_resultat = 'valide' AND jsonb_array_length(v_alertes) > 0 THEN 'facture.extraite_avec_alertes'
+            WHEN v_resultat = 'valide' AND (jsonb_array_length(v_alertes) > 0
+                 OR jsonb_array_length(v_signalements) > 0 OR jsonb_array_length(v_propositions) > 0)
+                THEN 'facture.extraite_avec_alertes'
             WHEN v_resultat = 'valide' THEN 'facture.extraite'
             WHEN v_resultat = 'reutilisee' THEN 'facture.extraction_reutilisee'
             ELSE 'facture.erreur_extraction'
@@ -116,7 +140,8 @@ BEGIN
         jsonb_build_object('statut', v_facture.statut),
         jsonb_build_object('extraction_id', v_id, 'resultat', v_resultat,
                            'code_resultat', p ->> 'code_resultat', 'modele', p ->> 'modele',
-                           'alertes_source', v_alertes),
+                           'alertes_source', v_alertes, 'corrections_code', v_corrections,
+                           'signalements_code', v_signalements, 'propositions', v_propositions),
         p ->> 'execution_n8n_id'
     );
 
@@ -274,6 +299,20 @@ CREATE FUNCTION public.reserver_facture_a_extraire(p_delai_reprise interval DEFA
 $$;
 
 
+--
+-- Name: ribs_referentiel(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.ribs_referentiel() RETURNS jsonb
+    LANGUAGE sql STABLE
+    AS $$
+    SELECT coalesce(jsonb_object_agg(f.matricule_fiscal, r.rib), '{}'::jsonb)
+    FROM fournisseurs f
+    JOIN fournisseur_ribs r ON r.fournisseur_id = f.id
+    WHERE f.actif AND r.valide_au IS NULL AND r.valide_du <= CURRENT_DATE;
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -344,6 +383,11 @@ CREATE TABLE public.extractions (
     jetons_reflexion integer,
     verifications_source jsonb DEFAULT '[]'::jsonb NOT NULL,
     alertes_source jsonb DEFAULT '[]'::jsonb NOT NULL,
+    texte_source text,
+    donnees_brutes jsonb,
+    corrections_code jsonb DEFAULT '[]'::jsonb NOT NULL,
+    signalements_code jsonb DEFAULT '[]'::jsonb NOT NULL,
+    propositions jsonb DEFAULT '[]'::jsonb NOT NULL,
     CONSTRAINT extractions_code_ck CHECK ((code_resultat = ANY (ARRAY['ok'::text, 'reponse_illisible'::text, 'erreur_fournisseur'::text, 'quota_minute_epuise'::text, 'quota_journalier_epuise'::text, 'erreur_lecture'::text, 'erreur_ecriture'::text, 'reutilisation'::text]))),
     CONSTRAINT extractions_donnees_ck CHECK (((resultat <> ALL (ARRAY['valide'::text, 'reutilisee'::text])) OR (donnees IS NOT NULL))),
     CONSTRAINT extractions_mesures_ck CHECK (((COALESCE(duree_lecture_ms, 0) >= 0) AND (COALESCE(duree_llm_ms, 0) >= 0) AND (COALESCE(jetons_entree, 0) >= 0) AND (COALESCE(jetons_sortie, 0) >= 0) AND (COALESCE(tentatives, 0) >= 0))),
@@ -1130,4 +1174,6 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261005120700'),
     ('20261005120800'),
     ('20261005120900'),
-    ('20261005121000');
+    ('20261005121000'),
+    ('20261006090000'),
+    ('20261006100000');

@@ -27,19 +27,16 @@ function texteAExtraire(entree, versionPrompt) {
   throw new Error('aucun texte lu (ni texte de PDF, ni réponse de l\'OCR)');
 }
 
-/** Dernière version enregistrée dans le registre des prompts. */
-function derniereVersionPrompt(registre) {
-  const versions = Object.keys(registre);
-  if (!versions.length) throw new Error('registre des prompts vide');
-  return versions[versions.length - 1];
-}
-
 /**
- * Enregistrement d'une extraction faite par le LLM : validation du schéma
- * strict, puis contrôle des identifiants dans le texte source.
+ * Enregistrement d'une extraction faite par le LLM : corrections par le code
+ * (D-053), validation du schéma strict, puis contrôle des identifiants dans le
+ * texte source (D-047), sur les données corrigées. La sortie brute du modèle
+ * est conservée à part.
+ * ribsReferentiel : RIB actif par matricule fiscal ; null si le référentiel
+ * n'a pas pu être lu (aucun RIB n'est alors rempli, seulement proposé).
  * @returns {{arret_quota: boolean, appel_llm: boolean, message: string|null, payload: object|null}}
  */
-function payloadExtraction({ reservation, lecture, contrat, schema, executionId }, deps) {
+function payloadExtraction({ reservation, lecture, contrat, ribsReferentiel, schema, executionId }, deps) {
   if (contrat.code_resultat === 'quota_journalier_epuise') {
     return { arret_quota: true, appel_llm: true, message: contrat.message_erreur ?? 'quota journalier épuisé', payload: null };
   }
@@ -59,6 +56,8 @@ function payloadExtraction({ reservation, lecture, contrat, schema, executionId 
     jetons_reflexion: contrat.jetons_reflexion,
     tentatives: contrat.tentatives,
     execution_n8n_id: executionId,
+    // Texte transmis au LLM (D-051) : audit et mesures rejouables.
+    texte_source: lecture.texte ?? null,
   };
   if (contrat.code_resultat !== 'ok') {
     return {
@@ -66,14 +65,21 @@ function payloadExtraction({ reservation, lecture, contrat, schema, executionId 
       payload: { ...base, resultat: 'erreur', donnees: null, erreurs: [contrat.message_erreur ?? contrat.code_resultat] },
     };
   }
-  const validation = deps.validerExtraction(schema, contrat.donnees);
-  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(contrat.donnees, lecture.texte) : [];
+  const correction = deps.corrigerExtraction(contrat.donnees, lecture.texte ?? null, ribsReferentiel ?? {}, deps);
+  const signalements = ribsReferentiel ? correction.signalements
+    : [...correction.signalements, 'référentiel des RIB illisible : aucun RIB rempli par le code'];
+  const validation = deps.validerExtraction(schema, correction.donnees);
+  const verifications = validation.valide ? deps.verifierIdentifiantsDansSource(correction.donnees, lecture.texte) : [];
   return {
     arret_quota: false, appel_llm: true, message: null,
     payload: {
       ...base,
       resultat: validation.valide ? 'valide' : 'invalide',
-      donnees: contrat.donnees,
+      donnees: correction.donnees,
+      donnees_brutes: contrat.donnees,
+      corrections_code: correction.corrections,
+      signalements_code: signalements,
+      propositions: correction.propositions,
       erreurs: validation.erreurs,
       verifications_source: verifications,
       alertes_source: deps.alertesSource(verifications),
@@ -97,8 +103,11 @@ function payloadReutilisation(reservation, existante, executionId) {
   };
 }
 
-/** Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow. */
-function payloadEchec(reservation, code, message, executionId, appelLlm) {
+/**
+ * Échec hors LLM (lecture du fichier, OCR) ou panne du sous-workflow.
+ * texteSource : texte déjà lu, s'il existe (panne du sous-workflow).
+ */
+function payloadEchec(reservation, code, message, executionId, appelLlm, texteSource = null) {
   return {
     arret_quota: false, appel_llm: appelLlm, message,
     payload: {
@@ -108,6 +117,7 @@ function payloadEchec(reservation, code, message, executionId, appelLlm) {
       donnees: null,
       erreurs: [message],
       execution_n8n_id: executionId,
+      texte_source: texteSource,
     },
   };
 }
@@ -119,6 +129,6 @@ function messageErreur(item) {
 }
 
 export {
-  SEUIL_CARACTERES_PDF, texteSuffisant, texteAExtraire, derniereVersionPrompt,
+  SEUIL_CARACTERES_PDF, texteSuffisant, texteAExtraire,
   payloadExtraction, payloadReutilisation, payloadEchec, messageErreur,
 };

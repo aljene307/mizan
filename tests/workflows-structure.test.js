@@ -79,12 +79,23 @@ test('chaîne du sous-workflow : préparer, horodater, lire la réponse réelle,
   // Suite dans le workflow principal : validation et contrôle des identifiants.
   const reservation = { facture_id: 7, fichier_sha256: 'b'.repeat(64), format_source: 'pdf' };
   const lecture = { texte: 'MF : 9900000K/A/M/000\nFACTURE N° TEST-0001\nRIB : 99 001 0000000000001 65', methode_lecture: 'texte_pdf', duree_lecture_ms: null };
-  const sortie = await executer(principal, 'Valider et vérifier', {
-    entree: contrat, sorties: { 'Réserver une facture': reservation, 'Texte à extraire': lecture },
-  });
+  const sorties = { 'Réserver une facture': reservation, 'Texte à extraire': lecture, 'Extraction LLM (sous-workflow)': contrat };
+  const sortie = await executer(principal, 'Valider et vérifier', { entree: { ribs: {} }, sorties });
   assert.equal(sortie.payload.resultat, 'valide');
   assert.equal(sortie.payload.execution_n8n_id, 'exec-test');
   assert.deepEqual(sortie.payload.alertes_source, ['fournisseur.rib « 990010000000000000165 » absent du texte source']);
+  assert.equal(sortie.payload.propositions[0].valeur, '99001000000000000165', 'RIB du texte proposé, pas rempli');
+
+  // Même réponse, fournisseur connu du référentiel avec ce RIB : le RIB est rempli (D-053).
+  const confirme = await executer(principal, 'Valider et vérifier', { entree: { ribs: { '9900000K': '99001000000000000165' } }, sorties });
+  assert.equal(confirme.payload.donnees.fournisseur.rib, '99001000000000000165');
+  assert.equal(confirme.payload.donnees_brutes.fournisseur.rib, '990010000000000000165');
+  assert.deepEqual(confirme.payload.alertes_source, []);
+
+  // Référentiel en panne (sortie d'erreur du nœud Postgres) : rien n'est rempli.
+  const panne = await executer(principal, 'Valider et vérifier', { entree: { error: 'connexion refusée' }, sorties });
+  assert.equal(panne.payload.donnees.fournisseur.rib, '990010000000000000165');
+  assert.match(panne.payload.signalements_code.at(-1), /illisible/);
 });
 
 test('429 par minute dans le sous-workflow : nouvelle tentative avec attente', async () => {
@@ -97,7 +108,7 @@ test('429 par minute dans le sous-workflow : nouvelle tentative avec attente', a
   assert.deepEqual([dernier.reessayer, dernier.contrat.code_resultat], [false, 'quota_minute_epuise']);
 });
 
-test('workflow principal : texte du PDF ou de l\'OCR, version de prompt la plus récente', async () => {
+test('workflow principal : texte du PDF ou de l\'OCR, version de prompt en service (v1), identique à celle du sous-workflow', async () => {
   const pdf = await executer(principal, 'Texte à extraire', { entree: { text: 'Facture' } });
   assert.deepEqual(pdf, { texte: 'Facture', methode_lecture: 'texte_pdf', duree_lecture_ms: null, version_prompt: 'v1' });
   const ocr = await executer(principal, 'Texte à extraire', { entree: { statusCode: 200, body: { texte: 'Scan', duree_ms: 600 } } });
@@ -114,4 +125,13 @@ test('workflow principal : paramètres clés (réservation, pause, montage /data
   for (const nom of ['Lire le fichier réservé', 'OCR (Tesseract)', 'Extraction LLM (sous-workflow)', 'Enregistrer l\'extraction']) {
     assert.equal(noeud(principal, nom).onError, 'continueErrorOutput', `${nom} : sortie d'erreur`);
   }
+});
+
+test('workflow principal : le référentiel des RIB est lu entre le sous-workflow et la validation (D-053)', () => {
+  const referentiel = noeud(principal, 'RIB du référentiel');
+  assert.match(referentiel.parameters.query, /ribs_referentiel\(\)/);
+  assert.equal(referentiel.executeOnce, true);
+  assert.equal(referentiel.onError, 'continueRegularOutput', 'une panne n\'arrête pas le lot');
+  assert.deepEqual(principal.connections['Extraction LLM (sous-workflow)'].main[0].map((l) => l.node), ['RIB du référentiel']);
+  assert.deepEqual(principal.connections['RIB du référentiel'].main[0].map((l) => l.node), ['Valider et vérifier']);
 });

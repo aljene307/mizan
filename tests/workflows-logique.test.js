@@ -5,13 +5,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MAX_TENTATIVES_LLM, preparerAppel, traiterReponse } from '../src/sousWorkflowLlm.js';
 import {
-  texteSuffisant, texteAExtraire, derniereVersionPrompt, payloadExtraction,
+  texteSuffisant, texteAExtraire, payloadExtraction,
   payloadReutilisation, payloadEchec, messageErreur,
 } from '../src/extractionWorkflow.js';
 import { PARAMETRES_GENERATION_GEMINI, construireRequeteGemini, urlGemini, lireReponseGemini, attenteAvantNouvelEssai } from '../src/gemini.js';
 import { INSTRUCTIONS_SYSTEME, construireMessageDocument, VERSION_PROMPT } from '../src/promptExtraction.js';
 import { validerExtraction } from '../src/validationExtraction.js';
 import { verifierIdentifiantsDansSource, alertesSource } from '../src/verificationSource.js';
+import { corrigerExtraction } from '../src/correctionsCode.js';
+import { ribValide } from '../src/rib.js';
+import { formeCourteMatricule } from '../src/matricule.js';
 
 const lire = (chemin) => JSON.parse(readFileSync(chemin, 'utf8'));
 const versions = lire('src/prompts-versions.json');
@@ -24,7 +27,7 @@ const depsAppel = {
   construireRequete: construireRequeteGemini, url: urlGemini(),
 };
 const depsReponse = { lireReponse: lireReponseGemini, attente: attenteAvantNouvelEssai, fournisseur: 'google' };
-const depsControle = { validerExtraction, verifierIdentifiantsDansSource, alertesSource };
+const depsControle = { corrigerExtraction, ribValide, formeCourteMatricule, validerExtraction, verifierIdentifiantsDansSource, alertesSource };
 
 // --- Sous-workflow LLM ----------------------------------------------------------
 
@@ -96,25 +99,51 @@ test('texte à extraire : PDF ou OCR, et seuil du PDF scanné', () => {
   assert.equal(texteSuffisant('x'.repeat(49)), false);
   const pdfReel = readFileSync('data/synthetic/dev/verite/D007.json', 'utf8');
   assert.equal(texteSuffisant(pdfReel), true);
-  assert.equal(derniereVersionPrompt({ v1: 'a', v2: 'b' }), 'v2');
 });
 
 test('extraction valide sans alerte (première réponse réelle)', () => {
   const r = payloadExtraction({ reservation, lecture: { texte: texteSource, methode_lecture: 'texte_pdf', duree_lecture_ms: null },
-    contrat: contratDe(reponseOk), schema: schemaStrict, executionId: 'e1' }, depsControle);
+    contrat: contratDe(reponseOk), ribsReferentiel: {}, schema: schemaStrict, executionId: 'e1' }, depsControle);
   assert.equal(r.arret_quota, false);
   assert.equal(r.appel_llm, true);
   assert.equal(r.payload.resultat, 'valide');
   assert.equal(r.payload.facture_id, 42);
   assert.equal(r.payload.duree_llm_ms, 1300);
+  assert.equal(r.payload.texte_source, texteSource, 'texte transmis au LLM conservé (D-051)');
   // La première réponse avait 18 chiffres pour un RIB de test qui n'en avait que 18 (« xx ») :
   // avec le RIB corrigé à 20 chiffres, elle est signalée.
   assert.deepEqual(r.payload.alertes_source, ['fournisseur.rib « 990010000000000001 » absent du texte source']);
 });
 
+test('corrections par le code (D-053) : sortie brute conservée, RIB proposé (fournisseur absent du référentiel)', () => {
+  const r = payloadExtraction({ reservation, lecture: { texte: texteSource, methode_lecture: 'texte_pdf' },
+    contrat: contratDe(reponseOk), ribsReferentiel: {}, schema: schemaStrict, executionId: 'e1b' }, depsControle);
+  assert.equal(r.payload.donnees_brutes.fournisseur.rib, '990010000000000001', 'sortie brute du modèle');
+  assert.equal(r.payload.donnees.fournisseur.rib, '990010000000000001', 'jamais remplacé sans le référentiel');
+  assert.deepEqual(r.payload.propositions.map((p) => [p.valeur, p.rib_referentiel]), [['99001000000000000165', null]]);
+  assert.deepEqual(r.payload.signalements_code, []);
+});
+
+test('corrections par le code : RIB du texte identique au référentiel → rempli, plus d\'alerte', () => {
+  const r = payloadExtraction({ reservation, lecture: { texte: texteSource, methode_lecture: 'texte_pdf' },
+    contrat: contratDe(reponseOk), ribsReferentiel: { '9900000K': '99001000000000000165' }, schema: schemaStrict, executionId: 'e1c' }, depsControle);
+  assert.equal(r.payload.donnees.fournisseur.rib, '99001000000000000165');
+  assert.equal(r.payload.donnees_brutes.fournisseur.rib, '990010000000000001');
+  assert.equal(r.payload.corrections_code.length, 1);
+  assert.deepEqual(r.payload.alertes_source, [], 'le contrôle D-047 porte sur les données corrigées');
+});
+
+test('référentiel illisible : aucun RIB rempli, extraction signalée', () => {
+  const r = payloadExtraction({ reservation, lecture: { texte: texteSource, methode_lecture: 'texte_pdf' },
+    contrat: contratDe(reponseOk), ribsReferentiel: null, schema: schemaStrict, executionId: 'e1d' }, depsControle);
+  assert.equal(r.payload.donnees.fournisseur.rib, '990010000000000001');
+  assert.equal(r.payload.propositions.length, 1);
+  assert.match(r.payload.signalements_code.at(-1), /référentiel des RIB illisible/);
+});
+
 test('extraction valide avec alerte (seconde réponse réelle : un zéro ajouté au RIB)', () => {
   const r = payloadExtraction({ reservation, lecture: { texte: texteSource, methode_lecture: 'ocr', duree_lecture_ms: 600 },
-    contrat: contratDe(reponseRibErrone), schema: schemaStrict, executionId: 'e2' }, depsControle);
+    contrat: contratDe(reponseRibErrone), ribsReferentiel: {}, schema: schemaStrict, executionId: 'e2' }, depsControle);
   assert.equal(r.payload.resultat, 'valide', 'le schéma ne voit pas l\'erreur…');
   assert.equal(r.payload.alertes_source.length, 1, '…le contrôle des identifiants, si');
   assert.equal(r.payload.verifications_source.find((v) => v.champ === 'numero').present, true);
@@ -124,7 +153,7 @@ test('extraction invalide (schéma) : enregistrée comme « invalide », sans v�
   const corps = structuredClone(reponseOk);
   corps.candidates[0].content.parts[0].text = corps.candidates[0].content.parts[0].text.replace('"TND"', '"tnd"');
   const r = payloadExtraction({ reservation, lecture: { texte: texteSource, methode_lecture: 'texte_pdf' },
-    contrat: contratDe(corps), schema: schemaStrict, executionId: 'e3' }, depsControle);
+    contrat: contratDe(corps), ribsReferentiel: {}, schema: schemaStrict, executionId: 'e3' }, depsControle);
   assert.equal(r.payload.resultat, 'invalide');
   assert.ok(r.payload.erreurs.some((e) => e.startsWith('/devise')));
   assert.deepEqual(r.payload.verifications_source, []);
@@ -132,13 +161,13 @@ test('extraction invalide (schéma) : enregistrée comme « invalide », sans v�
 
 test('quota journalier : arrêt du lot, aucun enregistrement d\'extraction', () => {
   const contrat = { code_resultat: 'quota_journalier_epuise', message_erreur: 'quota' };
-  const r = payloadExtraction({ reservation, lecture: {}, contrat, schema: schemaStrict, executionId: 'e4' }, depsControle);
+  const r = payloadExtraction({ reservation, lecture: {}, contrat, ribsReferentiel: {}, schema: schemaStrict, executionId: 'e4' }, depsControle);
   assert.deepEqual(r, { arret_quota: true, appel_llm: true, message: 'quota', payload: null });
 });
 
 test('erreur du fournisseur : extraction en erreur, le lot continue', () => {
   const contrat = { code_resultat: 'erreur_fournisseur', message_erreur: 'HTTP 503 : overloaded', tentatives: 3 };
-  const r = payloadExtraction({ reservation, lecture: { methode_lecture: 'ocr' }, contrat, schema: schemaStrict, executionId: 'e5' }, depsControle);
+  const r = payloadExtraction({ reservation, lecture: { methode_lecture: 'ocr' }, contrat, ribsReferentiel: {}, schema: schemaStrict, executionId: 'e5' }, depsControle);
   assert.equal(r.arret_quota, false);
   assert.deepEqual([r.payload.resultat, r.payload.code_resultat, r.payload.erreurs], ['erreur', 'erreur_fournisseur', ['HTTP 503 : overloaded']]);
 });
@@ -148,6 +177,9 @@ test('réutilisation et échecs hors LLM', () => {
   assert.deepEqual([reutil.appel_llm, reutil.payload.resultat, reutil.payload.reutilise_de], [false, 'reutilisee', 7]);
   const echec = payloadEchec(reservation, 'erreur_lecture', 'fichier introuvable', 'e7', false);
   assert.deepEqual([echec.payload.resultat, echec.payload.code_resultat, echec.appel_llm], ['erreur', 'erreur_lecture', false]);
+  assert.equal(echec.payload.texte_source, null, 'aucun texte lu');
+  const panneLlm = payloadEchec(reservation, 'erreur_fournisseur', 'HTTP 503', 'e8', true, 'FACTURE N° 1');
+  assert.equal(panneLlm.payload.texte_source, 'FACTURE N° 1', 'texte déjà lu conservé');
   assert.equal(messageErreur({ error: { message: 'ENOENT' } }), 'ENOENT');
   assert.equal(messageErreur({ error: 'texte brut' }), 'texte brut');
 });

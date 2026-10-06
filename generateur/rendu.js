@@ -8,6 +8,7 @@ import { creerAlea, empreinte32 } from './alea.js';
 import { formaterDate } from './dates.js';
 import { formaterMontant } from '../src/montants.js';
 import { formaterRib } from '../src/rib.js';
+import { designationImprimee } from './modele.js';
 
 const require = createRequire(import.meta.url);
 const MENTION = 'Document fictif – données synthétiques';
@@ -182,7 +183,7 @@ function ticket(doc, e, p) {
   const sep = '-'.repeat(largeur);
   const ligne = (g, d) => g + ' '.repeat(Math.max(1, largeur - g.length - d.length)) + d;
   const corps = doc.lignes.map((l) => {
-    const designation = l.designation.length > 40 ? `${l.designation.slice(0, 39)}.` : l.designation;
+    const designation = designationImprimee(doc, l.designation);
     const droite = `${p.quantite(l.quantiteMilliemes).padStart(6)} x ${p.montant(l.prixUnitaire).padStart(10)}  ${String(l.taux).padStart(2)}%  ${p.montant(l.ht).padStart(11)}`;
     return ligne(designation, droite);
   });

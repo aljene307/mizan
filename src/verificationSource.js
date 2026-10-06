@@ -18,14 +18,16 @@ const SEPARATEURS_RIB = '[\\s.\\-]*';
 // dans « FA-2026-0157 »). On ne saute pas les espaces : le mot suivant d'une
 // phrase n'est pas la suite de l'identifiant.
 // RIB (chiffres) : aucun chiffre ne doit le prolonger, même au-delà des
-// séparateurs (un RIB de 18 chiffres suivi de « 65 » n'est pas le RIB imprimé).
+// séparateurs (un RIB de 18 chiffres suivi de « 65 » n'est pas le RIB imprimé),
+// mais sans franchir un retour à la ligne : la ligne suivante peut commencer
+// par un chiffre (« 8, rue Ibn Khaldoun… ») sans prolonger le RIB.
 const FRONTIERES_TEXTE = {
   avant: '(?<![\\p{L}\\p{N}]|[\\p{L}\\p{N}][\\-/._])',
   apres: '(?![\\p{L}\\p{N}]|[\\-/._][\\p{L}\\p{N}])',
 };
 const FRONTIERES_RIB = {
-  avant: '(?<!\\p{N}[\\s.\\-]*)',
-  apres: '(?![\\s.\\-]*\\p{N})',
+  avant: '(?<!\\p{N}[ \\t.\\-]*)',
+  apres: '(?![ \\t.\\-]*\\p{N})',
 };
 
 const IDENTIFIANTS = [

@@ -207,3 +207,49 @@ empreinte, traçabilité de chaque extraction).
   `scripts/construire-workflows.js` (D-049) ; 103 tests unitaires.
 - Jeu d'essai copié dans `data/entrant/` (ignoré par Git) : D006 (injection),
   D007, D034 (avoir), D041 (scan), D056 et son doublon exact D035.
+
+### Reprise du 2026-10-06
+- Commit `d0ce530` confirmé sur GitHub.
+- Premier essai réel (6 documents dev, exécution n8n n° 5) : 90/96 champs
+  d'en-tête et 12/12 lignes exacts ; doublon D035/D056 → un seul appel au LLM ;
+  D006 : injection non suivie (vrai TTC), mais RIB amputé de son « 99 »
+  initial, signalé par D-047 ; les 5 autres écarts sont des raisons sociales en
+  majuscules (petites capitales). Hypothèse `.last()` confirmée (D-049).
+- Règle de comparaison fixée avant tout usage du lot de test (D-050).
+- Texte transmis au LLM conservé (D-051, migration n° 12) ; 100 tests SQL,
+  103 unitaires, 12 d'intégration.
+- Problème : le premier script de comparaison comptait 0 ligne juste, car
+  PostgreSQL réordonne les clés JSONB ; comparaison refaite sans tenir compte
+  de l'ordre des clés (12/12).
+- Corrections : vérité terrain des tickets (désignations tronquées : 3 vérités
+  dev changées, aucun document, aucune vérité du lot de test) ; frontière du
+  RIB arrêtée en fin de ligne (2 fausses alertes supprimées). D-050 complétée
+  (extractions non conformes : données conservées, taux d'utilisables à part).
+- Rapport dev après corrections : en-tête 633/656 normalisé, lignes 108/112,
+  extractions utilisables 35/41, 0 fausse alerte.
+- Mesure D-052 : prompt v2 (v1 inchangée, empreinte vérifiée), corrections par
+  le code (`src/correctionsCode.js`), scripts `eval/mesurer.js` et
+  `eval/analyser-mesure.js` ; 125 tests unitaires.
+- Piège évité : le workflow principal prenait la « dernière version » du
+  registre des prompts ; l'ajout de la v2 aurait fait échouer toutes les
+  extractions (le sous-workflow ne connaît que la v1). Il utilise désormais
+  la version en service (`VERSION_PROMPT`).
+- Mesure D-052 réalisée (184 appels, tous réussis, 5 nouvelles tentatives) :
+  rapport `eval/resultats/mesure-2026-10-06/rapport.md`. Prompt v2 sans gain
+  (désignations polluées par les colonnes voisines, RIB abîmé recopié) ;
+  corrections par le code décisives (devise : 30/36 → 36/36 utilisables ;
+  RIB : 32/36 → 35/36, uniquement par confirmation avec le référentiel, aucun
+  remplissage faux) ; stabilité v1-libre 166/170 → 168/170 après corrections
+  (les RIB laissés à null au hasard sont neutralisés). Injection jamais
+  suivie (8 passages sur D001). Quota du jour : environ 225 requêtes.
+- Configuration figée par Mohamed (D-053) : prompt v1, devise libre convertie
+  par le code, paramètres inchangés, quatre corrections par le code dans
+  l'ordre validé. Deux points notés pour la suite : à l'étape 4, une
+  proposition de RIB différente du référentiel déclenche l'alerte de
+  changement de RIB même si le RIB extrait est vide ; à l'étape 8, le rapport
+  montre côte à côte la sortie brute et le résultat après corrections.
+- Intégration : migration n° 13 (`donnees_brutes`, `corrections_code`,
+  `signalements_code`, `propositions`, fonction `ribs_referentiel()`) ; nœud
+  « RIB du référentiel » dans le workflow principal (32 nœuds). Ajout : un
+  texte contenant plusieurs RIB valides est signalé. 111 tests SQL,
+  134 unitaires, 12 d'intégration.

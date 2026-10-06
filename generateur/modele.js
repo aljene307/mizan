@@ -526,6 +526,17 @@ function sansReferences(doc) {
   return reste;
 }
 
+// La mise en page « ticket » (colonnes de largeur fixe) tronque les longues
+// désignations. La vérité terrain doit contenir ce qui est IMPRIMÉ : rendu et
+// vérité utilisent donc cette même fonction.
+const LONGUEUR_MAX_DESIGNATION_TICKET = 40;
+export function designationImprimee(doc, designation) {
+  if (doc.fournisseur.modele === 'ticket' && designation.length > LONGUEUR_MAX_DESIGNATION_TICKET) {
+    return `${designation.slice(0, LONGUEUR_MAX_DESIGNATION_TICKET - 1)}.`;
+  }
+  return designation;
+}
+
 /**
  * Montants d'un document au format de la vérité terrain (TND ou EUR, nombres décimaux).
  * @param {object} doc
@@ -548,7 +559,7 @@ export function versExtraction(doc) {
       matricule_fiscal: null, // complété par versVerite (dépend de l'entreprise générée)
     },
     lignes: doc.lignes.map((l) => ({
-      designation: l.designation,
+      designation: designationImprimee(doc, l.designation),
       quantite: l.quantiteMilliemes / 1000,
       prix_unitaire_ht: versDinars(l.prixUnitaire),
       taux_tva: l.taux,

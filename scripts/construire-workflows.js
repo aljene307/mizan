@@ -129,6 +129,8 @@ sousWorkflow.connections = connexions([
 const N_RESERVER = 'Réserver une facture';
 const N_TEXTE = 'Texte à extraire';
 const N_A_ENREGISTRER = 'Enregistrement à faire';
+const N_LLM = 'Extraction LLM (sous-workflow)';
+const N_REFERENTIEL = 'RIB du référentiel';
 const RESERVATION = `$('${N_RESERVER}').last().json`;
 const MOTIF_FICHIERS = '/data/entrant/*.{pdf,PDF,jpg,JPG,jpeg,JPEG,png,PNG}';
 const REQUETE_ENREGISTRER = 'SELECT enregistrer_extraction($1::jsonb) AS extraction_id;';
@@ -189,29 +191,37 @@ return $input.all().map((i) => ({ json: { ...i.json, texte_suffisant: texteSuffi
       inputDataFieldName: 'data',
       options: { response: { response: { fullResponse: true } }, timeout: 120000 },
     }, { onError: 'continueErrorOutput' }),
-    code(N_TEXTE, [3740, 0], ['src/extractionWorkflow.js', 'src/prompts-versions.json as VERSIONS_PROMPT'],
-      `// Texte du PDF ou de l'OCR, et version du prompt à utiliser (la plus récente).
-return [{ json: texteAExtraire($input.first().json, derniereVersionPrompt(VERSIONS_PROMPT)) }];`),
+    code(N_TEXTE, [3740, 0], ['src/extractionWorkflow.js', 'src/promptExtraction.js'],
+      `// Texte du PDF ou de l'OCR, et version du prompt EN SERVICE (VERSION_PROMPT, D-052).
+return [{ json: texteAExtraire($input.first().json, VERSION_PROMPT) }];`),
     noeud('Extraction LLM (sous-workflow)', 'n8n-nodes-base.executeWorkflow', 1.2, [3960, 0], {
       source: 'database',
       workflowId: { __rl: true, value: '', mode: 'list' },
       mode: 'once',
       options: { waitForSubWorkflow: true },
     }, { onError: 'continueErrorOutput' }),
-    code('Valider et vérifier', [4180, -60],
-      ['src/extractionWorkflow.js', 'src/validationExtraction.js', 'src/verificationSource.js',
+    // Une seule ligne, toujours (objet vide si aucun RIB actif). En cas de panne,
+    // l'exécution continue sans référentiel : aucun RIB ne sera rempli (D-053).
+    postgres(N_REFERENTIEL, [4180, -60], 'SELECT ribs_referentiel() AS ribs;', null,
+      { executeOnce: true, onError: 'continueRegularOutput' }),
+    code('Valider et vérifier', [4400, -60],
+      ['src/extractionWorkflow.js', 'src/correctionsCode.js', 'src/rib.js', 'src/matricule.js',
+        'src/validationExtraction.js', 'src/verificationSource.js',
         'src/schemas/extraction-facture.schema.json as SCHEMA_EXTRACTION'],
-      `// Schéma strict (hors LLM), puis identifiants présents dans le texte source (D-047).
+      `// Corrections par le code (D-053), schéma strict, puis identifiants présents
+// dans le texte source (D-047). La sortie brute du modèle est conservée.
+const referentiel = $input.first().json.ribs;
 const resultat = payloadExtraction({
   reservation: ${RESERVATION},
   lecture: $('${N_TEXTE}').last().json,
-  contrat: $input.first().json,
+  contrat: $('${N_LLM}').last().json,
+  ribsReferentiel: referentiel && typeof referentiel === 'object' ? referentiel : null,
   schema: SCHEMA_EXTRACTION,
   executionId: $execution.id,
-}, { validerExtraction, verifierIdentifiantsDansSource, alertesSource });
+}, { corrigerExtraction, ribValide, formeCourteMatricule, validerExtraction, verifierIdentifiantsDansSource, alertesSource });
 return [{ json: resultat }];`),
-    si('Quota journalier épuisé ?', [4400, -60], '$json.arret_quota === true'),
-    postgres('Libérer la facture et arrêter', [4620, -200],
+    si('Quota journalier épuisé ?', [4620, -60], '$json.arret_quota === true'),
+    postgres('Libérer la facture et arrêter', [4840, -200],
       `WITH liberation AS (SELECT liberer_facture($1::bigint) AS liberee)
 INSERT INTO journal_audit (acteur, action, entite, entite_id, donnees_apres, execution_n8n_id)
 SELECT 'n8n:extraction', 'extraction.quota_journalier_epuise', 'factures', $2,
@@ -219,21 +229,21 @@ SELECT 'n8n:extraction', 'extraction.quota_journalier_epuise', 'factures', $2,
 FROM liberation RETURNING id;`,
       `[ ${RESERVATION}.facture_id, String(${RESERVATION}.facture_id), $json.message, $execution.id ]`),
     code('Échec du sous-workflow', [4180, 140], ['src/extractionWorkflow.js'],
-      `return [{ json: payloadEchec(${RESERVATION}, 'erreur_fournisseur', messageErreur($input.first().json), $execution.id, true) }];`),
+      `return [{ json: payloadEchec(${RESERVATION}, 'erreur_fournisseur', messageErreur($input.first().json), $execution.id, true, $('${N_TEXTE}').last().json.texte) }];`),
     code('Échec de lecture', [3740, 360], ['src/extractionWorkflow.js'],
       `// Fichier introuvable ou illisible, PDF illisible, OCR indisponible.
 const item = $input.first().json;
 const message = item.fileName === undefined && !item.error ? 'fichier introuvable dans /data/entrant' : messageErreur(item);
 return [{ json: payloadEchec(${RESERVATION}, 'erreur_lecture', message, $execution.id, false) }];`),
-    code(N_A_ENREGISTRER, [4840, 0], [],
+    code(N_A_ENREGISTRER, [5060, 0], [],
       '// Point de passage unique avant l\'écriture en base.\nreturn $input.all();'),
-    postgres('Enregistrer l\'extraction', [5060, 0], REQUETE_ENREGISTRER, '[ $json.payload ]', { onError: 'continueErrorOutput' }),
-    code('Échec d\'écriture', [5280, 200], ['src/extractionWorkflow.js'],
+    postgres('Enregistrer l\'extraction', [5280, 0], REQUETE_ENREGISTRER, '[ $json.payload ]', { onError: 'continueErrorOutput' }),
+    code('Échec d\'écriture', [5500, 200], ['src/extractionWorkflow.js'],
       `const appelLlm = $('${N_A_ENREGISTRER}').last().json.appel_llm === true;
 return [{ json: payloadEchec(${RESERVATION}, 'erreur_ecriture', messageErreur($input.first().json), $execution.id, appelLlm) }];`),
-    postgres('Enregistrer l\'échec d\'écriture', [5500, 200], REQUETE_ENREGISTRER, '[ $json.payload ]', { onError: 'continueRegularOutput' }),
-    si('Pause après un appel au LLM ?', [5720, 0], `$('${N_A_ENREGISTRER}').last().json.appel_llm === true`),
-    noeud(`Pause de ${PAUSE_APRES_LLM_S} secondes`, 'n8n-nodes-base.wait', 1.1, [5940, -100], {
+    postgres('Enregistrer l\'échec d\'écriture', [5720, 200], REQUETE_ENREGISTRER, '[ $json.payload ]', { onError: 'continueRegularOutput' }),
+    si('Pause après un appel au LLM ?', [5940, 0], `$('${N_A_ENREGISTRER}').last().json.appel_llm === true`),
+    noeud(`Pause de ${PAUSE_APRES_LLM_S} secondes`, 'n8n-nodes-base.wait', 1.1, [6160, -100], {
       resume: 'timeInterval', amount: PAUSE_APRES_LLM_S, unit: 'seconds',
     }, { webhookId: id('3a170000') }),
   ],
@@ -269,7 +279,8 @@ principal.connections = connexions([
   ['OCR (Tesseract)', 0, N_TEXTE],
   ['OCR (Tesseract)', 1, 'Échec de lecture'],
   [N_TEXTE, 0, 'Extraction LLM (sous-workflow)'],
-  ['Extraction LLM (sous-workflow)', 0, 'Valider et vérifier'],
+  [N_LLM, 0, N_REFERENTIEL],
+  [N_REFERENTIEL, 0, 'Valider et vérifier'],
   ['Extraction LLM (sous-workflow)', 1, 'Échec du sous-workflow'],
   ['Valider et vérifier', 0, 'Quota journalier épuisé ?'],
   ['Quota journalier épuisé ?', 0, 'Libérer la facture et arrêter'],

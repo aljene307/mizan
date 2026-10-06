@@ -72,6 +72,19 @@ test('tronqué à une frontière de groupe ou de tiret : signalé aussi', () => 
   assert.equal(verifierIdentifiantsDansSource(debut, 'Facture FA-2026-0157')[0].present, false);
 });
 
+test('RIB en fin de ligne suivi d\'une ligne commençant par un chiffre : pas de fausse alerte (cas réel D010)', () => {
+  // Texte réel du PDF D010 (lot dev) : l'adresse du fournisseur suit le RIB.
+  const texte = 'Paiement par virement sur le compte Banque Démo 99 — RIB 99 132 2028120944018 73\n8, rue Ibn Khaldoun, 4000 Sousse';
+  const donnees = { numero: null, fournisseur: { rib: '99132202812094401873' }, client: {} };
+  assert.equal(verifierIdentifiantsDansSource(donnees, texte)[0].present, true);
+  // Le RIB peut lui-même être coupé en fin de ligne : toléré à l'intérieur.
+  assert.equal(verifierIdentifiantsDansSource(donnees, 'RIB 99 132 2028120944018\n73')[0].present, true);
+  // Mais sur la même ligne, un chiffre qui suit prolonge toujours le RIB.
+  assert.equal(verifierIdentifiantsDansSource(donnees, 'RIB 99 132 2028120944018 73 4')[0].present, false);
+  // Et une ligne précédente finissant par un chiffre n'empêche pas de le trouver.
+  assert.equal(verifierIdentifiantsDansSource(donnees, 'Code 12\n99 132 2028120944018 73')[0].present, true);
+});
+
 test('les caractères spéciaux des identifiants sont pris littéralement', () => {
   const donnees = { numero: 'F(2026)+1', fournisseur: {}, client: {} };
   assert.equal(verifierIdentifiantsDansSource(donnees, 'N° F(2026)+1')[0].present, true);
