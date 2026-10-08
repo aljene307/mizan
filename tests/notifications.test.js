@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { notificationFacture, notificationDemande, messageReponse } from '../src/decisions/notifications.js';
+import {
+  notificationFacture, notificationDemande, notificationRapprochement, notificationSignalement, notificationSynthese, messageReponse,
+} from '../src/decisions/notifications.js';
 import { formaterMontant, enMillimes } from '../src/montants.js';
 
 const deps = { formaterMontant, enMillimes };
@@ -117,7 +119,8 @@ test('demande de changement de RIB : une approbation par méthode de vérificati
 });
 
 test('les codes d\'action produits sont ceux qu\'accepte la base (creer_notification)', () => {
-  const migration = readFileSync('db/migrations/20261008090000_canaux_notifications.sql', 'utf8');
+  // Version en vigueur de creer_notification : la plus récente migration qui la définit (partie « up »).
+  const migration = readFileSync('db/migrations/20261008130000_canaux_rapprochement.sql', 'utf8').split('-- migrate:down')[0];
   const liste = migration.match(/WHERE a ->> 'code' NOT IN \(([^)]*)\)/)[1];
   const acceptes = [...liste.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
   const source = readFileSync('src/decisions/notifications.js', 'utf8');
@@ -135,4 +138,49 @@ test('réponses : une par résultat ; rien pour un événement déjà traité ; 
   assert.match(messageReponse({ code: 'decision_enregistree', action: { code: 'demander_changement_rib' } }).lignes[0], /autre responsable/);
   assert.match(messageReponse({ code: 'pas_destinataire' }).lignes[0], /pas destinée/);
   assert.match(messageReponse({ code: 'quelque_chose' }).lignes[0], /comprends/);
+});
+
+// --- Rapprochement bancaire (D-065) ------------------------------------------------------
+const candidatRappr = (role) => ({ canal: 'telegram', utilisateur_id: 3, role, releve_id: 5 });
+const ligneReleve = { date_operation: '2026-04-02', libelle: 'VIR EMIS INFOSAHEL SYSTEMES FACT ISS260280 DED AV AV-2026-001', debit: 12788.644 };
+
+test('proposition sans écart : « Confirmer » et « Rejeter » ; factures et avoir détaillés', () => {
+  const n = notificationRapprochement({ candidat: candidatRappr('validateur'), proposition: {
+    id: 11, cas: 'net_avoir', ecart: 0, raisons: ['numéro ISS260280 dans le libellé', 'avoir AV-2026-001 déduit'], ligne: ligneReleve,
+    affectations: [{ numero: 'ISS260280', raison_sociale: 'InfoSahel Systèmes', montant: 13110.111, montant_ttc: 13110.111, role: 'reglement' },
+      { numero: 'AV-2026-001', montant: 321.467, role: 'imputation_avoir' }] } }, deps);
+  assert.deepEqual([n.objet, n.proposition_id, n.releve_id], ['rapprochement', 11, 5]);
+  assert.deepEqual(codes(n), ['confirmer_rapprochement', 'rejeter_rapprochement']);
+  assert.ok(champ(n, 'Facture ISS260280'));
+  assert.ok(champ(n, 'Avoir AV-2026-001'));
+  assert.match(champ(n, 'Cas'), /net d'un avoir/);
+});
+
+test('proposition avec écart : un bouton « Confirmer » par motif (le motif est obligatoire)', () => {
+  const n = notificationRapprochement({ candidat: candidatRappr('validateur'), proposition: {
+    id: 12, cas: 'ecart', ecart: -2, raisons: ['écart de -2 TND'], ligne: { ...ligneReleve, debit: 6460.081 },
+    affectations: [{ numero: 'ISS260268', montant: 6462.081, montant_ttc: 6462.081, role: 'reglement' }] } }, deps);
+  assert.deepEqual(n.actions.filter((a) => a.code === 'confirmer_rapprochement').map((a) => a.params.motif_ecart),
+    ['frais_bancaires', 'arrondi', 'retenue_source', 'escompte', 'autre']);
+  assert.equal(n.actions.at(-1).code, 'rejeter_rapprochement');
+  assert.match(n.contenu.note, /Aucun taux de retenue/);
+});
+
+test('signalement : un seul bouton « Classer » ; synthèse : aucun bouton', () => {
+  const s = notificationSignalement({ candidat: candidatRappr('responsable'), facture: { id: 9, numero: '2026/153', statut: 'anomalie' },
+    signalement: { id: 4, type: 'payee_non_approuvee', message: 'paiement de la facture n° 2026/153, au statut « anomalie »', ligne: ligneReleve } }, deps);
+  assert.deepEqual([s.objet, s.signalement_id, s.facture_id, codes(s)], ['signalement', 4, 9, ['classer_signalement']]);
+  assert.equal(s.contenu.titre, 'Paiement d\'une facture non approuvée');
+  const y = notificationSynthese({ candidat: candidatRappr('validateur'), synthese: {
+    releve: { fichier_nom: 'releve.csv', date_debut: '2026-01-05', date_fin: '2026-09-30', lignes: 103 },
+    bilan: { confirmees_auto: 12, categorisees: 70 }, en_attente: { propositions: 13, signalements: 8 }, factures_en_retard: 2 } });
+  assert.deepEqual(y.actions, []);
+  assert.equal(champ(y, 'Propositions à confirmer'), '13');
+  assert.equal(champ(y, 'Confirmées automatiquement'), '12');
+});
+
+test('réponses du rapprochement : confirmations et motifs de refus lisibles', () => {
+  assert.equal(messageReponse({ code: 'decision_enregistree', action: { code: 'confirmer_rapprochement' } }).lignes[0], 'Rapprochement confirmé.');
+  assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ043' }).lignes[0], /motif/);
+  assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ041' }).lignes[0], /n'est plus approuvée/);
 });

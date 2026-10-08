@@ -406,3 +406,55 @@ empreinte, traçabilité de chaque extraction).
   démonstration, limites), avertissement sur les données transmises à
   Telegram, passerelle dans l'architecture. Étape validée par Mohamed ;
   commit et push.
+
+### Rapprochement bancaire : modèle de données (2026-10-08)
+- Commit `b628ca6` poussé (validation humaine par Telegram).
+- Choix (D-065) ; estimation du volume de notifications sur le lot de
+  développement : 1 synthèse et 21 messages par import. D056, rejetée comme
+  doublon mais payée, sera rapprochée de D035 (même numéro, approuvée).
+- Migration n° 21 : catégories d'opérations, solde par ligne et contrôle
+  d'intégrité, propositions et affectations, signalements, décisions
+  humaines tracées, contexte d'appariement, vue de la situation de
+  paiement ; le rôle applicatif n'écrit plus directement relevé ni
+  rapprochement.
+- Défaut repéré avant les tests : la vue soustrayait deux fois l'avoir d'un
+  paiement net ; corrigée (réglé = règlements, avoir compris).
+- Tests SQL rendus indépendants des données réelles (inscription de
+  Mohamed, bail détenu par le workflow actif, refus de la démonstration).
+- Tests : 247 SQL (nouveau fichier `06_rapprochement.sql`), 212 unitaires,
+  25 d'intégration.
+- Migration n° 22 : le canal porte le rapprochement (propositions,
+  signalements, synthèse). Piège retrouvé dans un test : une instruction
+  SQL ne voit pas les effets des fonctions qu'elle appelle (même cause que
+  le défaut du code d'inscription). 257 tests SQL.
+- Logique : lecture du CSV (`src/rapprochement/releve.js`), appariement
+  (`src/rapprochement/appariement.js`), notifications de rapprochement ;
+  237 tests unitaires.
+- Mesure (`eval/evaluer-rapprochement.js`) : premier passage, 2 lignes
+  manquées (D024) à cause d'un numéro mal lu par l'OCR ; ajout d'une
+  tolérance d'un caractère, qui a produit 3 faux rapprochements entre
+  factures consécutives d'un même fournisseur ; remplacée par les seules
+  confusions lettre ↔ chiffre. Défaut du script de mesure corrigé (doublon
+  exact : même empreinte, lien par le nom de fichier). Résultat : 25/25
+  justes, 12 automatiques, 0 automatique faux, 0 fausse alerte.
+- Workflows : « Import et rapprochement du relevé » (10 nœuds, nouveau ;
+  Extract From File 1.1 en texte, relevé lu dans data/entrant/releves/,
+  empreinte calculée par la base, rien d'enregistré sans nouveauté) ;
+  « Notifications Telegram » étendu aux propositions, signalements et
+  synthèses. Paramètres du nœud d'extraction relevés dans le code installé
+  (`keepSource`, `destinationKey`). 245 tests unitaires.
+- Mise en service et démonstration (Mohamed) : relevé importé
+  (103 opérations, 70 rangées, 12 automatiques, 13 propositions,
+  8 signalements, 22 messages). Écarts au plan constatés en base et
+  signalés : justification d'acompte saisie sur le solde de D024 (L78),
+  chèque de D023 non confirmé, test du bouton périmé sans trace ; puis
+  repris par Mohamed (acompte L64 et chèque L26 confirmés, deux
+  « notification_perimee »).
+- Défaut de conception révélé : D023 et D024 « en retard » alors que leur
+  paiement attendait une confirmation. Vue `situation_paiement` : état
+  « paiement proposé » (migration n° 23, D-066), test ajouté. Tests SQL
+  isolés des données réelles du relevé.
+- Piste notée (D-067) : rectifier une justification par une écriture
+  rectificative liée à la décision d'origine.
+- README : rapprochement (règles, mesure, démonstration, limites).
+  258 tests SQL, 245 unitaires. Étape validée ; commit.

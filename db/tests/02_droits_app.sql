@@ -30,16 +30,14 @@ SELECT pg_temp.doit_reussir($$
     INSERT INTO journal_audit (acteur, action, entite, entite_id)
     VALUES ('test-app', 'facture.extraite', 'factures', '0')
 $$, 'écrire dans le journal d''audit');
+-- Relevé et rapprochement : seulement par les fonctions prévues (D-065).
 SELECT pg_temp.doit_reussir($$
-    INSERT INTO releves_bancaires (banque, rib_compte, date_debut, date_fin, fichier_nom, fichier_sha256)
-    VALUES ('Banque App', '11111111111111111111', '2026-03-01', '2026-03-31', 'app.csv', repeat('f', 64));
-    INSERT INTO lignes_releve (releve_id, numero_ligne, date_operation, libelle, debit)
-    SELECT id, 1, '2026-03-10', 'VIR FOURNISSEUR APP', 50 FROM releves_bancaires WHERE fichier_nom = 'app.csv';
-    INSERT INTO rapprochements (facture_id, ligne_releve_id, montant_affecte, methode, cree_par)
-    SELECT f.id, l.id, 50, 'auto', 'test-app'
-    FROM factures f, lignes_releve l
-    WHERE f.fichier_nom = 'app.jpg' AND l.libelle = 'VIR FOURNISSEUR APP';
-$$, 'importer un relevé et créer un rapprochement');
+    SELECT enregistrer_releve(jsonb_build_object('banque', 'Banque App', 'rib_compte', '11111111111111111111',
+        'date_debut', '2026-03-01', 'date_fin', '2026-03-31', 'solde_initial', 100, 'solde_final', 50,
+        'fichier_nom', 'app.csv', 'fichier_sha256', repeat('f', 64),
+        'lignes', jsonb_build_array(jsonb_build_object('numero_ligne', 1, 'date_operation', '2026-03-10',
+                                                       'libelle', 'VIR FOURNISSEUR APP', 'debit', 50, 'solde', 50))));
+$$, 'importer un relevé par la fonction prévue');
 SELECT pg_temp.doit_valoir($$SELECT count(*)::text FROM config_fiscale$$, '6',
     'lire la configuration fiscale');
 
@@ -52,6 +50,12 @@ SELECT pg_temp.doit_echouer($$INSERT INTO fournisseurs (raison_sociale, matricul
     '42501', 'créer un fournisseur sans demande approuvée (D-056)');
 SELECT pg_temp.doit_echouer($$UPDATE fournisseur_ribs SET valide_au = current_date$$,
     '42501', 'modifier un RIB sans demande approuvée (D-056)');
+SELECT pg_temp.doit_echouer($$
+    INSERT INTO rapprochements (facture_id, ligne_releve_id, montant_affecte, methode, cree_par)
+    SELECT f.id, l.id, 50, 'auto', 'test-app' FROM factures f, lignes_releve l
+    WHERE f.fichier_nom = 'app.jpg' AND l.libelle = 'VIR FOURNISSEUR APP'
+$$, '42501', 'créer un rapprochement directement (D-065)');
+SELECT pg_temp.doit_echouer($$UPDATE lignes_releve SET debit = 0$$, '42501', 'modifier une ligne de relevé');
 SELECT pg_temp.doit_echouer($$INSERT INTO utilisateurs (nom, role) VALUES ('Intrus', 'responsable')$$,
     '42501', 'créer un utilisateur');
 SELECT pg_temp.doit_echouer($$UPDATE factures SET statut = 'validee' WHERE fichier_nom = 'app.jpg'$$,
@@ -88,8 +92,8 @@ SELECT pg_temp.doit_valoir($$
     SELECT string_agg(p.proname, ', ' ORDER BY p.proname) FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef
       AND has_function_privilege('mizan_app', p.oid, 'EXECUTE')
-$$, 'creer_notification, marquer_notification, prendre_bail_canal, recevoir_evenement, rendre_bail_canal',
-    'mizan_app n''exécute que les fonctions de canal prévues');
+$$, 'creer_notification, enregistrer_rapprochements, enregistrer_releve, marquer_notification, prendre_bail_canal, recevoir_evenement, rendre_bail_canal',
+    'mizan_app n''exécute que les fonctions privilégiées prévues (canal, relevé, rapprochement)');
 SELECT pg_temp.doit_valoir($$SELECT has_schema_privilege('mizan_app', 'public', 'CREATE')::text$$,
     'false', 'mizan_app ne peut rien créer dans le schéma public (search_path sûr)');
 

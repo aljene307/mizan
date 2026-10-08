@@ -21,7 +21,8 @@
     "reextraire-lot-dev": "node scripts/reextraire-lot-dev.js",
     "evaluer-controles-reel": "node eval/evaluer-controles-reel.js",
     "creer-code-inscription": "node scripts/creer-code-inscription.js",
-    "simuler-second-responsable": "node scripts/simuler-second-responsable.js"
+    "simuler-second-responsable": "node scripts/simuler-second-responsable.js",
+    "evaluer-rapprochement": "node eval/evaluer-rapprochement.js"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",

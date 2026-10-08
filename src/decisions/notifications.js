@@ -132,6 +132,93 @@ function notificationDemande({ candidat, demande, fournisseur, facture, methodes
   };
 }
 
+// --- Rapprochement bancaire (D-065) ---------------------------------------------------
+const LIBELLES_CAS = Object.freeze({
+  exact: 'paiement exact', groupe: 'virement groupé', partiel: 'paiement partiel',
+  net_avoir: 'paiement net d\'un avoir', ecart: 'paiement avec écart',
+});
+const MOTIFS_ECART = Object.freeze([
+  ['frais_bancaires', 'frais bancaires'], ['arrondi', 'arrondi'], ['retenue_source', 'retenue à la source'],
+  ['escompte', 'escompte'], ['autre', 'autre motif'],
+]);
+const tnd = (v, deps) => montant(v, 'TND', deps);
+
+/**
+ * Proposition de rapprochement à confirmer (validateur ou responsable). Un
+ * écart non nul exige un motif : un bouton « Confirmer » par motif.
+ */
+function notificationRapprochement({ candidat, proposition }, deps) {
+  const ligne = proposition.ligne;
+  const reglements = proposition.affectations.filter((a) => a.role === 'reglement');
+  const avoirs = proposition.affectations.filter((a) => a.role === 'imputation_avoir');
+  const ecart = Number(proposition.ecart);
+  const champs = [
+    ['Opération', `${ligne.date_operation} — ${ligne.libelle}`],
+    ['Montant de l\'opération', tnd(ligne.debit, deps)],
+    ['Cas', LIBELLES_CAS[proposition.cas] ?? proposition.cas],
+    ...reglements.map((a) => [`Facture ${a.numero}`, `${a.raison_sociale ?? '—'} : ${tnd(a.montant, deps)} réglés (TTC ${tnd(a.montant_ttc, deps)})`]),
+    ...avoirs.map((a) => [`Avoir ${a.numero}`, `${tnd(a.montant, deps)} déduits`]),
+  ];
+  if (ecart !== 0) champs.push(['Écart', tnd(ecart, deps)]);
+  champs.push(['Raisons', proposition.raisons.join(' ; ')]);
+  const actions = ecart === 0
+    ? [{ code: 'confirmer_rapprochement', libelle: 'Confirmer' }]
+    : MOTIFS_ECART.map(([code, libelle]) => ({ code: 'confirmer_rapprochement', libelle: `Confirmer (écart : ${libelle})`, params: { motif_ecart: code } }));
+  actions.push({ code: 'rejeter_rapprochement', libelle: 'Rejeter' });
+  return {
+    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'rapprochement',
+    proposition_id: proposition.id, releve_id: candidat.releve_id, actions,
+    contenu: {
+      objet: 'rapprochement', titre: `Paiement à rapprocher : ${tnd(ligne.debit, deps)} du ${ligne.date_operation}`, champs, alertes: [],
+      note: ecart !== 0 ? 'L\'écart doit être qualifié pour confirmer. Aucun taux de retenue n\'est appliqué par le système (D-065).'
+        : 'Confirmez si ce paiement règle bien la ou les factures indiquées.',
+    },
+  };
+}
+
+const TITRES_SIGNALEMENT = Object.freeze({
+  payee_non_approuvee: 'Paiement d\'une facture non approuvée',
+  sortie_sans_facture: 'Sortie d\'argent sans facture',
+});
+
+/** Signalement à examiner (responsable seulement). */
+function notificationSignalement({ candidat, signalement, facture }, deps) {
+  const ligne = signalement.ligne;
+  const champs = [['Opération', `${ligne.date_operation} — ${ligne.libelle}`], ['Montant', tnd(ligne.debit, deps)]];
+  if (facture) champs.push(['Facture', `${facture.numero ?? '—'} (statut : ${facture.statut})`]);
+  champs.push(['Constat', signalement.message]);
+  return {
+    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'signalement',
+    signalement_id: signalement.id, releve_id: candidat.releve_id, facture_id: facture?.id ?? null,
+    actions: [{ code: 'classer_signalement', libelle: 'Classer (vérification faite)' }],
+    contenu: {
+      objet: 'signalement', titre: TITRES_SIGNALEMENT[signalement.type] ?? 'Signalement', champs,
+      alertes: [{ gravite: 'bloquant', libelle: 'À vérifier', regle: signalement.type, message: signalement.message }],
+      note: 'Vérifiez auprès de la banque et du fournisseur avant de classer ; la justification est gardée au journal.',
+    },
+  };
+}
+
+/** Synthèse d'un import de relevé : information seule, sans bouton. */
+function notificationSynthese({ candidat, synthese }) {
+  const b = synthese.bilan ?? {};
+  const r = synthese.releve;
+  return {
+    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'synthese', releve_id: candidat.releve_id, actions: [],
+    contenu: {
+      objet: 'synthese', titre: `Relevé rapproché : ${r.fichier_nom}`,
+      champs: [
+        ['Période', `${r.date_debut} au ${r.date_fin}`], ['Opérations', String(r.lignes)],
+        ['Confirmées automatiquement', String(b.confirmees_auto ?? 0)], ['Rangées dans une catégorie', String(b.categorisees ?? 0)],
+        ['Propositions à confirmer', String(synthese.en_attente.propositions)], ['Signalements à examiner', String(synthese.en_attente.signalements)],
+        ['Factures approuvées en retard de paiement', String(synthese.factures_en_retard)],
+      ],
+      alertes: [],
+      note: 'Les propositions et signalements arrivent dans des messages séparés, chacun avec ses boutons.',
+    },
+  };
+}
+
 // Messages renvoyés selon le résultat de recevoir_evenement().
 const MOTIFS_REFUS = Object.freeze({
   MZ010: 'la facture a changé de statut entre-temps : décision impossible.',
@@ -144,6 +231,9 @@ const MOTIFS_REFUS = Object.freeze({
   MZ018: 'quatre yeux : vous ne pouvez pas décider de votre propre demande.',
   MZ019: 'données de la demande invalides.',
   MZ020: 'le RIB actif date d\'aujourd\'hui : changement à refaire demain.',
+  MZ041: 'une facture de la proposition n\'est plus approuvée.',
+  MZ042: 'déjà décidé par ailleurs.',
+  MZ043: 'un écart doit être qualifié par un motif.',
 });
 const CONFIRMATIONS = Object.freeze({
   valider: 'Facture validée.',
@@ -154,6 +244,9 @@ const CONFIRMATIONS = Object.freeze({
   demander_creation_fournisseur: 'Demande de création du fournisseur enregistrée : un autre responsable doit l\'approuver.',
   approuver: 'Demande approuvée : référentiel mis à jour, facture(s) renvoyée(s) aux contrôles.',
   refuser: 'Demande refusée.',
+  confirmer_rapprochement: 'Rapprochement confirmé.',
+  rejeter_rapprochement: 'Proposition de rapprochement rejetée.',
+  classer_signalement: 'Signalement classé.',
 });
 
 /**
@@ -185,5 +278,6 @@ function messageReponse(r) {
 }
 
 export {
-  LIBELLES_STATUT, METHODES_COURTES, notificationFacture, notificationDemande, messageReponse,
+  LIBELLES_STATUT, METHODES_COURTES, MOTIFS_ECART, notificationFacture, notificationDemande,
+  notificationRapprochement, notificationSignalement, notificationSynthese, messageReponse,
 };

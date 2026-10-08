@@ -4,6 +4,7 @@
 //   workflows/controles.json             contrôles déterministes (D-055)
 //   workflows/notifications-telegram.json  envoi des notifications (D-062, D-064)
 //   workflows/reponses-telegram.json     réception des réponses (D-062, D-064)
+//   workflows/releve-rapprochement.json  import et rapprochement du relevé (D-065)
 // Le code des nœuds Code est recopié depuis src/ (D-041). Paramètres des nœuds
 // relevés dans n8n 2.41.7. Usage : node scripts/construire-workflows.js
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -384,14 +385,18 @@ const notifications = {
     }),
     postgres('Notifications à préparer', [220, 0], 'SELECT donnees_notifications(\'telegram\') AS donnees;', null, { executeOnce: true }),
     code(N_PREPARER_NOTIF, [440, 0], ['src/decisions/notifications.js', 'src/montants.js'],
-      `// Contenu et actions, sans rien connaître du canal (D-062).
+      `// Contenu et actions, sans rien connaître du canal (D-062, D-065).
+const deps = { formaterMontant, enMillimes };
+const preparer = {
+  facture: (d) => notificationFacture({ candidat: d.candidat, facture: d.facture, fournisseur: d.fournisseur, resultats: d.resultats, regles: d.regles }, deps),
+  demande: (d) => notificationDemande({ candidat: d.candidat, demande: d.demande, fournisseur: d.fournisseur, facture: d.facture, methodes: d.methodes }),
+  rapprochement: (d) => notificationRapprochement({ candidat: d.candidat, proposition: d.proposition }, deps),
+  signalement: (d) => notificationSignalement({ candidat: d.candidat, signalement: d.signalement, facture: d.facture }, deps),
+  synthese: (d) => notificationSynthese({ candidat: d.candidat, synthese: d.synthese }),
+};
 return $input.all().map((i) => {
   const d = i.json.donnees;
-  const notification = d.candidat.objet === 'facture'
-    ? notificationFacture({ candidat: d.candidat, facture: d.facture, fournisseur: d.fournisseur, resultats: d.resultats, regles: d.regles },
-      { formaterMontant, enMillimes })
-    : notificationDemande({ candidat: d.candidat, demande: d.demande, fournisseur: d.fournisseur, facture: d.facture, methodes: d.methodes });
-  return { json: { notification, adresse: d.candidat.adresse } };
+  return { json: { notification: preparer[d.candidat.objet](d), adresse: d.candidat.adresse } };
 });`),
     // La base vérifie le destinataire et l'état notifié, et renvoie le jeton une seule fois.
     postgresParElement('Créer la notification', [660, 0], 'SELECT * FROM creer_notification($1::jsonb);',
@@ -515,6 +520,76 @@ reponses.connections = connexions([
   [N_UNE_A_LA_FOIS, 0, N_RENDRE],
 ]);
 
+// =============================================================================
+// Import et rapprochement du relevé (D-065) : un CSV déposé dans
+// data/entrant/releves/ est lu, contrôlé (soldes), enregistré une seule fois,
+// puis ses lignes non traitées sont appariées. Rien n'est enregistré s'il n'y
+// a rien de nouveau (sinon une synthèse serait renvoyée à chaque passage).
+// =============================================================================
+const N_RELEVES = 'Lister les relevés déposés';
+const N_TEXTE_RELEVE = 'Lire le texte du relevé';
+const N_RELEVE_ENREGISTRE = 'Enregistrer le relevé';
+// Compte de l'entreprise (fictif) : le CSV de la banque ne le contient pas.
+const COMPTE_ENTREPRISE = { banque: 'Banque Démo 99', rib_compte: '99330228027133819365', devise: 'TND' };
+const releve = {
+  name: 'Mizan – Import et rapprochement du relevé',
+  nodes: [
+    noeud('Toutes les 15 minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, [0, 0], {
+      rule: { interval: [{ field: 'minutes', minutesInterval: 15 }] },
+    }),
+    noeud(N_RELEVES, 'n8n-nodes-base.readWriteFile', 1, [220, 0], {
+      operation: 'read', fileSelector: '/data/entrant/releves/*.{csv,CSV}', options: {},
+    }, { alwaysOutputData: true }),
+    si('Relevé déposé ?', [440, 0], '$json.fileName !== undefined'),
+    noeud(N_TEXTE_RELEVE, 'n8n-nodes-base.extractFromFile', 1.1, [660, -80], {
+      operation: 'text', binaryPropertyName: 'data', destinationKey: 'texte',
+      options: { keepSource: 'json', encoding: 'utf8', stripBOM: true },
+    }),
+    code('Préparer l\'import', [880, -80], ['src/rapprochement/releve.js'],
+      `// Lecture du CSV (virgule décimale, dates JJ/MM/AAAA) ; les soldes sont revérifiés en base.
+const compte = ${JSON.stringify(COMPTE_ENTREPRISE)};
+return $input.all().map((i) => {
+  const r = lireReleveCsv(i.json.texte);
+  return { json: { texte: i.json.texte, payload: {
+    ...compte, date_debut: r.date_debut, date_fin: r.date_fin, solde_initial: r.solde_initial, solde_final: r.solde_final,
+    fichier_nom: i.json.fileName, execution_n8n_id: $execution.id, lignes: r.lignes,
+  } } };
+});`),
+    // Empreinte du contenu calculée par la base : un relevé n'est importé qu'une fois.
+    postgresParElement(N_RELEVE_ENREGISTRE, [1100, -80],
+      'SELECT * FROM enregistrer_releve($1::jsonb || jsonb_build_object(\'fichier_sha256\', encode(sha256(convert_to($2, \'UTF8\')), \'hex\')));',
+      '[ $json.payload, $json.texte ]'),
+    postgresParElement('Contexte du rapprochement', [1320, -80], 'SELECT contexte_rapprochement($1::bigint) AS contexte;', '[ $json.releve_id ]'),
+    code('Apparier', [1540, -80], ['src/rapprochement/appariement.js', 'src/montants.js'],
+      `// Règles déterministes (D-065) ; confirmation automatique seulement pour le cas sûr.
+const enregistres = $('${N_RELEVE_ENREGISTRE}').all();
+return $input.all().map((i, k) => {
+  const ctx = i.json.contexte;
+  const r = rapprocher(ctx, { enMillimes });
+  return { json: {
+    a_enregistrer: r.categories.length + r.propositions.length + r.signalements.length > 0,
+    payload: { releve_id: enregistres[i.pairedItem?.item ?? k].json.releve_id, execution_n8n_id: $execution.id, ...r },
+  } };
+});`),
+    si('Quelque chose à enregistrer ?', [1760, -80], '$json.a_enregistrer === true'),
+    postgresParElement('Enregistrer le rapprochement', [1980, -160], 'SELECT enregistrer_rapprochements($1::jsonb) AS bilan;', '[ $json.payload ]'),
+  ],
+  settings: { executionOrder: 'v1' },
+  pinData: {},
+};
+releve.connections = connexions([
+  ['Toutes les 15 minutes', 0, N_RELEVES],
+  [N_RELEVES, 0, 'Relevé déposé ?'],
+  ['Relevé déposé ?', 0, N_TEXTE_RELEVE],
+  [N_TEXTE_RELEVE, 0, 'Préparer l\'import'],
+  ['Préparer l\'import', 0, N_RELEVE_ENREGISTRE],
+  [N_RELEVE_ENREGISTRE, 0, 'Contexte du rapprochement'],
+  ['Contexte du rapprochement', 0, 'Apparier'],
+  ['Apparier', 0, 'Quelque chose à enregistrer ?'],
+  ['Quelque chose à enregistrer ?', 0, 'Enregistrer le rapprochement'],
+]);
+
+ecrire('workflows/releve-rapprochement.json', releve);
 ecrire('workflows/notifications-telegram.json', notifications);
 ecrire('workflows/reponses-telegram.json', reponses);
 ecrire('workflows/extraction-llm.json', sousWorkflow);

@@ -13,6 +13,11 @@ RESET ROLE;
 \o /dev/null
 
 -- Données de départ (administrateur) -----------------------------------------------
+-- Isolement : les adresses réelles déjà inscrites ne reçoivent rien pendant le test
+-- (désactivées dans la transaction, annulée à la fin).
+UPDATE adresses_canal SET active = FALSE;
+-- État du canal remis à zéro (le workflow réel peut détenir le bail en ce moment).
+UPDATE etats_canal SET curseur = 0, bail_jeton = NULL, bail_jusqu_a = NULL WHERE canal = 'telegram';
 UPDATE factures SET statut = 'erreur_extraction', reservee_le = NULL WHERE statut IN ('recue', 'en_extraction', 'extraite', 'en_controle');
 INSERT INTO utilisateurs (nom, role, fictif) VALUES
     ('Canal – Responsable A', 'responsable', TRUE), ('Canal – Responsable B', 'responsable', TRUE),
@@ -99,6 +104,7 @@ SELECT pg_temp.doit_reussir($$
 $$, 'inscription du validateur et du second responsable');
 SELECT pg_temp.doit_valoir($$
     SELECT count(*)::text FROM journal_audit WHERE action = 'utilisateur.adresse_inscrite'
+      AND entite_id IN (SELECT id::text FROM utilisateurs WHERE nom LIKE 'Canal – %')
 $$, '3', 'chaque inscription est tracée au journal');
 SELECT pg_temp.doit_valoir($$SELECT pg_temp.ev('7', '999', 'texte', '{"texte": "valider tout"}')$$, 'expediteur_inconnu',
     'un inconnu n''obtient rien');
@@ -153,7 +159,8 @@ SELECT pg_temp.doit_echouer($$UPDATE notifications SET utilisateur_id = 1$$, '42
 -- Protection des boutons -------------------------------------------------------------------
 SELECT pg_temp.doit_valoir($$SELECT pg_temp.bouton('10', '111', 'seuil-V', '0')$$, 'pas_destinataire',
     'le bouton d''une autre personne ne suffit pas : il faut être le destinataire');
-SELECT pg_temp.doit_valoir($$SELECT count(*)::text FROM journal_audit WHERE action = 'canal.bouton_d_un_autre'$$, '1',
+SELECT pg_temp.doit_valoir($$SELECT count(*)::text FROM journal_audit WHERE action = 'canal.bouton_d_un_autre'
+    AND entite_id = (SELECT notification_id::text FROM jetons WHERE nom = 'seuil-V')$$, '1',
     'la tentative est tracée');
 SELECT pg_temp.doit_valoir($$SELECT pg_temp.ev('11', '222', 'action', '{"jeton": "forge", "indice": "0"}')$$, 'bouton_inconnu',
     'un jeton inventé est refusé');

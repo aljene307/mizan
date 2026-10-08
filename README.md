@@ -47,7 +47,7 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 | 3 | Réception et extraction (OCR, Gemini, corrections par le code) | ✅ |
 | 4 | Contrôles déterministes (22 règles, décisions humaines tracées) | ✅ |
 | 5 | Validation humaine (Telegram, quatre yeux, canal interchangeable) | ✅ |
-| 6 | Rapprochement bancaire | à venir |
+| 6 | Rapprochement bancaire (appariement déterministe, décisions par Telegram) | ✅ |
 | 7 | Restitution | à venir |
 | 8 | Évaluation de l'extraction | à venir |
 | 9 | Finition | à venir |
@@ -202,6 +202,71 @@ reçues :**
 >   `simulation`.
 > - Les relances des factures en attente ne sont pas encore faites.
 
+## Rapprochement bancaire
+
+**Import.** Un relevé CSV déposé dans `data/entrant/releves/` est importé une
+seule fois. **Contrôle d'intégrité :** chaque solde doit être égal au solde
+précédent, plus le crédit, moins le débit.
+
+**Appariement.** Il suit des règles déterministes, sans LLM
+(`src/rapprochement/appariement.js`) :
+- numéro de facture ou d'avoir cité dans le libellé, ou à défaut fournisseur
+  reconnu et montant ;
+- cas traités : paiement exact, groupé, partiel (acompte puis solde), net
+  d'un avoir, avec un écart ;
+- confusions de lecture admises dans un numéro (lettre et chiffre de même
+  forme, comme I/1 ou S/5), **jamais un chiffre pour un autre** : deux
+  factures consécutives ne diffèrent que d'un chiffre.
+
+**Confirmation.** Un rapprochement n'est confirmé automatiquement que dans le
+cas sûr : montant exact, numéro cité, une seule facture approuvée, aucun
+écart. Tout le reste est **proposé** sur Telegram, avec ses raisons. Un écart
+se confirme avec un motif obligatoire : frais bancaires, arrondi, retenue à la
+source, escompte ou autre. Aucun taux de retenue n'est appliqué sans source
+officielle.
+
+**Ce qui est signalé :**
+- un paiement d'une facture **non approuvée** ;
+- une sortie d'argent sans facture ni catégorie connue (loyer, salaires,
+  frais…).
+
+**Situation de paiement.** Elle est calculée pour chaque facture : réglé,
+reste à payer, payée, paiement proposé, en retard. Un paiement se fait
+toujours sur le RIB du référentiel (D-058).
+
+Mesure sur le lot de développement, nombres bruts
+(`eval/resultats/rapprochement-dev.md`) :
+
+| Mesure | Résultat |
+|---|---|
+| Lignes réglant des factures, rapprochées des bonnes factures | **25 / 25** |
+| Dont confirmées automatiquement | 12, **aucune fausse** |
+| Lignes sans facture (loyer, salaires, frais, encaissements) rangées | 70 / 70, **0 fausse alerte** |
+| Paiements attribués à tort à une facture impayée | 0 |
+| « Payée sans être approuvée » (D001, D006, D018 : en anomalie dans la base) | 3 signalés, classés à part |
+| Virements de factures du lot de test (absentes de la base) | 5 signalés, classés « hors périmètre » |
+
+**La mesure a trouvé un défaut, corrigé avant ce résultat.** Une tolérance
+d'un caractère dans les numéros rapprochait des factures **consécutives**
+d'un même fournisseur.
+
+**Démonstration (2026-10-08) :** import réel du relevé, puis 6 propositions
+confirmées et 2 signalements classés par Telegram. Résultat : 18 factures
+payées, 7 en « paiement proposé », 5 non payées.
+
+> **Limites.**
+> - Un seul relevé synthétique, aux libellés réguliers : le 25 sur 25 montre
+>   que chaque cas est traité, pas une performance sur de vrais relevés.
+> - Aucune retenue à la source n'est simulée ; l'écart de 2 TND de D015 est
+>   générique.
+> - Le relevé ne montre pas le RIB du bénéficiaire : le respect de D-058 sera
+>   contrôlé par les ordres de paiement, avec la restitution.
+> - Une proposition rejetée n'est pas reproposée ; sa ligne reste à rapprocher
+>   à la main.
+> - Une sortie frauduleuse dont le libellé imite une catégorie connue ne
+>   serait pas signalée. Un montant habituel par catégorie réduirait ce
+>   risque plus tard (D-065).
+
 ## Workflows n8n
 
 Les workflows sont générés dans `workflows/` par
@@ -212,8 +277,10 @@ Pour les importer dans n8n (menu ⋯ → *Import from File…*) :
 2. puis importer `reception-extraction.json` ;
 3. puis importer `controles.json` ;
 4. puis importer `notifications-telegram.json` et `reponses-telegram.json`,
-   et les activer (les autres se lancent à la main) ;
-5. créer dans n8n les credentials « PostgreSQL Mizan (mizan_app) » et
+   et les publier (les autres se lancent à la main) ;
+5. puis importer `releve-rapprochement.json`, et déposer le relevé CSV dans
+   `data/entrant/releves/` ;
+6. créer dans n8n les credentials « PostgreSQL Mizan (mizan_app) » et
    « Gemini Mizan ». Aucune clé n'est dans le dépôt.
 
 Le jeton du bot Telegram n'est **pas** un credential n8n : il se place dans
@@ -234,6 +301,7 @@ npm run test:mutations               # test par mutation des contrôles
 npm run evaluer-controles-reel       # contrôles sur l'extraction réelle
 npm run creer-code-inscription -- --nom "Prénom Nom" --role responsable   # code /start à usage unique (30 min)
 npm run simuler-second-responsable   # demandes en attente ; décision du compte fictif (--demande n --approuver méthode | --refuser)
+npm run evaluer-rapprochement        # rapprochement sur le relevé de développement (n'écrit rien)
 ```
 
 ## Prérequis

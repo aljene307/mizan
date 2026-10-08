@@ -1,0 +1,332 @@
+{
+  "name": "Mizan – Import et rapprochement du relevé",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000079",
+      "name": "Toutes les 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "/data/entrant/releves/*.{csv,CSV}",
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000080",
+      "name": "Lister les relevés déposés",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000081",
+              "leftValue": "={{ $json.fileName !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000082",
+      "name": "Relevé déposé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "data",
+        "destinationKey": "texte",
+        "options": {
+          "keepSource": "json",
+          "encoding": "utf8",
+          "stripBOM": true
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000083",
+      "name": "Lire le texte du relevé",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/rapprochement/releve.js\n// Lecture d'un relevé bancaire CSV (D-065, A1) : séparateur « ; », virgule\n// décimale, dates JJ/MM/AAAA, en-tête obligatoire. Renvoie les lignes et les\n// soldes ; le contrôle d'intégrité des soldes est refait par la base\n// (enregistrer_releve). Aucun import (recopié dans un nœud Code, D-041).\n\nconst COLONNES_RELEVE = Object.freeze(['date_operation', 'date_valeur', 'libelle', 'reference', 'debit', 'credit', 'solde']);\n\n/** « 3500,000 » → 3500 ; vide → 0 ; refuse tout autre format. */\nfunction lireMontant(texte, ligne, colonne) {\n  const t = String(texte ?? '').trim();\n  if (t === '') return 0;\n  const m = /^(-?)(\\d+)(?:,(\\d{1,3}))?$/.exec(t.replace(/\\s/g, ''));\n  if (!m) throw new Error(`ligne ${ligne}, ${colonne} : montant illisible « ${t} »`);\n  return Number(`${m[1]}${m[2]}.${(m[3] ?? '').padEnd(3, '0')}`);\n}\n\n/** « 05/01/2026 » → « 2026-01-05 » ; vide → null. */\nfunction lireDate(texte, ligne, colonne) {\n  const t = String(texte ?? '').trim();\n  if (t === '') return null;\n  const m = /^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/.exec(t);\n  if (!m) throw new Error(`ligne ${ligne}, ${colonne} : date illisible « ${t} »`);\n  const iso = `${m[3]}-${m[2]}-${m[1]}`;\n  const d = new Date(`${iso}T00:00:00Z`);\n  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso) throw new Error(`ligne ${ligne}, ${colonne} : date impossible « ${t} »`);\n  return iso;\n}\n\n/**\n * @param {string} texte contenu du fichier CSV\n * @returns {{lignes: object[], date_debut: string, date_fin: string, solde_initial: number|null, solde_final: number|null}}\n */\nfunction lireReleveCsv(texte) {\n  const lignesBrutes = String(texte ?? '').replace(/^﻿/, '').split(/\\r?\\n/).filter((l) => l.trim() !== '');\n  if (!lignesBrutes.length) throw new Error('relevé vide');\n  const entete = lignesBrutes[0].split(';').map((c) => c.trim().toLowerCase());\n  if (entete.join(';') !== COLONNES_RELEVE.join(';')) {\n    throw new Error(`en-tête inattendu : « ${lignesBrutes[0]} » (attendu : ${COLONNES_RELEVE.join(';')})`);\n  }\n  const lignes = lignesBrutes.slice(1).map((brute, i) => {\n    const numero = i + 1;\n    const c = brute.split(';');\n    if (c.length !== COLONNES_RELEVE.length) throw new Error(`ligne ${numero} : ${c.length} colonnes au lieu de ${COLONNES_RELEVE.length}`);\n    const debit = lireMontant(c[4], numero, 'débit');\n    const credit = lireMontant(c[5], numero, 'crédit');\n    if (debit < 0 || credit < 0 || (debit > 0 && credit > 0)) throw new Error(`ligne ${numero} : débit et crédit incohérents`);\n    return {\n      numero_ligne: numero,\n      date_operation: lireDate(c[0], numero, 'date d\\'opération'),\n      date_valeur: lireDate(c[1], numero, 'date de valeur'),\n      libelle: c[2].trim(),\n      reference: c[3].trim() || null,\n      debit, credit,\n      solde: c[6].trim() === '' ? null : lireMontant(c[6], numero, 'solde'),\n    };\n  });\n  if (!lignes.length) throw new Error('relevé sans opération');\n  if (lignes.some((l) => !l.date_operation)) throw new Error('date d\\'opération manquante');\n  const premiere = lignes[0];\n  // Solde initial déduit de la première ligne (en millimes, sans flottant).\n  const millimes = (v) => Math.round(v * 1000);\n  const soldeInitial = premiere.solde === null ? null\n    : (millimes(premiere.solde) - millimes(premiere.credit) + millimes(premiere.debit)) / 1000;\n  const dates = lignes.map((l) => l.date_operation).sort();\n  return {\n    lignes, date_debut: dates[0], date_fin: dates.at(-1),\n    solde_initial: soldeInitial, solde_final: lignes.at(-1).solde,\n  };\n}\n// >>>\n\n// Lecture du CSV (virgule décimale, dates JJ/MM/AAAA) ; les soldes sont revérifiés en base.\nconst compte = {\"banque\":\"Banque Démo 99\",\"rib_compte\":\"99330228027133819365\",\"devise\":\"TND\"};\nreturn $input.all().map((i) => {\n  const r = lireReleveCsv(i.json.texte);\n  return { json: { texte: i.json.texte, payload: {\n    ...compte, date_debut: r.date_debut, date_fin: r.date_fin, solde_initial: r.solde_initial, solde_final: r.solde_final,\n    fichier_nom: i.json.fileName, execution_n8n_id: $execution.id, lignes: r.lignes,\n  } } };\n});\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000084",
+      "name": "Préparer l'import",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM enregistrer_releve($1::jsonb || jsonb_build_object('fichier_sha256', encode(sha256(convert_to($2, 'UTF8')), 'hex')));",
+        "options": {
+          "queryReplacement": "={{ [ $json.payload, $json.texte ] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000085",
+      "name": "Enregistrer le relevé",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1100,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT contexte_rapprochement($1::bigint) AS contexte;",
+        "options": {
+          "queryReplacement": "={{ [ $json.releve_id ] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000086",
+      "name": "Contexte du rapprochement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1320,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/rapprochement/appariement.js\n// Appariement des lignes d'un relevé avec les factures (D-065, B1) : règles\n// déterministes, sans LLM. Entrée : le contexte de contexte_rapprochement() ;\n// sortie : catégories, propositions, signalements, à enregistrer par\n// enregistrer_rapprochements() (qui revérifie les garanties).\n// Aucun import (recopié dans un nœud Code, D-041) : enMillimes reçu en paramètre.\n//\n// Confirmation automatique SEULEMENT si : cas exact, une seule facture,\n// approuvée, sans écart, numéro de facture trouvé dans le libellé.\n\nconst APPROUVES = new Set(['conforme', 'validee']);\n\nconst sansAccents = (t) => String(t ?? '').normalize('NFD').replace(/\\p{M}/gu, '').toUpperCase();\nconst normaliserNumero = (n) => (n === null || n === undefined ? null : String(n).toUpperCase().replace(/\\s/g, ''));\nconst echapper = (t) => t.replace(/[.*+?^${}()|[\\]\\\\/]/g, '\\\\$&');\n\n/** Le numéro figure-t-il dans le libellé, comme un mot entier ? */\nfunction numeroDansLibelle(numero, libelle) {\n  const n = normaliserNumero(numero);\n  if (!n || n.length < 3) return false;\n  return new RegExp(`(?<![A-Z0-9])${echapper(n)}(?![A-Z0-9])`).test(sansAccents(libelle));\n}\n\n/** Nom du bénéficiaire tel qu'une banque l'abrège : sans accents, majuscules, 22 caractères. */\nfunction abreviation(raisonSociale) {\n  return sansAccents(raisonSociale).replace(/[^A-Z0-9 -]/g, '').slice(0, 22).trim();\n}\n\n// Confusions classiques de lecture (OCR) : lettre ↔ chiffre de même forme.\nconst CONFUSIONS_LECTURE = Object.freeze({ O: '0', Q: '0', D: '0', I: '1', L: '1', S: '5', B: '8', Z: '2', G: '6' });\nconst formeCanonique = (t) => t.replace(/[OQDILSBZG]/g, (c) => CONFUSIONS_LECTURE[c]);\n\n/**\n * Numéro du libellé proche du numéro lu sur la facture (erreur de lecture,\n * comme « 1S5260287 » lu pour « ISS260287 ») : identique une fois les\n * confusions de lecture (lettre ↔ chiffre) ramenées à une même forme.\n * Jetons d'au moins 6 caractères contenant un chiffre.\n */\nfunction numeroProcheDansLibelle(numero, libelle) {\n  const n = normaliserNumero(numero);\n  if (!n || n.length < 6) return null;\n  const jetons = sansAccents(libelle).split(/\\s+/).filter((j) => j.length >= 6 && /\\d/.test(j));\n  // Seules les confusions lettre ↔ chiffre de même forme sont admises :\n  // JAMAIS un chiffre pour un autre, car c'est ainsi que diffèrent deux\n  // factures consécutives d'un même fournisseur (« 2026/131 » et « 2026/137 »),\n  // ni un caractère en plus ou en moins (« 2026/13 » et « 2026/131 »).\n  // Défaut trouvé par la mesure du 2026-10-08 (tolérance d'un caractère).\n  return jetons.find((j) => j !== n && j.length === n.length && formeCanonique(j) === formeCanonique(n)) ?? null;\n}\n\nfunction fournisseurDansLibelle(raisonSociale, libelle) {\n  const a = abreviation(raisonSociale);\n  return a.length >= 6 && sansAccents(libelle).includes(a);\n}\n\nconst ajouterJours = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);\n\n/**\n * @param {object} ctx contexte de contexte_rapprochement()\n * @param {{enMillimes: Function}} deps\n * @returns {{categories: object[], propositions: object[], signalements: object[]}}\n */\nfunction rapprocher(ctx, deps) {\n  const mm = (v) => deps.enMillimes(v ?? 0);\n  const tolerance = mm(ctx.parametres['rapprochement.tolerance_ecart']);\n  const fenetre = Number(ctx.parametres['rapprochement.fenetre_jours']);\n  const categories = (ctx.categories ?? []).map((c) => ({ ...c, re: new RegExp(c.motif) }));\n  const factures = (ctx.factures ?? []).filter((f) => f.montant_ttc !== null && f.devise === 'TND');\n  const engage = new Map(); // montants déjà proposés dans ce passage, par facture\n  const reste = (f) => mm(f.montant_ttc) - mm(f.deja_paye) - (engage.get(f.id) ?? 0);\n  const engager = (f, montant) => engage.set(f.id, (engage.get(f.id) ?? 0) + montant);\n  const rejetees = new Set((ctx.rejetees ?? []).map((r) => `${r.ligne_releve_id}:${[...(r.factures ?? [])].sort().join(',')}`));\n  const dejaRejetee = (ligne, ids) => rejetees.has(`${ligne.id}:${[...ids].sort().join(',')}`);\n  const resultat = { categories: [], propositions: [], signalements: [] };\n  let plafondScore = 1; // abaissé pour une ligne dont le numéro n'est qu'approchant\n\n  const proposer = (ligne, cas, affectations, { ecart = 0, raisons, score, numero }) => {\n    const reglements = affectations.filter((a) => a.role !== 'imputation_avoir');\n    if (dejaRejetee(ligne, affectations.map((a) => a.facture.id))) return false;\n    const auto = cas === 'exact' && reglements.length === 1 && ecart === 0 && numero\n      && APPROUVES.has(reglements[0].facture.statut) && !/^CHEQUE\\b/.test(sansAccents(ligne.libelle));\n    for (const a of reglements) engager(a.facture, a.montant);\n    resultat.propositions.push({\n      ligne_releve_id: ligne.id, cas, auto, score: Math.max(0, Math.min(plafondScore, Number(score.toFixed(4)))), raisons,\n      ecart: ecart / 1000,\n      affectations: affectations.map((a) => ({ facture_id: a.facture.id, montant: a.montant / 1000, role: a.role ?? 'reglement' })),\n    });\n    return true;\n  };\n  const signaler = (ligne, type, message, facture = null, detail = {}) => {\n    resultat.signalements.push({ type, ligne_releve_id: ligne.id, facture_id: facture?.id ?? null, message, detail });\n  };\n\n  for (const ligne of ctx.lignes ?? []) {\n    plafondScore = 1;\n    const sens = mm(ligne.debit) > 0 ? 'debit' : 'credit';\n    const categorie = categories.find((c) => c.sens === sens && c.re.test(ligne.libelle));\n    if (categorie) { resultat.categories.push({ ligne_releve_id: ligne.id, categorie: categorie.code }); continue; }\n    if (sens === 'credit') continue; // encaissement non reconnu : hors des factures fournisseurs\n    const montant = mm(ligne.debit);\n    const dansFenetre = (f) => !f.date_facture || (f.date_facture <= ligne.date_operation\n      && ligne.date_operation <= ajouterJours(f.date_facture, fenetre));\n\n    // 1. Numéros de facture (et d'avoir) trouvés dans le libellé. À défaut, un\n    // numéro à un caractère près, pour une facture du fournisseur reconnu dans\n    // le libellé (erreur de lecture probable) : proposé, jamais automatique.\n    let cites = factures.filter((f) => numeroDansLibelle(f.numero, ligne.libelle));\n    let lectureProbable = null;\n    if (!cites.length) {\n      const proches = factures.filter((f) => fournisseurDansLibelle(f.raison_sociale, ligne.libelle)\n        && numeroProcheDansLibelle(f.numero, ligne.libelle));\n      if (proches.length === 1) {\n        cites = proches;\n        plafondScore = 0.6;\n        lectureProbable = `numéro « ${numeroProcheDansLibelle(proches[0].numero, ligne.libelle)} » du libellé proche du numéro lu « ${proches[0].numero} » (erreur de lecture probable)`;\n      }\n    }\n    if (cites.length) {\n      // Doublon (même numéro, même fournisseur) : la facture approuvée l'emporte.\n      const groupes = new Map();\n      for (const f of cites) {\n        const cle = `${f.type_document}|${normaliserNumero(f.numero)}|${f.fournisseur_id ?? sansAccents(f.raison_sociale)}`;\n        groupes.set(cle, [...(groupes.get(cle) ?? []), f]);\n      }\n      const retenues = [...groupes.values()].map((g) => g.find((f) => APPROUVES.has(f.statut)) ?? g[0]);\n      const nonApprouvees = retenues.filter((f) => !APPROUVES.has(f.statut));\n      for (const f of nonApprouvees) {\n        signaler(ligne, 'payee_non_approuvee', `paiement de la ${f.type_document} n° ${f.numero}, au statut « ${f.statut} »`, f,\n          { statut: f.statut, montant_ligne: montant / 1000, montant_ttc: f.montant_ttc });\n      }\n      const approuvees = retenues.filter((f) => APPROUVES.has(f.statut));\n      const aRegler = approuvees.filter((f) => f.type_document === 'facture');\n      const avoirs = approuvees.filter((f) => f.type_document === 'avoir');\n      if (!aRegler.length) continue;\n      const raisons = lectureProbable ? [lectureProbable]\n        : [`numéro${aRegler.length > 1 ? 's' : ''} ${aRegler.map((f) => f.numero).join(', ')} dans le libellé`];\n      // Numéro seulement approchant : jamais de confirmation automatique.\n      const numero = !lectureProbable;\n      if (avoirs.length && aRegler.length === 1) {\n        const f = aRegler[0];\n        const du = reste(f) - avoirs.reduce((s, a) => s + mm(a.montant_ttc), 0);\n        proposer(ligne, 'net_avoir', [{ facture: f, montant: reste(f) }, ...avoirs.map((a) => ({ facture: a, montant: mm(a.montant_ttc), role: 'imputation_avoir' }))],\n          { ecart: montant - du, raisons: [...raisons, `avoir${avoirs.length > 1 ? 's' : ''} ${avoirs.map((a) => a.numero).join(', ')} déduit${avoirs.length > 1 ? 's' : ''}`],\n            score: Math.abs(montant - du) <= tolerance ? 0.9 : 0.6, numero });\n        continue;\n      }\n      if (aRegler.length > 1) {\n        const du = aRegler.reduce((s, f) => s + reste(f), 0);\n        proposer(ligne, 'groupe', aRegler.map((f) => ({ facture: f, montant: reste(f) })),\n          { ecart: montant - du, raisons: [...raisons, 'virement groupé'], score: Math.abs(montant - du) <= tolerance ? 0.9 : 0.6, numero });\n        continue;\n      }\n      const f = aRegler[0];\n      const du = reste(f);\n      const ecart = montant - du;\n      // Solde d'une facture déjà en partie payée (paiement confirmé, ou proposé\n      // dans ce passage) : « partiel », jamais confirmé automatiquement.\n      const dejaEntamee = mm(f.deja_paye) + (engage.get(f.id) ?? 0) > 0;\n      if (ecart === 0 && dejaEntamee) {\n        proposer(ligne, 'partiel', [{ facture: f, montant }], { raisons: [...raisons, `solde : ${montant / 1000} TND, après un paiement antérieur`], score: 0.85, numero });\n      } else if (ecart === 0) proposer(ligne, 'exact', [{ facture: f, montant }], { raisons: [...raisons, 'montant égal au reste à payer'], score: 1, numero });\n      else if (Math.abs(ecart) <= tolerance) proposer(ligne, 'ecart', [{ facture: f, montant: du }], { ecart, raisons: [...raisons, `écart de ${ecart / 1000} TND`], score: 0.8, numero });\n      else if (montant < du) {\n        const mot = /\\bACOMPTE\\b/.test(sansAccents(ligne.libelle)) ? 'acompte' : (/\\bSOLDE\\b/.test(sansAccents(ligne.libelle)) ? 'solde' : 'paiement partiel');\n        proposer(ligne, 'partiel', [{ facture: f, montant }], { raisons: [...raisons, `${mot} : ${montant / 1000} sur ${du / 1000} TND restants`], score: 0.8, numero });\n      } else proposer(ligne, 'ecart', [{ facture: f, montant: du }], { ecart, raisons: [...raisons, `montant supérieur au reste à payer de ${ecart / 1000} TND`], score: 0.5, numero });\n      continue;\n    }\n\n    // 2. Sans numéro : fournisseur reconnu dans le libellé (sauf chèque), puis montant.\n    const parFournisseur = factures.filter((f) => f.type_document === 'facture' && fournisseurDansLibelle(f.raison_sociale, ligne.libelle));\n    const base = (parFournisseur.length ? parFournisseur : factures.filter((f) => f.type_document === 'facture')).filter(dansFenetre);\n    const raisonsBase = parFournisseur.length ? [`fournisseur reconnu dans le libellé (${abreviation(parFournisseur[0].raison_sociale)})`]\n      : [/^CHEQUE\\b/.test(sansAccents(ligne.libelle)) ? 'chèque : ni fournisseur ni numéro dans le libellé' : 'ni fournisseur ni numéro dans le libellé'];\n    const bonus = parFournisseur.length ? 0.1 : 0;\n    const exacts = base.filter((f) => reste(f) === montant);\n    const exactsApprouves = exacts.filter((f) => APPROUVES.has(f.statut));\n    if (exactsApprouves.length) {\n      // Plusieurs factures du même montant : la plus proche de son échéance, score réduit.\n      const choisie = [...exactsApprouves].sort((a, b) => Math.abs(Date.parse(a.date_echeance ?? a.date_facture) - Date.parse(ligne.date_operation))\n        - Math.abs(Date.parse(b.date_echeance ?? b.date_facture) - Date.parse(ligne.date_operation)))[0];\n      const raisons = [...raisonsBase, 'montant égal au reste à payer'];\n      if (exactsApprouves.length > 1) raisons.push(`${exactsApprouves.length} factures approuvées de même montant : la plus proche de son échéance`);\n      proposer(ligne, 'exact', [{ facture: choisie, montant }], { raisons, score: 0.7 + bonus - (exactsApprouves.length > 1 ? 0.3 : 0), numero: false });\n      continue;\n    }\n    if (exacts.length) {\n      const f = exacts[0];\n      signaler(ligne, 'payee_non_approuvee', `montant égal à la ${f.type_document} n° ${f.numero}, au statut « ${f.statut} »`, f,\n        { statut: f.statut, montant_ligne: montant / 1000, par: 'montant' });\n      continue;\n    }\n    const proches = base.filter((f) => APPROUVES.has(f.statut) && Math.abs(montant - reste(f)) <= tolerance);\n    if (proches.length === 1) {\n      const f = proches[0];\n      proposer(ligne, 'ecart', [{ facture: f, montant: reste(f) }],\n        { ecart: montant - reste(f), raisons: [...raisonsBase, `écart de ${(montant - reste(f)) / 1000} TND`], score: 0.5 + bonus, numero: false });\n      continue;\n    }\n    if (parFournisseur.length) {\n      // Virement groupé sans numéro : deux factures approuvées du fournisseur.\n      const candidates = base.filter((f) => APPROUVES.has(f.statut) && reste(f) > 0);\n      let paire = null;\n      for (let i = 0; i < candidates.length && !paire; i += 1) {\n        for (let j = i + 1; j < candidates.length && !paire; j += 1) {\n          if (reste(candidates[i]) + reste(candidates[j]) === montant) paire = [candidates[i], candidates[j]];\n        }\n      }\n      if (paire) {\n        proposer(ligne, 'groupe', paire.map((f) => ({ facture: f, montant: reste(f) })),\n          { raisons: [...raisonsBase, 'somme de deux factures du fournisseur'], score: 0.6, numero: false });\n        continue;\n      }\n    }\n    signaler(ligne, 'sortie_sans_facture', `sortie de ${montant / 1000} TND sans facture approuvée correspondante (« ${ligne.libelle} »)`,\n      null, { montant: montant / 1000 });\n  }\n  return resultat;\n}\n// >>>\n// <<< src/montants.js\n// Calculs de montants en millimes entiers (1 TND = 1 000 millimes).\n// Aucun nombre à virgule flottante dans les calculs : voir docs/decisions.md D-012, D-030.\n\n/**\n * Division entière arrondie à l'entier le plus proche, 0,5 arrondi\n * en s'éloignant de zéro (arrondi arithmétique).\n * @param {bigint} numerateur\n * @param {bigint} denominateur strictement positif\n * @returns {bigint}\n */\nfunction diviserArrondi(numerateur, denominateur) {\n  if (denominateur <= 0n) throw new RangeError('dénominateur strictement positif attendu');\n  const signe = numerateur < 0n ? -1n : 1n;\n  const absolu = numerateur * signe;\n  return signe * ((absolu * 2n + denominateur) / (denominateur * 2n));\n}\n\n/**\n * Convertit un montant décimal (nombre ou texte « 1234.5 ») en millimes.\n * Refuse plus de 3 décimales pour ne jamais arrondir en silence.\n * @param {number|string} montant\n * @returns {number} millimes (entier)\n */\nfunction enMillimes(montant) {\n  const texte = typeof montant === 'number' ? montant.toFixed(6) : String(montant).trim();\n  const m = /^(-?)(\\d+)(?:\\.(\\d+))?$/.exec(texte);\n  if (!m) throw new TypeError(`montant invalide : ${montant}`);\n  const decimales = (m[3] ?? '').replace(/0+$/, '');\n  if (decimales.length > 3) throw new RangeError(`plus de 3 décimales : ${montant}`);\n  const millimes = Number(m[2]) * 1000 + Number(decimales.padEnd(3, '0'));\n  return m[1] === '-' ? -millimes : millimes;\n}\n\n/**\n * Convertit des millimes en nombre décimal (pour JSON) : 1234500 -> 1234.5\n * @param {number} millimes\n * @returns {number}\n */\nfunction versDinars(millimes) {\n  return Number((millimes / 1000).toFixed(3));\n}\n\n/**\n * Montant HT d'une ligne : quantité × prix unitaire, arrondi au millime.\n * @param {number} quantiteMilliemes quantité × 1 000 (ex. 2,5 -> 2500)\n * @param {number} prixUnitaireMillimes\n * @returns {number} millimes\n */\nfunction montantLigneHt(quantiteMilliemes, prixUnitaireMillimes) {\n  return Number(diviserArrondi(BigInt(quantiteMilliemes) * BigInt(prixUnitaireMillimes), 1000n));\n}\n\n/**\n * TVA d'un montant HT à un taux en pourcentage (ex. 19 ou 7,5), arrondie au millime.\n * Le taux peut avoir jusqu'à 4 décimales.\n * @param {number} htMillimes\n * @param {number} tauxPourcent\n * @returns {number} millimes\n */\nfunction montantTva(htMillimes, tauxPourcent) {\n  const tauxDixMilliemes = Math.round(tauxPourcent * 10000);\n  return Number(diviserArrondi(BigInt(htMillimes) * BigInt(tauxDixMilliemes), 1000000n));\n}\n\n/**\n * Formate des millimes pour l'affichage : 1234500 -> « 1 234,500 ».\n * @param {number} millimes\n * @param {{milliers?: string, decimale?: string}} [options]\n * @returns {string}\n */\nfunction formaterMontant(millimes, { milliers = ' ', decimale = ',' } = {}) {\n  const signe = millimes < 0 ? '-' : '';\n  const absolu = Math.abs(millimes);\n  const entier = String(Math.trunc(absolu / 1000)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, milliers);\n  const reste = String(absolu % 1000).padStart(3, '0');\n  return `${signe}${entier}${decimale}${reste}`;\n}\n// >>>\n\n// Règles déterministes (D-065) ; confirmation automatique seulement pour le cas sûr.\nconst enregistres = $('Enregistrer le relevé').all();\nreturn $input.all().map((i, k) => {\n  const ctx = i.json.contexte;\n  const r = rapprocher(ctx, { enMillimes });\n  return { json: {\n    a_enregistrer: r.categories.length + r.propositions.length + r.signalements.length > 0,\n    payload: { releve_id: enregistres[i.pairedItem?.item ?? k].json.releve_id, execution_n8n_id: $execution.id, ...r },\n  } };\n});\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000087",
+      "name": "Apparier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000088",
+              "leftValue": "={{ $json.a_enregistrer === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000089",
+      "name": "Quelque chose à enregistrer ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT enregistrer_rapprochements($1::jsonb) AS bilan;",
+        "options": {
+          "queryReplacement": "={{ [ $json.payload ] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000090",
+      "name": "Enregistrer le rapprochement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1980,
+        -160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "connections": {
+    "Toutes les 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Lister les relevés déposés",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lister les relevés déposés": {
+      "main": [
+        [
+          {
+            "node": "Relevé déposé ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relevé déposé ?": {
+      "main": [
+        [
+          {
+            "node": "Lire le texte du relevé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire le texte du relevé": {
+      "main": [
+        [
+          {
+            "node": "Préparer l'import",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer l'import": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer le relevé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enregistrer le relevé": {
+      "main": [
+        [
+          {
+            "node": "Contexte du rapprochement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexte du rapprochement": {
+      "main": [
+        [
+          {
+            "node": "Apparier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apparier": {
+      "main": [
+        [
+          {
+            "node": "Quelque chose à enregistrer ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quelque chose à enregistrer ?": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer le rapprochement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1415,6 +1415,144 @@ Validée par Mohamed le 2026-10-08 (révise D-062 sur l'emplacement du jeton).
   masqués. Leçon : tester aussi l'erreur **imprévue**, pas seulement les
   erreurs prévues.
 
+### D-065 · Rapprochement bancaire
+Choix de Mohamed le 2026-10-08 : A1, B1 avec notification par Telegram, C1,
+D (table de catégories, état « payée » calculé), E1, F1 (avec la
+restitution).
+- **Constats sur les données :** le relevé ne montre jamais le RIB du
+  bénéficiaire (libellé seulement) : D-058 ne peut pas être vérifié au
+  rapprochement, il le sera par les ordres de paiement (F1, étape 7) ; le
+  relevé règle aussi 5 factures du lot de test ; le générateur ne simule
+  aucune retenue à la source.
+- **A1 — import par workflow n8n**, lecture du CSV dans `src/` ; fonction
+  `enregistrer_releve` : un fichier n'est importé qu'une fois ; **contrôle
+  d'intégrité** : chaque solde = solde précédent + crédit − débit, et solde
+  final (MZ040).
+- **B1 — appariement déterministe avec score** (code dans `src/`), contexte
+  fourni par `contexte_rapprochement`. Confirmation automatique **seulement**
+  pour un cas exact, une seule facture, sans écart, numéro trouvé dans le
+  libellé ; garanti aussi en base (MZ044). Tout le reste est **proposé**.
+  Seules des factures **approuvées** (conforme, validee — D-021) reçoivent
+  une affectation (MZ041). Une proposition peut régler plusieurs factures et
+  imputer des avoirs (`propositions_rapprochement`, `rapprochements.role`).
+- **Convention de montant :** l'affectation d'un règlement porte le montant
+  réglé de la facture, avoir compris ; l'avoir imputé est enregistré à part
+  et explique la sortie d'argent plus faible. Écart = montant de la ligne −
+  (règlements − avoirs imputés).
+- **C1 — écarts :** tolérance `rapprochement.tolerance_ecart` (5 TND) ;
+  confirmer un écart non nul exige un motif (frais bancaires, arrondi,
+  retenue à la source, escompte, autre — MZ043). **Aucun calcul de retenue**
+  sans source officielle ; recherche à mener à part.
+- **D — signalements :** « payée sans être approuvée » quand **aucune**
+  facture approuvée ne correspond (une facture rejetée comme doublon dont
+  l'original est approuvé n'en déclenche pas) ; « sortie sans facture » pour
+  une sortie d'argent ni rapprochée ni rangée dans une catégorie.
+  **Catégories d'opérations** (`categories_operations`, motifs de libellé,
+  maintenues par migration) pour ne pas signaler loyer, salaires, frais,
+  encaissements. **Limite (demande de Mohamed) :** une sortie frauduleuse
+  dont le libellé imite une catégorie connue n'est pas signalée ; à réduire
+  plus tard par un **montant habituel** par catégorie (colonnes prévues,
+  non utilisées), une fréquence attendue, un bénéficiaire connu.
+  **État « payée » calculé** (vue `situation_paiement` : réglé, reste à
+  payer, payée / partiellement / en trop, en retard), sans toucher au cycle
+  des statuts.
+- **Décisions humaines (précision 2 de Mohamed) :** confirmer ou rejeter une
+  proposition, qualifier un écart : **validateur ou responsable** (aucun
+  argent ne bouge) ; classer un signalement : **responsable seulement**
+  (possible fraude). Tables en ajout seul (`decisions_rapprochement`,
+  `decisions_signalement`) : auteur, justification, journal d'audit ; comme
+  les autres décisions, elles ne passeront que par un événement de canal.
+  Le rôle applicatif n'écrit plus directement ni relevé, ni ligne, ni
+  rapprochement.
+- **Volume estimé (précision 1, état de la base du 2026-10-08) :** un import
+  du relevé de développement donnerait 12 confirmations automatiques,
+  13 propositions, 3 « payée sans être approuvée » (D001, D006, D018),
+  5 « sortie sans facture » dues au lot de test : **une synthèse et
+  21 messages individuels**, seulement pour ce qui demande une décision.
+- **E1 — mesure :** lot de développement, `appariements-attendus.json` ;
+  les 5 lignes du lot de test classées « hors périmètre » (identifiants
+  seulement, D-026) ; les « payée sans être approuvée » qui tiennent à
+  l'état actuel de la base (D001, D006, D018) classés à part de ceux
+  qu'attend la vérité terrain.
+- **Migration :** `20261008120000`. **Tests :** `db/tests/06_rapprochement.sql`.
+- **Canal (migration `20261008130000`) :** trois objets de notification
+  (proposition à confirmer, signalement à classer, synthèse d'un import),
+  trois actions (`confirmer_rapprochement` avec un motif d'écart,
+  `rejeter_rapprochement`, `classer_signalement`), péremption d'un bouton
+  dès que la proposition ou le signalement est décidé.
+- **Règles d'appariement (`src/rapprochement/appariement.js`) :**
+  1. ligne rangée dans une catégorie, sinon :
+  2. numéros de facture (et d'avoir) cités dans le libellé ; doublon de même
+     numéro et même fournisseur : la facture approuvée l'emporte ; selon les
+     montants : exact, écart (≤ tolérance), partiel (acompte, solde), groupé,
+     net d'un avoir ; une facture citée non approuvée → signalement ;
+  3. à défaut, numéro **proche par confusion de lecture** (lettre ↔ chiffre de
+     même forme : O/0, I/L/1, S/5, B/8, Z/2…), pour une facture du fournisseur
+     reconnu dans le libellé : proposé, jamais automatique, score plafonné ;
+  4. sans numéro : fournisseur reconnu (nom abrégé comme le fait la banque)
+     et montant égal au reste à payer, dans une fenêtre de dates ;
+     plusieurs candidates : la plus proche de son échéance, score réduit ;
+  5. sinon : « payée sans être approuvée » (montant d'une facture non
+     approuvée) ou « sortie sans facture ».
+  Un solde après un acompte proposé dans le même passage est « partiel »,
+  jamais confirmé automatiquement.
+- **Défaut trouvé par la mesure (2026-10-08) :** une première version
+  tolérait **un caractère de différence** dans un numéro (pour l'erreur
+  d'OCR de D024, « 1S5260287 » pour « ISS260287 »). Or deux factures
+  consécutives d'un même fournisseur diffèrent d'un chiffre : 3 paiements
+  du lot de test ont été rapprochés de factures du lot de développement, et
+  ont « consommé » leur montant (D025 et D049 manquées ensuite). Corrigé :
+  seules les confusions lettre ↔ chiffre de même forme sont admises, jamais
+  un chiffre pour un autre ni un caractère en plus ou en moins. Tests
+  ajoutés sur ces numéros consécutifs.
+- **Mesure (`npm run evaluer-rapprochement`, lot de développement, état
+  de la base du 2026-10-08) :** 25 lignes réglant des factures sur 25
+  rapprochées des bonnes factures, dont 12 confirmées automatiquement,
+  **aucune confirmation automatique fausse** ; 70 lignes sans facture
+  rangées, 0 fausse alerte ; 0 paiement affecté à une facture impayée ;
+  classés à part : 3 « payée sans être approuvée » (D001, D006, D018) et
+  5 « sortie sans facture » (lot de test).
+
+### D-066 · État « paiement proposé » et démonstration du rapprochement
+- **Constat de la démonstration (2026-10-08) :** D023 et D024 apparaissaient
+  « en retard » alors que leur paiement figurait au relevé et n'attendait
+  qu'une confirmation. **Correctif** (migration `20261008140000`, validé par
+  Mohamed) : la vue `situation_paiement` ajoute l'état `paiement_propose` et
+  le montant proposé ; une facture dans cet état n'est pas comptée en retard.
+  Test ajouté (`06_rapprochement.sql`).
+- **Démonstration par Telegram :** import du relevé de développement
+  (103 opérations, 70 rangées, 12 confirmations automatiques) ; confirmées
+  par Mohamed : L21 (D015, écart de −2 TND qualifié « autre »), L35
+  (groupé D020 + D005), L47 (D040 net de l'avoir D034), L78 et L64 (solde
+  et acompte de D024), L26 (chèque de D023) ; deux signalements classés
+  (L25, D001 payée avant validation ; L44, lot de test) ; bouton périmé
+  refusé (deux événements « notification_perimee »). Appuis répétés sur un
+  même bouton : chaque nouvel appui remplace l'action ouverte, une seule
+  décision enregistrée. Situation : 18 factures payées, 7 « paiement
+  proposé », 5 non payées dont 3 en retard.
+- **Incident de saisie :** la justification de L78 (le solde) parle
+  d'acompte, et celle de L64 cite « ISS260286 » au lieu de « ISS260287 ».
+  Les montants confirmés sont justes ; les textes ne peuvent pas être
+  corrigés (journal et décisions en ajout seul). Voir D-067.
+
+### D-067 · Piste pour plus tard : rectifier une justification erronée
+Notée à la demande de Mohamed le 2026-10-08 ; **rien n'est codé**.
+- **Principe :** dans un journal en ajout seul, on ne corrige pas une
+  écriture : on en **ajoute une** qui la rectifie. La décision d'origine et
+  sa justification restent intactes et lisibles.
+- **Forme envisagée :** une table `rectifications` (ajout seul) : décision
+  visée (table et identifiant : `decisions_humaines`,
+  `decisions_rapprochement`, `decisions_signalement`,
+  `decisions_referentiel`), auteur, texte rectificatif, motif, date ; une
+  entrée au journal d'audit liée à la décision d'origine.
+- **Règles à fixer :** seul l'auteur de la décision (ou un responsable) peut
+  la rectifier ; une rectification ne change **jamais** l'effet de la
+  décision (statut, montants, RIB) : pour cela, il faut une nouvelle
+  décision ; délai éventuel ; justification minimale comme pour toute
+  décision ; affichage côte à côte (texte d'origine, texte rectifié) dans
+  le tableau de bord et les exports d'audit.
+- **Premier cas d'usage :** les justifications de L78 et L64 (D-066).
+
 ### D-045 · Tests d'intégration sur une base dédiée
 - Les tests qui ont besoin de données validées en base (concurrence,
   référentiel) tournent sur `mizan_test`, recréée par dbmate à chaque

@@ -273,7 +273,7 @@ SELECT pg_temp.doit_reussir($$
 $$, 'refus par un autre responsable (sans méthode)');
 SELECT pg_temp.doit_valoir($$
     SELECT (SELECT rib FROM fournisseur_ribs WHERE fournisseur_id = pg_temp.fournisseur('9912399Z') AND valide_au IS NULL)
-           || '|' || (SELECT count(*) FROM journal_audit WHERE action = 'referentiel.demande_refusee')
+           || '|' || (SELECT count(*) FROM journal_audit WHERE action = 'referentiel.demande_refusee' AND entite_id = (SELECT id::text FROM demandes_referentiel WHERE donnees ->> 'rib' = '99004000000000000321' AND type_demande = 'changement_rib'))
 $$, '99001000000000000165|1', 'un refus ne change pas le référentiel ; il est tracé');
 
 -- Approbation du changement demandé par le validateur.
