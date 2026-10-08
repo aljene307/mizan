@@ -25,6 +25,12 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 > factures synthétiques de ce dépôt, **pas à de vraies factures**
 > ([conditions](https://ai.google.dev/gemini-api/terms), décision D-034).
 
+> ⚠️ **Validation par Telegram : données synthétiques uniquement.** Les
+> notifications (fournisseur, montants, alertes) transitent par les serveurs
+> de Telegram, comme les justifications envoyées en réponse. Cela convient aux
+> factures synthétiques de ce dépôt ; pour de vraies factures, il faudrait
+> évaluer ce transfert, ou utiliser un autre canal (D-062).
+
 > ⚠️ **Paramètres fiscaux illustratifs.** Les taux et montants fiscaux de
 > `config_fiscale` (TVA, droit de timbre) sont donnés à titre d'illustration.
 > Plusieurs restent **à confirmer** sur les textes officiels consolidés (voir
@@ -40,7 +46,7 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 | 2 | Données synthétiques | ✅ |
 | 3 | Réception et extraction (OCR, Gemini, corrections par le code) | ✅ |
 | 4 | Contrôles déterministes (22 règles, décisions humaines tracées) | ✅ |
-| 5 | Validation humaine (Telegram) | à venir |
+| 5 | Validation humaine (Telegram, quatre yeux, canal interchangeable) | ✅ |
 | 6 | Rapprochement bancaire | à venir |
 | 7 | Restitution | à venir |
 | 8 | Évaluation de l'extraction | à venir |
@@ -142,6 +148,60 @@ extrait, et la présence de deux RIB valides est signalée, comme prévu.
 >
 > Détail : `eval/resultats/controles-*.md` et les décisions D-055 à D-060.
 
+## Validation humaine par Telegram
+
+Chaque facture `a_valider`, `anomalie` ou `bloquee` est notifiée sur Telegram
+à qui peut en décider : les responsables pour une facture bloquée, les
+validateurs et les responsables pour les autres. La notification affiche le
+fournisseur, le montant, les alertes et le **RIB de paiement, toujours celui
+du référentiel** (D-058). Elle propose des boutons adaptés à la situation :
+- Valider, ou « Valider malgré l'anomalie » si le blocage est dérogeable ;
+- Rejeter ;
+- confirmer un fournisseur probable ;
+- demander un changement de RIB ou la création d'un fournisseur ;
+- Renvoyer aux contrôles.
+
+Chaque décision exige une **justification**, envoyée en réponse au bot dans
+les 10 minutes.
+
+**Protection des boutons et des décisions (D-062) :**
+- un bouton ne porte qu'un jeton aléatoire et un numéro d'action ;
+- la décision n'est acceptée que si elle vient du **destinataire** de la
+  notification (identifiant fourni par Telegram), si la facture est **encore
+  dans l'état notifié**, et si la justification suit dans le délai ;
+- la base applique ensuite ses règles : rôle, justification, règles non
+  dérogeables, **quatre yeux** pour toute modification du référentiel ;
+- n8n ne peut écrire aucune décision par un autre chemin ;
+- chaque message reçu est enregistré une fois (idempotence) avec son
+  résultat, y compris ceux d'inconnus.
+
+**Architecture :**
+- la décision ne connaît aucun canal : seuls deux workflows de canal et un
+  module de présentation connaissent Telegram (l'e-mail pourrait s'y
+  ajouter) ;
+- n8n interroge Telegram (aucune exposition à Internet) par une
+  **passerelle interne**, seule détentrice du jeton du bot, joignable
+  seulement par n8n sur un réseau Docker dédié (D-064) ;
+- une interrogation longue par minute, sous bail exclusif ; les exécutions
+  réussies ne sont pas enregistrées dans la base de n8n.
+
+**Démonstration (lot de développement, 2026-10-08), 16 notifications
+reçues :**
+- D028 validée (montant au-dessus du seuil) ;
+- D005 validée par dérogation (prix mal lu par l'OCR) ;
+- D056 rejetée (doublon exact) ;
+- D030 : aucun bouton « Valider », la règle n'étant pas dérogeable ; la
+  demande de changement de RIB est refusée par le second responsable
+  (fictif, quatre yeux), le RIB du référentiel reste inchangé, puis la
+  facture est rejetée ;
+- trois boutons périmés touchés : refusés, sans effet.
+
+> **Limites.**
+> - Un seul utilisateur réel : le second responsable est un compte fictif
+>   dont les décisions passent par un script et portent le canal
+>   `simulation`.
+> - Les relances des factures en attente ne sont pas encore faites.
+
 ## Workflows n8n
 
 Les workflows sont générés dans `workflows/` par
@@ -151,8 +211,14 @@ Pour les importer dans n8n (menu ⋯ → *Import from File…*) :
 1. importer d'abord `extraction-llm.json` (le sous-workflow) ;
 2. puis importer `reception-extraction.json` ;
 3. puis importer `controles.json` ;
-4. créer dans n8n les credentials « PostgreSQL Mizan (mizan_app) » et
+4. puis importer `notifications-telegram.json` et `reponses-telegram.json`,
+   et les activer (les autres se lancent à la main) ;
+5. créer dans n8n les credentials « PostgreSQL Mizan (mizan_app) » et
    « Gemini Mizan ». Aucune clé n'est dans le dépôt.
+
+Le jeton du bot Telegram n'est **pas** un credential n8n : il se place dans
+`.env` (`TELEGRAM_BOT_TOKEN`, sur une seule ligne), et seule la passerelle le
+reçoit.
 
 Pour réimporter un workflow existant, vider d'abord son canevas
 (Ctrl + A, Suppr). Les factures sont à déposer dans `data/entrant/`, qui est
@@ -166,6 +232,8 @@ npm run charger-utilisateurs-demo    # second utilisateur, fictif (quatre yeux)
 npm run evaluer-controles            # contrôles sur la vérité terrain
 npm run test:mutations               # test par mutation des contrôles
 npm run evaluer-controles-reel       # contrôles sur l'extraction réelle
+npm run creer-code-inscription -- --nom "Prénom Nom" --role responsable   # code /start à usage unique (30 min)
+npm run simuler-second-responsable   # demandes en attente ; décision du compte fictif (--demande n --approuver méthode | --refuser)
 ```
 
 ## Prérequis
@@ -251,6 +319,7 @@ ni modifier le journal d'audit.
 | `runners` | `n8nio/runners` | Exécute le JavaScript des nœuds Code, isolé de n8n |
 | `ocr` | construite depuis `ocr/` | Tesseract 5 (français), service HTTP interne, sans port publié |
 | `dbmate` | `ghcr.io/amacneil/dbmate` | Migrations (profil « outils », lancé à la demande) |
+| `passerelle-telegram` | construite depuis `passerelle-telegram/` | Seul détenteur du jeton du bot ; relaie 4 méthodes de l'API Telegram ; réseau dédié partagé avec n8n seul, sans port publié |
 
 Les ports ne sont publiés que sur `127.0.0.1`. Le dossier `data/` est monté en
 lecture seule dans n8n, sous `/data`.
@@ -270,6 +339,7 @@ data/synthetic/      factures et relevés générés, avec vérité terrain
 eval/                scripts et résultats d'évaluation et de mesure
 scripts/             génération des workflows, chargement du référentiel
 ocr/                 service OCR (Tesseract)
+passerelle-telegram/ passerelle vers l'API Telegram (seule détentrice du jeton)
 ```
 
 ## Licence

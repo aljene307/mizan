@@ -73,4 +73,24 @@ SELECT pg_temp.doit_echouer($$SELECT * FROM schema_migrations$$,
 SELECT pg_temp.doit_echouer($$CREATE TABLE intrus (id int)$$,
     '42501', 'créer une table');
 
+-- Fonctions SECURITY DEFINER (D-063) : vérifie aussi les fonctions futures.
+SELECT pg_temp.doit_valoir($$
+    SELECT coalesce(string_agg(p.oid::regprocedure::text, ', '), 'aucune') FROM pg_proc p
+    WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef
+      AND NOT coalesce(p.proconfig, '{}') @> ARRAY['search_path=public, pg_temp']
+$$, 'aucune', 'chaque fonction SECURITY DEFINER fixe son search_path (public, puis pg_temp en dernier)');
+SELECT pg_temp.doit_valoir($$
+    SELECT coalesce(string_agg(p.oid::regprocedure::text, ', '), 'aucune') FROM pg_proc p
+    WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef
+      AND has_function_privilege('public', p.oid, 'EXECUTE')
+$$, 'aucune', 'aucune fonction SECURITY DEFINER n''est exécutable par PUBLIC');
+SELECT pg_temp.doit_valoir($$
+    SELECT string_agg(p.proname, ', ' ORDER BY p.proname) FROM pg_proc p
+    WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef
+      AND has_function_privilege('mizan_app', p.oid, 'EXECUTE')
+$$, 'creer_notification, marquer_notification, prendre_bail_canal, recevoir_evenement, rendre_bail_canal',
+    'mizan_app n''exécute que les fonctions de canal prévues');
+SELECT pg_temp.doit_valoir($$SELECT has_schema_privilege('mizan_app', 'public', 'CREATE')::text$$,
+    'false', 'mizan_app ne peut rien créer dans le schéma public (search_path sûr)');
+
 ROLLBACK;

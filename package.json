@@ -19,7 +19,9 @@
     "evaluer-controles": "node eval/evaluer-controles.js",
     "test:mutations": "node eval/mutations-controles.js",
     "reextraire-lot-dev": "node scripts/reextraire-lot-dev.js",
-    "evaluer-controles-reel": "node eval/evaluer-controles-reel.js"
+    "evaluer-controles-reel": "node eval/evaluer-controles-reel.js",
+    "creer-code-inscription": "node scripts/creer-code-inscription.js",
+    "simuler-second-responsable": "node scripts/simuler-second-responsable.js"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",

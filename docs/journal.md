@@ -315,3 +315,94 @@ empreinte, traçabilité de chaque extraction).
   Piste notée pour plus tard (D-061) : signalement d'entités HTML sur des
   champs seulement descriptifs ramené à « info ».
 - Étape validée par Mohamed ; commit et push.
+
+### Validation humaine par Telegram : modèle de données (2026-10-08)
+- Vérifié dans n8n 2.41.7 : Telegram Trigger et l'approbation intégrée de
+  « Send and Wait » exigent une instance publique en HTTPS ; d'où
+  l'interrogation `getUpdates` (A1). Réglages d'enregistrement des
+  exécutions relevés dans le code installé (`saveDataSuccessExecution`…).
+- Choix A1, B1, C1, D1, E1 et canal interchangeable (D-062).
+- Migration n° 18 : adresses par canal (remplace `utilisateurs.telegram_id`),
+  codes d'inscription, notifications à jeton, actions en attente,
+  événements entrants, bail d'interrogation ; fonctions de canal ; le rôle
+  applicatif ne crée plus de décision directement.
+- Problème : les fonctions de bail écrivaient dans une table sans droit
+  d'écriture pour le rôle applicatif ; passées en `SECURITY DEFINER`.
+- Tests : 218 SQL (nouveau fichier `05_canaux.sql`), 173 unitaires,
+  17 d'intégration.
+- Vérification demandée par Mohamed (D-063) : les 7 fonctions SECURITY
+  DEFINER fixaient leur search_path, mais 6 restaient exécutables par
+  PUBLIC (droit par défaut de PostgreSQL). Corrigé (migration n° 19) et
+  vérifié par des tests qui couvrent aussi les fonctions futures.
+- Documentation de l'API Bot consultée : la donnée d'un bouton est limitée
+  à 64 octets ; le jeton de notification (64 caractères) ne tenait pas avec
+  l'indice : ramené à 32 caractères (UUID v4, 122 bits aléatoires).
+- Logique sans canal (`src/decisions/notifications.js` : contenu, actions,
+  réponses) et couche Telegram (`src/canaux/telegram.js` : mise à jour →
+  événement, présentation HTML échappée, boutons). 22 tests ; 222 SQL,
+  195 unitaires au total.
+- Constat dans n8n 2.41.7 : ni le nœud Telegram (pas de `getUpdates`) ni
+  HTTP Request (pas d'injection du jeton dans l'URL) ne permettent
+  l'interrogation avec un jeton gardé dans n8n. D-064 : passerelle Telegram
+  interne, seule détentrice du jeton, sur un réseau Docker dédié partagé
+  avec n8n seul (secret partagé évalué, non retenu).
+- Passerelle (`passerelle-telegram/`) : 10 tests Python dans son image, dont
+  le jeton jamais rendu ni journalisé (y compris erreur de Telegram, erreur
+  réseau, délai). Sous Windows, deux tests échouaient pour des raisons
+  propres à Windows ; exécutés dans le conteneur Linux, comme en service.
+- Fonction `donnees_notifications` (migration n° 20) ; workflows
+  « Notifications Telegram » (9 nœuds) et « Réponses Telegram » (10 nœuds),
+  exécutions réussies non enregistrées, délai 120 s ; scripts
+  `creer-code-inscription` et `simuler-second-responsable`.
+- Tests : 224 SQL, 210 unitaires, 24/25 d'intégration (le test d'isolement
+  attend le redémarrage de la pile avec le nouveau réseau).
+- Incident à la mise en service (inscription) : `creer-code-inscription`
+  relisait la date d'expiration dans la même instruction SQL que l'insertion
+  du code ; une instruction ne voit pas ses propres insertions, la date
+  valait NULL et l'affichage échouait après la validation de la
+  transaction. Utilisateur n° 126 créé une fois ; code n° 17 créé mais
+  jamais affiché (inutilisable : seule l'empreinte est gardée ; il expire
+  seul). Test qui reproduit l'erreur ajouté, script corrigé (deux
+  instructions). Intégration : 25/25, isolement de la passerelle compris.
+- Incident de sécurité à la mise en service : le jeton collé dans `.env`
+  contenait une espace ; l'URL invalide a levé une exception que la
+  passerelle ne rattrapait pas ; le gestionnaire d'erreurs par défaut de
+  Python a écrit la trace complète, jeton compris, dans les journaux du
+  conteneur, et la connexion a été coupée (erreur côté n8n). Les tests
+  couvraient les erreurs de Telegram, du réseau et les délais, pas une
+  erreur imprévue. Le jeton est considéré comme compromis : révocation
+  demandée à Mohamed. Correctifs : forme du jeton vérifiée avant usage
+  (réponse 503 claire, `jeton_bien_forme` dans /sante) ; toute exception
+  rattrapée (type seul rendu) ; gestionnaire d'erreurs du serveur remplacé
+  (une ligne masquée, sans trace) ; masquage des morceaux du jeton. Deux
+  tests reproduisent l'incident (12 tests Python). Conteneur recréé pour
+  effacer ses anciens journaux.
+- Mise en service : inscription réussie, 16 notifications envoyées.
+  Observation de Mohamed : « Accès réservé » (ancien /start sans code)
+  affiché APRÈS « Inscription réussie ». La base montre que les événements
+  ont été traités dans l'ordre d'arrivée ; la cause est l'envoi : le nœud
+  HTTP Request lance les requêtes de tous les éléments en même temps
+  (HttpRequestV3 : promesses lancées puis attendues ensemble). Correctif :
+  boucle « Loop Over Items » (une réponse à la fois, en attendant la fin de
+  la précédente) ; notifications espacées d'une seconde (rythme conseillé
+  par Telegram). Tests ajoutés.
+- Constat sur les notifications envoyées : « Valider malgré l'anomalie »
+  proposé pour D008 et D011 (fournisseur non rattaché), validation que la
+  base refuserait (D-021). Le bouton n'est plus proposé sans fournisseur
+  rattaché et numéro ; vérification ajoutée au test existant. 212 tests unitaires.
+- Démonstration par Telegram (Mohamed) : D028 validée, D005 validée par
+  dérogation, D056 rejetée, D030 : demande de changement de RIB refusée par
+  le second responsable fictif (quatre yeux, canal « simulation »), RIB du
+  référentiel inchangé, facture rejetée ; trois boutons périmés refusés.
+  Tous les événements traités dans l'ordre, chaque décision justifiée et
+  tracée au journal.
+- Recherche de l'ancien jeton (révoqué), sans l'afficher : ses deux
+  morceaux secrets absents du dossier (fichiers ignorés compris), de tout
+  l'historique Git, de la base mizan, de la base de n8n et des journaux des
+  conteneurs. Seul l'identifiant numérique du bot (public, inchangé par la
+  révocation) apparaît : dans `.env` (ignoré) et dans 14 exécutions
+  enregistrées par n8n (réponses de Telegram).
+- README : validation humaine par Telegram (protection, architecture,
+  démonstration, limites), avertissement sur les données transmises à
+  Telegram, passerelle dans l'architecture. Étape validée par Mohamed ;
+  commit et push.

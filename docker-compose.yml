@@ -62,6 +62,11 @@ services:
       - ./data:/data:ro
     ports:
       - "127.0.0.1:5678:5678"
+    # Réseau par défaut (base, OCR, runners) + réseau dédié à la passerelle
+    # Telegram, que n8n est le seul autre conteneur à rejoindre (D-064).
+    networks:
+      - default
+      - canal-telegram
 
   runners:
     # Doit avoir exactement la même version que l'image n8n.
@@ -84,6 +89,18 @@ services:
       OCR_LANGUE: fra
       OCR_PSM: "3"
 
+  # Passerelle Telegram (D-064) : seul conteneur qui reçoit le jeton du bot.
+  # Aucun port publié ; joignable seulement sur le réseau « canal-telegram »,
+  # que seul n8n rejoint : ni l'OCR, ni les runners, ni la base ne la voient.
+  passerelle-telegram:
+    build: ./passerelle-telegram
+    image: mizan-passerelle-telegram:1
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    networks:
+      - canal-telegram
+
   # Outil de migrations, lancé à la demande (profil « outils ») :
   #   docker compose run --rm dbmate up       applique les migrations en attente
   #   docker compose run --rm dbmate status   liste les migrations appliquées
@@ -105,3 +122,8 @@ services:
 volumes:
   postgres-data:
   n8n-data:
+
+networks:
+  # Réseau de la passerelle Telegram : n8n et la passerelle seulement.
+  # Non « internal » : la passerelle doit joindre api.telegram.org.
+  canal-telegram:

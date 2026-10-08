@@ -1,7 +1,9 @@
-// Construit les trois workflows n8n (fichiers JSON à importer) :
+// Construit les workflows n8n (fichiers JSON à importer) :
 //   workflows/extraction-llm.json        sous-workflow « Extraction LLM » (D-039)
 //   workflows/reception-extraction.json  workflow principal (D-035 à D-040, D-047)
 //   workflows/controles.json             contrôles déterministes (D-055)
+//   workflows/notifications-telegram.json  envoi des notifications (D-062, D-064)
+//   workflows/reponses-telegram.json     réception des réponses (D-062, D-064)
 // Le code des nœuds Code est recopié depuis src/ (D-041). Paramètres des nœuds
 // relevés dans n8n 2.41.7. Usage : node scripts/construire-workflows.js
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -342,6 +344,179 @@ controles.connections = connexions([
   ['Enregistrer le passage', 0, N_RESERVER_CONTROLE],
 ]);
 
+// =============================================================================
+// Canal Telegram (D-062, D-064) : deux workflows, seuls à connaître Telegram.
+// Ils n'appellent jamais Telegram directement, mais la passerelle interne
+// (seule détentrice du jeton). Exécutions réussies non enregistrées
+// (une exécution par minute) ; erreurs gardées ; délai maximal 120 s.
+// =============================================================================
+const PASSERELLE = 'http://passerelle-telegram:8885/telegram';
+const REGLAGES_CANAL = {
+  executionOrder: 'v1', saveDataSuccessExecution: 'none', saveDataErrorExecution: 'all', executionTimeout: 120,
+};
+// Une requête par élément : l'échec de l'un n'emporte pas les autres.
+const postgresParElement = (nom, position, query, remplacement, extra = {}) => {
+  const n = postgres(nom, position, query, remplacement, extra);
+  n.parameters.options.queryBatching = 'independently';
+  return n;
+};
+// options.batching : espacement entre deux requêtes (sans lui, le nœud les lance toutes en même temps).
+const passerelle = (nom, position, methode, corps, delaiMs, espacementMs = 0) => noeud(nom, 'n8n-nodes-base.httpRequest', 4.5, position, {
+  method: 'POST',
+  url: methode.startsWith('=') ? methode : `${PASSERELLE}/${methode}`,
+  sendBody: true,
+  specifyBody: 'json',
+  jsonBody: `={{ JSON.stringify(${corps}) }}`,
+  options: {
+    response: { response: { fullResponse: true, neverError: true } }, timeout: delaiMs,
+    ...(espacementMs ? { batching: { batch: { batchSize: 1, batchInterval: espacementMs } } } : {}),
+  },
+});
+
+// --- Envoi des notifications ---------------------------------------------------
+const N_PREPARER_NOTIF = 'Préparer les notifications';
+const N_A_ENVOYER = 'Notification à envoyer ?';
+const notifications = {
+  name: 'Mizan – Notifications Telegram',
+  nodes: [
+    noeud('Toutes les minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, [0, 0], {
+      rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] },
+    }),
+    postgres('Notifications à préparer', [220, 0], 'SELECT donnees_notifications(\'telegram\') AS donnees;', null, { executeOnce: true }),
+    code(N_PREPARER_NOTIF, [440, 0], ['src/decisions/notifications.js', 'src/montants.js'],
+      `// Contenu et actions, sans rien connaître du canal (D-062).
+return $input.all().map((i) => {
+  const d = i.json.donnees;
+  const notification = d.candidat.objet === 'facture'
+    ? notificationFacture({ candidat: d.candidat, facture: d.facture, fournisseur: d.fournisseur, resultats: d.resultats, regles: d.regles },
+      { formaterMontant, enMillimes })
+    : notificationDemande({ candidat: d.candidat, demande: d.demande, fournisseur: d.fournisseur, facture: d.facture, methodes: d.methodes });
+  return { json: { notification, adresse: d.candidat.adresse } };
+});`),
+    // La base vérifie le destinataire et l'état notifié, et renvoie le jeton une seule fois.
+    postgresParElement('Créer la notification', [660, 0], 'SELECT * FROM creer_notification($1::jsonb);',
+      '[ $json.notification ]', { onError: 'continueRegularOutput' }),
+    code('Message Telegram', [880, 0], ['src/canaux/telegram.js'],
+      `// Un élément par notification préparée, dans le même ordre.
+const preparees = $('${N_PREPARER_NOTIF}').all();
+return $input.all().map((i, k) => {
+  const p = preparees[i.pairedItem?.item ?? k].json;
+  if (!i.json.jeton) return { json: { ignorer: true, motif: String(i.json.error?.message ?? i.json.error ?? 'notification non créée') } };
+  return { json: {
+    notification_id: i.json.notification_id,
+    corps: { chat_id: p.adresse, ...messageNotification(p.notification.contenu, p.notification.actions, i.json.jeton) },
+  } };
+});`),
+    si(N_A_ENVOYER, [1100, 0], '$json.ignorer !== true'),
+    // Une notification par seconde : rythme conseillé par Telegram dans une même conversation.
+    passerelle('Envoyer (passerelle)', [1320, -80], 'sendMessage', '$json.corps', 40000, 1000),
+    code('Résultat de l\'envoi', [1540, -80], [],
+      `const envois = $('${N_A_ENVOYER}').all();
+return $input.all().map((i, k) => {
+  const corps = i.json.body ?? {};
+  const ok = i.json.statusCode === 200 && corps.ok === true;
+  return { json: {
+    id: envois[i.pairedItem?.item ?? k].json.notification_id,
+    reference: ok ? String(corps.result.message_id) : null,
+    erreur: ok ? null : String(corps.description ?? \`HTTP \${i.json.statusCode}\`).slice(0, 500),
+  } };
+});`),
+    postgresParElement('Marquer la notification', [1760, -80],
+      'SELECT marquer_notification((p ->> \'id\')::bigint, p ->> \'reference\', p ->> \'erreur\') FROM (SELECT $1::jsonb AS p) x;',
+      '[ $json ]'),
+  ],
+  settings: REGLAGES_CANAL,
+  pinData: {},
+};
+notifications.connections = connexions([
+  ['Toutes les minutes', 0, 'Notifications à préparer'],
+  ['Notifications à préparer', 0, N_PREPARER_NOTIF],
+  [N_PREPARER_NOTIF, 0, 'Créer la notification'],
+  ['Créer la notification', 0, 'Message Telegram'],
+  ['Message Telegram', 0, N_A_ENVOYER],
+  [N_A_ENVOYER, 0, 'Envoyer (passerelle)'],
+  ['Envoyer (passerelle)', 0, 'Résultat de l\'envoi'],
+  ['Résultat de l\'envoi', 0, 'Marquer la notification'],
+]);
+
+// --- Réception des réponses ------------------------------------------------------
+// Une interrogation longue par exécution, sous bail : jamais deux à la fois.
+// Toutes les branches finissent sur « Rendre le bail » (exécuté une fois).
+const N_BAIL = 'Prendre le bail';
+const N_LIRE = 'Lire les mises à jour';
+const N_A_TRAITER = 'Mise à jour à traiter ?';
+const N_RENDRE = 'Rendre le bail';
+const N_UNE_A_LA_FOIS = 'Une réponse à la fois';
+const ATTENTE_TELEGRAM_S = 50;
+const reponses = {
+  name: 'Mizan – Réponses Telegram',
+  nodes: [
+    noeud('Toutes les minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, [0, 0], {
+      rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] },
+    }),
+    // Aucune ligne si une autre exécution détient le bail : l'exécution s'arrête là.
+    postgres(N_BAIL, [220, 0], 'SELECT * FROM prendre_bail_canal(\'telegram\');', null, { executeOnce: true }),
+    passerelle('Interroger Telegram (attente longue)', [440, 0], 'getUpdates',
+      `{ offset: Number($json.curseur), timeout: ${ATTENTE_TELEGRAM_S} }`, (ATTENTE_TELEGRAM_S + 20) * 1000),
+    code(N_LIRE, [660, 0], ['src/canaux/telegram.js'],
+      `// Échec de l'interrogation : erreur visible ; le bail expire seul (curseur inchangé).
+const bail = $('${N_BAIL}').first().json;
+const r = $input.first().json;
+if (r.statusCode !== 200 || r.body?.ok !== true) {
+  throw new Error(\`interrogation de Telegram en échec : \${r.body?.description ?? 'HTTP ' + r.statusCode}\`);
+}
+const misesAJour = r.body.result ?? [];
+const commun = { bail_jeton: bail.bail_jeton, curseur: curseurSuivant(misesAJour, bail.curseur) };
+if (!misesAJour.length) return [{ json: { ...commun, vide: true } }];
+return misesAJour.map((u) => ({ json: { ...commun, ...evenementTelegram(u) } }));`),
+    si(N_A_TRAITER, [880, 0], '$json.vide !== true'),
+    // Toute l'autorisation est en base (D-062) : destinataire, état notifié, délai, rôle.
+    postgresParElement('Recevoir l\'événement', [1100, -80], 'SELECT recevoir_evenement($1::jsonb) AS resultat;', '[ $json.evenement ]'),
+    code('Préparer les réponses', [1320, -80], ['src/decisions/notifications.js', 'src/canaux/telegram.js'],
+      `const lues = $('${N_A_TRAITER}').all();
+const envois = [];
+$input.all().forEach((i, k) => {
+  const { repondre } = lues[i.pairedItem?.item ?? k].json;
+  const reponse = messageReponse(i.json.resultat);
+  if (repondre.callback_query_id) {
+    envois.push({ methode: 'answerCallbackQuery', corps: { callback_query_id: repondre.callback_query_id, text: alerteBouton(reponse) } });
+  }
+  // Jamais de réponse dans un groupe : conversation privée seulement.
+  if (reponse && repondre.prive && repondre.chat_id !== null) {
+    envois.push({ methode: 'sendMessage', corps: { chat_id: repondre.chat_id, ...messageReponseTelegram(reponse) } });
+  }
+});
+return envois.length ? envois.map((e) => ({ json: e })) : [{ json: { rien: true } }];`),
+    si('Réponse à envoyer ?', [1540, -80], '$json.rien !== true'),
+    // Une réponse à la fois, en attendant la fin de la précédente : l'ordre d'arrivée
+    // est garanti (le nœud HTTP seul lancerait toutes les requêtes en même temps).
+    noeud(N_UNE_A_LA_FOIS, 'n8n-nodes-base.splitInBatches', 3, [1760, -160], { batchSize: 1, options: {} }),
+    passerelle('Répondre (passerelle)', [1980, -240], `={{ '${PASSERELLE}/' + $json.methode }}`, '$json.corps', 40000),
+    postgres(N_RENDRE, [2200, 0], 'SELECT rendre_bail_canal(\'telegram\', $1::uuid, $2::bigint) AS rendu;',
+      `[ $('${N_LIRE}').first().json.bail_jeton, $('${N_LIRE}').first().json.curseur ]`, { executeOnce: true }),
+  ],
+  settings: REGLAGES_CANAL,
+  pinData: {},
+};
+reponses.connections = connexions([
+  ['Toutes les minutes', 0, N_BAIL],
+  [N_BAIL, 0, 'Interroger Telegram (attente longue)'],
+  ['Interroger Telegram (attente longue)', 0, N_LIRE],
+  [N_LIRE, 0, N_A_TRAITER],
+  [N_A_TRAITER, 0, 'Recevoir l\'événement'],
+  [N_A_TRAITER, 1, N_RENDRE],
+  ['Recevoir l\'événement', 0, 'Préparer les réponses'],
+  ['Préparer les réponses', 0, 'Réponse à envoyer ?'],
+  ['Réponse à envoyer ?', 0, N_UNE_A_LA_FOIS],
+  ['Réponse à envoyer ?', 1, N_RENDRE],
+  // Sortie 1 (« loop ») : un élément à envoyer ; sortie 0 (« done ») : tout est envoyé.
+  [N_UNE_A_LA_FOIS, 1, 'Répondre (passerelle)'],
+  ['Répondre (passerelle)', 0, N_UNE_A_LA_FOIS],
+  [N_UNE_A_LA_FOIS, 0, N_RENDRE],
+]);
+
+ecrire('workflows/notifications-telegram.json', notifications);
+ecrire('workflows/reponses-telegram.json', reponses);
 ecrire('workflows/extraction-llm.json', sousWorkflow);
 ecrire('workflows/reception-extraction.json', principal);
 ecrire('workflows/controles.json', controles);

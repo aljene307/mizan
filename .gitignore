@@ -17,3 +17,7 @@ Thumbs.db
 
 # Factures déposées pour le workflow de réception (copies de test)
 data/entrant/
+
+# Caches Python
+__pycache__/
+*.pyc

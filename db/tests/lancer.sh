@@ -18,5 +18,8 @@ PGPASSWORD="$MIZAN_APP_PASSWORD" psql -X -q -v ON_ERROR_STOP=1 \
 echo "== Contrôles, décisions humaines et référentiel (préparation par $POSTGRES_USER, actions en tant que mizan_app)"
 psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$MIZAN_DB" -f /db/tests/04_controles.sql
 
+echo "== Canaux : inscription, notifications, boutons, justification (préparation par $POSTGRES_USER, actions en tant que mizan_app)"
+psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$MIZAN_DB" -f /db/tests/05_canaux.sql
+
 echo "== Tous les tests sont passés"
 # (Si un test échoue, psql s'arrête sur la ligne « ECHEC » et ce message n'apparaît pas.)

@@ -1289,6 +1289,132 @@ Notée à la demande de Mohamed le 2026-10-06 ; **rien n'est modifié**.
   développement. Ce changement ne touche pas l'extraction : il n'exige donc
   pas une nouvelle version de chaîne (D-059).
 
+### D-062 · Validation humaine par un canal interchangeable (Telegram d'abord)
+Choix de Mohamed le 2026-10-08 : A1, B1, C1, D1, E1 ; relances reportées.
+- **Contrainte constatée dans n8n 2.41.7 :** le nœud Telegram Trigger
+  s'abonne par `setWebhook` (Telegram doit joindre n8n en HTTPS public), et
+  l'approbation dans la conversation de « Send and Wait » exige aussi une
+  instance publique en HTTPS (sinon, liens vers `localhost`). Notre n8n
+  n'écoute que sur `127.0.0.1`.
+- **A1 — interrogation (`getUpdates`)**, appels sortants seulement, aucune
+  exposition de n8n. **Interrogation longue** : une exécution par minute,
+  un appel `getUpdates` avec attente côté Telegram (≈ 50 s, valeur à
+  vérifier dans la documentation au moment d'écrire le nœud) : environ
+  1 440 exécutions et appels par jour au lieu de 5 760 à 15 s, et une
+  réponse presque immédiate. **Pas de chevauchement** : un bail en base
+  (`prendre_bail_canal` / `rendre_bail_canal`, durée 90 s dans
+  `parametres_controle`) ; sans bail, l'exécution s'arrête ; le bail expire
+  si une exécution s'interrompt ; le curseur ne recule jamais.
+  **Volume dans la base de n8n** : réglages du workflow
+  `saveDataSuccessExecution: 'none'` (exécutions réussies non gardées),
+  `saveDataErrorExecution: 'all'`, et un `executionTimeout` ; noms et
+  valeurs relevés dans le code installé.
+- **B1 — inscription par code à usage unique** (30 min, empreinte seule,
+  créé par l'administrateur ; `/start <code>` en conversation privée).
+  L'adresse (Telegram : `from.id`) vient du canal, pas du message.
+- **C1 — bouton, puis justification en réponse** (délai 10 min, en base).
+- **D1 — second responsable fictif simulé par script**, décisions marquées
+  `canal = 'simulation'`.
+- **E1 — seuil de validation maintenu à 20 000 TND** (D-028), paramètre
+  métier dans `parametres_controle`.
+- **Canal interchangeable (demande de Mohamed) :** la décision ne connaît
+  aucun canal. La base garde notifications, adresses, codes, actions en
+  attente, événements entrants et l'état d'interrogation, avec un champ
+  `canal`. Une seule fonction reçoit les événements (`recevoir_evenement`)
+  et une seule applique une action (`appliquer_action`). Le contenu et les
+  actions d'une notification sont préparés par `src/` sans rien connaître
+  du canal. Seuls les workflows de canal (envoi, réception) et un module de
+  présentation par canal connaissent Telegram.
+- **Protection des boutons (demande de Mohamed) :**
+  - un bouton ne porte qu'un **jeton aléatoire** (32 caractères
+    hexadécimaux, un UUID v4, soit 122 bits aléatoires ; seule l'empreinte
+    SHA-256 est gardée) et l'**indice** d'une action. Taille choisie pour
+    tenir dans la donnée d'un bouton Telegram, limitée à 64 octets
+    (documentation de l'API Bot, `InlineKeyboardButton.callback_data`) ;
+  - pour agir, il faut que l'adresse d'où vient l'événement soit celle du
+    **destinataire** de la notification (sinon refus, tracé au journal) ;
+  - que la facture soit encore dans **l'état notifié** (même statut, même
+    passage de contrôle) et que la notification ne soit pas expirée
+    (7 jours) ;
+  - puis que **la même personne, depuis la même adresse**, envoie une
+    justification dans le délai ;
+  - la décision passe ensuite par les déclencheurs de D-056 (rôle,
+    justification, règles non dérogeables, quatre yeux).
+  - **Durcissement :** le rôle applicatif ne peut plus insérer directement
+    une décision, une demande ou une décision sur le référentiel ; il ne
+    peut ni écrire une adresse ni créer un code d'inscription. Tout passe
+    par les fonctions de canal (`SECURITY DEFINER`).
+- **Idempotence :** chaque événement entrant est enregistré une fois
+  (`evenements_entrants`, unique par canal et référence) avec son résultat,
+  y compris ceux des inconnus.
+- **Pour un second canal (e-mail), il resterait :** élargir la liste des
+  canaux (une migration d'une ligne par table) ; un module de présentation
+  (notification → courriel) ; un workflow d'envoi ; un workflow de
+  réception (IMAP) qui traduit un courriel en événement (`reference` =
+  Message-ID, `adresse` = expéditeur, jeton et action dans le corps) ;
+  l'inscription par code. **Point d'attention :** l'adresse d'expéditeur
+  d'un courriel se falsifie bien plus facilement qu'un `from.id` Telegram ;
+  il faudrait vérifier l'authentification du message (DKIM) ou exiger un
+  second facteur avant de l'accepter comme identité.
+- **Migration :** `20261008090000`. **Tests :** `db/tests/05_canaux.sql`.
+
+### D-063 · Fonctions SECURITY DEFINER : search_path fixé, exécution restreinte
+Vérification demandée par Mohamed le 2026-10-08.
+- **Constat :** les 7 fonctions `SECURITY DEFINER` fixaient bien
+  `search_path = public, pg_temp` (`pg_temp` en dernier : un objet
+  temporaire ne peut pas masquer un objet de la base) ; mais 6 restaient
+  exécutables par PUBLIC, droit que PostgreSQL accorde par défaut.
+- **Correctif (migration `20261008100000`) :** droit d'exécution retiré à
+  PUBLIC ; le rôle applicatif ne garde que les 5 fonctions de canal ; la
+  fonction de déclencheur n'a besoin d'aucun droit (vérifié à la création
+  du déclencheur).
+- **Tests (`02_droits_app.sql`), valables aussi pour les fonctions
+  futures :** chaque fonction `SECURITY DEFINER` fixe ce `search_path` ;
+  aucune n'est exécutable par PUBLIC ; la liste exacte de celles que
+  `mizan_app` peut exécuter ; `mizan_app` ne peut rien créer dans le schéma
+  `public`.
+
+### D-064 · Passerelle Telegram interne, seule détentrice du jeton
+Validée par Mohamed le 2026-10-08 (révise D-062 sur l'emplacement du jeton).
+- **Constat dans n8n 2.41.7 :** le nœud Telegram n'a pas d'opération
+  `getUpdates` ; le credential « Telegram API » n'a pas de bloc
+  `authenticate` (le jeton va dans le chemin de l'URL) ; le nœud HTTP
+  Request n'injecte un credential que par ce bloc (`credentials-helper.js`).
+  L'interrogation (A1) est donc impossible avec un jeton gardé dans n8n.
+- **Choix :** service `passerelle-telegram` (Python, bibliothèque standard,
+  sur le modèle de l'OCR) : relaie une **liste fermée** de méthodes
+  (`getUpdates`, `sendMessage`, `answerCallbackQuery`,
+  `editMessageReplyMarkup`), plafonne l'attente longue à 50 s, refuse tout
+  le reste (403). n8n l'appelle par HTTP Request pour l'envoi comme pour la
+  réception ; aucun credential Telegram dans n8n.
+- **Jeton :** `TELEGRAM_BOT_TOKEN` dans `.env` (non versionné), transmis au
+  **seul** service de la passerelle (`.env.example` : valeur fictive).
+  Vérifié par un test : la configuration Docker ne le donne à aucun autre
+  service et aucun ne charge `.env` entier ; à l'exécution, la variable est
+  absente de n8n, runners, OCR et base.
+- **Jamais dans les journaux ni les réponses :** tout texte sortant est
+  masqué, y compris une erreur de Telegram qui recopierait l'URL et une
+  erreur réseau ou un délai dépassé. Vérifié par des tests contre un faux
+  Telegram, dans l'image de la passerelle.
+- **Secret partagé n8n ↔ passerelle, évalué et non retenu :** un **réseau
+  Docker dédié** (`canal-telegram`), que seuls n8n et la passerelle
+  rejoignent, fait mieux à moindre coût : l'OCR (qui lit des fichiers non
+  fiables), les runners (code des nœuds Code) et la base ne peuvent même
+  pas résoudre le nom de la passerelle. Un secret n'ajouterait presque
+  rien, puisque seul n8n peut la joindre. Isolement vérifié par un test.
+- **Réseau :** non « internal », car la passerelle doit joindre
+  `api.telegram.org` ; aucun port publié.
+- **Incident du 2026-10-08 et correctifs :** un jeton collé avec une espace
+  a produit une URL invalide ; l'exception n'était pas rattrapée et le
+  gestionnaire d'erreurs par défaut de Python a écrit la trace, **jeton
+  compris**, dans les journaux du conteneur. Jeton révoqué. Désormais : la
+  forme du jeton est vérifiée avant tout appel (`/sante` indique
+  `jeton_bien_forme`) ; toute exception est rattrapée et seul son type est
+  rendu ; le gestionnaire d'erreurs du serveur est remplacé (une ligne
+  masquée, jamais de trace) ; les morceaux d'un jeton coupé sont aussi
+  masqués. Leçon : tester aussi l'erreur **imprévue**, pas seulement les
+  erreurs prévues.
+
 ### D-045 · Tests d'intégration sur une base dédiée
 - Les tests qui ont besoin de données validées en base (concurrence,
   référentiel) tournent sur `mizan_test`, recréée par dbmate à chaque

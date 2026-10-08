@@ -1,0 +1,395 @@
+{
+  "name": "Mizan – Réponses Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000066",
+      "name": "Toutes les minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM prendre_bail_canal('telegram');",
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000067",
+      "name": "Prendre le bail",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://passerelle-telegram:8885/telegram/getUpdates",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ offset: Number($json.curseur), timeout: 50 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 70000
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000068",
+      "name": "Interroger Telegram (attente longue)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/canaux/telegram.js\n// Couche de canal Telegram (D-062) : traduit une mise à jour Telegram en\n// événement indépendant du canal, et présente une notification ou une\n// réponse en message Telegram. Seul module de src/ à connaître Telegram.\n// Limites relevées dans la documentation de l'API Bot (2026-10-08) :\n// callback_data 1 à 64 octets ; texte d'un message 1 à 4 096 caractères ;\n// réponse à un bouton (answerCallbackQuery) 0 à 200 caractères ; en mode\n// HTML, < > & et \" hors balises s'écrivent &lt; &gt; &amp; &quot;.\n// Aucun import (recopié dans un nœud Code, D-041).\n\nconst CANAL_TELEGRAM = 'telegram';\nconst LIMITE_DONNEE_BOUTON = 64; // octets\nconst LIMITE_TEXTE = 4096; // caractères\nconst LIMITE_ALERTE_BOUTON = 200; // caractères\nconst DONNEE_BOUTON = /^([0-9a-f]{32}):(\\d{1,3})$/;\nconst COMMANDE_START = /^\\/start(?:@\\w+)?(?:\\s+(\\S+))?\\s*$/;\nconst SYMBOLES_GRAVITE = Object.freeze({ bloquant: '⛔', avertissement: '⚠️', validation: '🔎' });\n\n/** Échappe un texte pour le mode HTML de Telegram. */\nfunction echapperHtml(texte) {\n  return String(texte ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n}\n\n/** Donnée d'un bouton : jeton et indice de l'action, au plus 64 octets. */\nfunction donneeBouton(jeton, indice) {\n  const donnee = `${jeton}:${indice}`;\n  if (!DONNEE_BOUTON.test(donnee)) throw new Error(`donnée de bouton invalide : ${donnee}`);\n  // Caractères ASCII seulement (vérifié ci-dessus) : un caractère = un octet.\n  if (donnee.length > LIMITE_DONNEE_BOUTON) throw new Error('donnée de bouton trop longue');\n  return donnee;\n}\n\n/**\n * Traduit une mise à jour Telegram (Update) en événement pour\n * recevoir_evenement(). L'adresse est from.id, fourni par Telegram : elle\n * ne vient jamais du contenu du message ni du bouton.\n * @returns {{evenement: object, repondre: {chat_id: number|null, callback_query_id: string|null, prive: boolean}}}\n */\nfunction evenementTelegram(miseAJour) {\n  const base = { canal: CANAL_TELEGRAM, reference: String(miseAJour.update_id) };\n  const cq = miseAJour.callback_query;\n  if (cq) {\n    const chat = cq.message?.chat ?? null;\n    const prive = chat?.type === 'private';\n    const m = DONNEE_BOUTON.exec(cq.data ?? '');\n    const evenement = { ...base, adresse: String(cq.from.id), type: prive && m ? 'action' : 'autre' };\n    if (prive && m) Object.assign(evenement, { jeton: m[1], indice: m[2] });\n    return { evenement, repondre: { chat_id: chat?.id ?? null, callback_query_id: cq.id, prive } };\n  }\n  const msg = miseAJour.message;\n  if (msg) {\n    const prive = msg.chat?.type === 'private' && msg.from && !msg.from.is_bot;\n    const evenement = { ...base, adresse: msg.from ? String(msg.from.id) : null, type: 'autre' };\n    const texte = typeof msg.text === 'string' ? msg.text.trim() : '';\n    if (prive && texte) {\n      const start = COMMANDE_START.exec(texte);\n      if (start?.[1]) Object.assign(evenement, { type: 'inscription', code: start[1] });\n      else if (!texte.startsWith('/')) Object.assign(evenement, { type: 'texte', texte });\n    }\n    return { evenement, repondre: { chat_id: msg.chat?.id ?? null, callback_query_id: null, prive } };\n  }\n  // Autres types de mises à jour (non demandés) : tracés, sans réponse.\n  return { evenement: { ...base, adresse: null, type: 'autre' }, repondre: { chat_id: null, callback_query_id: null, prive: false } };\n}\n\n/** Curseur suivant : un de plus que la plus grande mise à jour reçue. */\nfunction curseurSuivant(misesAJour, curseur) {\n  return misesAJour.reduce((max, u) => Math.max(max, u.update_id + 1), Number(curseur));\n}\n\n/**\n * Message Telegram d'une notification : texte HTML et un bouton par action.\n * @param {{titre: string, champs: string[][], alertes: object[], note: string}} contenu\n * @param {{libelle: string}[]} actions\n * @param {string} jeton jeton en clair, renvoyé une seule fois par creer_notification()\n */\nfunction messageNotification(contenu, actions, jeton) {\n  const entete = [`<b>${echapperHtml(contenu.titre)}</b>`, '',\n    ...contenu.champs.map(([libelle, valeur]) => `${echapperHtml(libelle)} : ${echapperHtml(valeur)}`)];\n  const pied = contenu.note ? ['', `<i>${echapperHtml(contenu.note)}</i>`] : [];\n  const alertes = contenu.alertes.map((a) => `${SYMBOLES_GRAVITE[a.gravite] ?? '•'} <b>${echapperHtml(a.libelle)}</b> — ${echapperHtml(a.message)}`);\n  // Respecte la limite de 4 096 caractères : on retire des alertes, en le disant.\n  let gardees = alertes.length;\n  const composer = (n) => [...entete, ...(n ? ['', ...alertes.slice(0, n)] : []),\n    ...(n < alertes.length ? [`… et ${alertes.length - n} autre(s) alerte(s), à voir dans le tableau de bord.`] : []), ...pied].join('\\n');\n  while (gardees > 0 && composer(gardees).length > LIMITE_TEXTE) gardees -= 1;\n  return {\n    text: composer(gardees).slice(0, LIMITE_TEXTE),\n    parse_mode: 'HTML',\n    reply_markup: { inline_keyboard: actions.map((a, i) => [{ text: a.libelle, callback_data: donneeBouton(jeton, i) }]) },\n  };\n}\n\n/**\n * Message Telegram d'une réponse ; demande une réponse au message quand une\n * justification est attendue (ForceReply).\n * @param {{lignes: string[], attendJustification: boolean}} reponse de messageReponse()\n */\nfunction messageReponseTelegram(reponse) {\n  const message = { text: reponse.lignes.map(echapperHtml).join('\\n').slice(0, LIMITE_TEXTE), parse_mode: 'HTML' };\n  if (reponse.attendJustification) message.reply_markup = { force_reply: true, input_field_placeholder: 'Votre justification' };\n  return message;\n}\n\n/** Texte court affiché quand on touche un bouton (answerCallbackQuery). */\nfunction alerteBouton(reponse) {\n  return String(reponse?.alerteCourte ?? '').slice(0, LIMITE_ALERTE_BOUTON);\n}\n// >>>\n\n// Échec de l'interrogation : erreur visible ; le bail expire seul (curseur inchangé).\nconst bail = $('Prendre le bail').first().json;\nconst r = $input.first().json;\nif (r.statusCode !== 200 || r.body?.ok !== true) {\n  throw new Error(`interrogation de Telegram en échec : ${r.body?.description ?? 'HTTP ' + r.statusCode}`);\n}\nconst misesAJour = r.body.result ?? [];\nconst commun = { bail_jeton: bail.bail_jeton, curseur: curseurSuivant(misesAJour, bail.curseur) };\nif (!misesAJour.length) return [{ json: { ...commun, vide: true } }];\nreturn misesAJour.map((u) => ({ json: { ...commun, ...evenementTelegram(u) } }));\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000069",
+      "name": "Lire les mises à jour",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000070",
+              "leftValue": "={{ $json.vide !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000071",
+      "name": "Mise à jour à traiter ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT recevoir_evenement($1::jsonb) AS resultat;",
+        "options": {
+          "queryReplacement": "={{ [ $json.evenement ] }}",
+          "queryBatching": "independently"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000072",
+      "name": "Recevoir l'événement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1100,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/decisions/notifications.js\n// Contenu et actions d'une notification, et messages de réponse, sans rien\n// connaître du canal (D-062) : un canal (Telegram, plus tard l'e-mail) ne fait\n// que présenter ces structures. Aucun import (recopié dans un nœud Code,\n// D-041) : formaterMontant et enMillimes sont reçus en paramètre.\n//\n// Contenu : { objet, titre, champs: [[libellé, valeur]], alertes: [{ gravite,\n// libelle, message }], note }. Actions : [{ code, libelle, params }] ; l'ordre\n// compte (un bouton porte l'indice). La base vérifie tout au moment d'agir.\n\nconst LIBELLES_STATUT = Object.freeze({\n  a_valider: 'À valider (montant au-dessus du seuil)',\n  anomalie: 'En anomalie',\n  bloquee: 'Bloquée',\n});\nconst ORDRE_GRAVITE = ['bloquant', 'avertissement', 'validation'];\nconst LIBELLES_GRAVITE = Object.freeze({ bloquant: 'Bloquant', avertissement: 'Avertissement', validation: 'Validation requise' });\n// Libellés courts des méthodes de vérification, pour les boutons.\nconst METHODES_COURTES = Object.freeze({\n  rib_rappel_contact_connu: 'rappel au contact connu',\n  rib_attestation_bancaire: 'attestation bancaire',\n  rib_courrier_signe_verifie: 'courrier signé vérifié',\n  creation_identifiant_fiscal_verifie: 'matricule vérifié (source officielle)',\n  creation_attestation_bancaire: 'attestation bancaire',\n  creation_contact_independant: 'contact indépendant',\n});\nconst FORME_COURTE_MATRICULE = /^\\d{7}[A-Z]$/;\nconst RIB_FORMAT = /^\\d{20}$/;\n\nconst enAnomalie = (r) => (r.resultat === 'anomalie' || r.resultat === 'erreur') && ORDRE_GRAVITE.includes(r.gravite);\n\nfunction montant(valeur, devise, deps) {\n  if (valeur === null || valeur === undefined) return '—';\n  return `${deps.formaterMontant(deps.enMillimes(valeur))} ${devise ?? ''}`.trim();\n}\n\n/**\n * Notification d'une facture qui attend une personne.\n * @param {{candidat: object, facture: object, fournisseur: object|null, resultats: object[], regles: {regle: string, derogeable: boolean}[]}} e\n *   fournisseur : { raison_sociale, matricule_fiscal, rib_actif } si la facture est rattachée.\n * @param {{formaterMontant: Function, enMillimes: Function}} deps\n */\nfunction notificationFacture({ candidat, facture, fournisseur, resultats, regles }, deps) {\n  const alertes = resultats.filter(enAnomalie)\n    .sort((a, b) => ORDRE_GRAVITE.indexOf(a.gravite) - ORDRE_GRAVITE.indexOf(b.gravite) || a.regle.localeCompare(b.regle));\n  const derogeable = new Map(regles.map((r) => [r.regle, r.derogeable]));\n  const bloquantsNonDerogeables = alertes.filter((a) => a.gravite === 'bloquant' && derogeable.get(a.regle) === false);\n  const responsable = candidat.role === 'responsable';\n\n  const actions = [];\n  // Une facture validée doit être rattachée à un fournisseur et numérotée\n  // (contrainte de la base, D-021) : sans cela, pas de bouton « Valider ».\n  const rattachee = Boolean(fournisseur) && Boolean(facture.numero);\n  if (rattachee && (facture.statut !== 'bloquee' || !bloquantsNonDerogeables.length)) {\n    actions.push({ code: 'valider', libelle: facture.statut === 'bloquee' ? 'Valider malgré l\\'anomalie' : 'Valider' });\n  }\n  actions.push({ code: 'rejeter', libelle: 'Rejeter' });\n  if (responsable) {\n    // Fournisseur probable (C1) : proposé, rattaché seulement par décision.\n    const probables = alertes.find((a) => a.regle === 'fournisseur_inconnu')?.detail?.fournisseurs_probables ?? [];\n    for (const p of probables) {\n      actions.push({ code: 'confirmer_fournisseur', libelle: `C'est ${p.raison_sociale} (${p.matricule_fiscal})`, params: { fournisseur_id: p.id } });\n    }\n    const changement = alertes.find((a) => a.regle === 'changement_rib');\n    const ribDemande = changement?.detail?.rib_facture ?? changement?.detail?.propositions?.[0] ?? null;\n    if (changement && fournisseur && RIB_FORMAT.test(ribDemande ?? '')) {\n      actions.push({ code: 'demander_changement_rib', libelle: `Demander le changement de RIB (${ribDemande})`, params: { rib: ribDemande } });\n    }\n    const inconnu = alertes.find((a) => a.regle === 'fournisseur_inconnu');\n    const court = inconnu?.detail?.forme_courte ?? null;\n    if (inconnu && !probables.length && FORME_COURTE_MATRICULE.test(court ?? '') && facture.raison_sociale_lue) {\n      const params = { raison_sociale: facture.raison_sociale_lue, matricule_fiscal: court };\n      if (RIB_FORMAT.test(facture.rib_facture ?? '')) params.rib = facture.rib_facture;\n      actions.push({ code: 'demander_creation_fournisseur', libelle: 'Demander la création du fournisseur', params });\n    }\n    actions.push({ code: 'renvoyer_aux_controles', libelle: 'Renvoyer aux contrôles' });\n  }\n\n  const nomFournisseur = fournisseur?.raison_sociale ?? facture.raison_sociale_lue ?? 'fournisseur non identifié';\n  const contenu = {\n    objet: 'facture',\n    titre: `${facture.type_document === 'avoir' ? 'Avoir' : 'Facture'} ${facture.numero ?? 'sans numéro'} — ${nomFournisseur}`,\n    statut: facture.statut,\n    champs: [\n      ['Statut', LIBELLES_STATUT[facture.statut] ?? facture.statut],\n      ['Fournisseur', fournisseur ? `${fournisseur.raison_sociale} (${fournisseur.matricule_fiscal})` : `non identifié (lu : ${facture.matricule_fiscal_lu ?? '—'})`],\n      ['Date', facture.date_facture ?? '—'],\n      ['Échéance', facture.date_echeance ?? '—'],\n      ['Montant TTC', montant(facture.montant_ttc, facture.devise, deps)],\n      // D-058 : le paiement se fait toujours sur le RIB du référentiel.\n      ['RIB de paiement', fournisseur?.rib_actif\n        ? `${fournisseur.rib_actif} (RIB du référentiel ; jamais celui lu sur la facture)`\n        : 'aucun : fournisseur non identifié ou sans RIB au référentiel'],\n    ],\n    alertes: alertes.map((a) => ({ gravite: a.gravite, libelle: LIBELLES_GRAVITE[a.gravite], regle: a.regle, message: a.message })),\n    note: bloquantsNonDerogeables.length\n      ? `Règle(s) non dérogeable(s) : ${bloquantsNonDerogeables.map((a) => a.regle).join(', ')}. La facture ne peut être que rejetée, ou corrigée puis renvoyée aux contrôles.`\n      : 'Chaque décision demande une justification.',\n  };\n  return {\n    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'facture', facture_id: facture.id,\n    statut_facture: facture.statut, passage_controle: candidat.passage_controle, actions, contenu,\n  };\n}\n\n/**\n * Notification d'une demande sur le référentiel (quatre yeux : envoyée aux\n * autres responsables seulement, par la base).\n * @param {{candidat: object, demande: object, fournisseur: object|null, facture: object|null, methodes: object[]}} e\n */\nfunction notificationDemande({ candidat, demande, fournisseur, facture, methodes }) {\n  const d = demande.donnees ?? {};\n  const changement = demande.type_demande === 'changement_rib';\n  const champs = changement\n    ? [['Fournisseur', fournisseur ? `${fournisseur.raison_sociale} (${fournisseur.matricule_fiscal})` : '—'],\n      ['RIB actuel (référentiel)', demande.rib_actuel ?? 'aucun'], ['Nouveau RIB demandé', d.rib ?? '—']]\n    : [['Raison sociale', d.raison_sociale ?? '—'], ['Matricule fiscal', d.matricule_fiscal ?? '—'], ['RIB', d.rib ?? 'aucun']];\n  champs.push(['Facture', facture?.numero ?? '—'], ['Demandé par', demande.demande_par_nom ?? '—'], ['Justification', demande.justification]);\n  const actions = methodes.filter((m) => m.type_demande === demande.type_demande).map((m) => ({\n    code: 'approuver', libelle: `Approuver : ${METHODES_COURTES[m.code] ?? m.libelle}`, params: { methode_verification: m.code },\n  }));\n  actions.push({ code: 'refuser', libelle: 'Refuser' });\n  return {\n    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'demande', demande_id: demande.id,\n    facture_id: demande.facture_id ?? null, actions,\n    contenu: {\n      objet: 'demande',\n      titre: `Demande n° ${demande.id} : ${changement ? 'changement de RIB' : 'création d\\'un fournisseur'}`,\n      champs,\n      alertes: [],\n      note: 'Vérifiez par un moyen indépendant de la facture avant d\\'approuver (quatre yeux, D-056). Choisissez la méthode de vérification utilisée.',\n    },\n  };\n}\n\n// Messages renvoyés selon le résultat de recevoir_evenement().\nconst MOTIFS_REFUS = Object.freeze({\n  MZ010: 'la facture a changé de statut entre-temps : décision impossible.',\n  MZ011: 'la facture a changé de statut entre-temps : décision impossible.',\n  MZ012: 'votre compte est inactif.',\n  MZ013: 'justification trop courte.',\n  MZ014: 'votre rôle ne permet pas cette décision.',\n  MZ015: 'règle non dérogeable : la facture ne peut être que rejetée, ou corrigée puis renvoyée aux contrôles.',\n  MZ016: 'correction non admise.',\n  MZ018: 'quatre yeux : vous ne pouvez pas décider de votre propre demande.',\n  MZ019: 'données de la demande invalides.',\n  MZ020: 'le RIB actif date d\\'aujourd\\'hui : changement à refaire demain.',\n});\nconst CONFIRMATIONS = Object.freeze({\n  valider: 'Facture validée.',\n  rejeter: 'Facture rejetée.',\n  renvoyer_aux_controles: 'Facture renvoyée aux contrôles.',\n  confirmer_fournisseur: 'Fournisseur confirmé ; facture renvoyée aux contrôles.',\n  demander_changement_rib: 'Demande de changement de RIB enregistrée : un autre responsable doit l\\'approuver.',\n  demander_creation_fournisseur: 'Demande de création du fournisseur enregistrée : un autre responsable doit l\\'approuver.',\n  approuver: 'Demande approuvée : référentiel mis à jour, facture(s) renvoyée(s) aux contrôles.',\n  refuser: 'Demande refusée.',\n});\n\n/**\n * Message de réponse à un événement. Renvoie null s'il ne faut rien répondre.\n * @returns {{lignes: string[], attendJustification: boolean, alerteCourte: string}|null}\n */\nfunction messageReponse(r) {\n  const avec = (lignes, alerteCourte, attendJustification = false) => ({ lignes, alerteCourte, attendJustification });\n  switch (r.code) {\n    case 'deja_traite': return null;\n    case 'inscription_reussie': return avec([`Inscription réussie : ${r.nom}.`, 'Vous recevrez ici les factures à valider.'], 'Inscription réussie');\n    case 'inscription_refusee': return avec(['Code d\\'inscription invalide, déjà utilisé ou expiré.'], 'Code refusé');\n    case 'adresse_deja_inscrite': return avec(['Ce compte est déjà inscrit.'], 'Déjà inscrit');\n    case 'expediteur_inconnu': return avec(['Accès réservé. Pour vous inscrire : /start suivi de votre code.'], 'Accès réservé');\n    case 'justification_demandee':\n      return avec([`Action : ${r.action?.libelle ?? r.action?.code} — ${r.contenu?.titre ?? ''}`.trim(),\n        `Répondez à ce message par votre justification, dans les ${r.delai_minutes} minutes.`], 'Justification demandée', true);\n    case 'justification_trop_tard': return avec(['Délai dépassé : rien n\\'a été appliqué. Touchez de nouveau le bouton.'], 'Délai dépassé');\n    case 'aucune_action_en_attente': return avec(['Aucune décision en attente. Touchez d\\'abord un bouton d\\'une notification.'], 'Aucune décision en attente');\n    case 'decision_enregistree': return avec([CONFIRMATIONS[r.action?.code] ?? 'Décision enregistrée.'], 'Décision enregistrée');\n    case 'decision_refusee':\n      return avec([`Refusé : ${MOTIFS_REFUS[r.erreur] ?? `la base a refusé la décision (${r.motif}).`}`, 'Rien n\\'a été appliqué.'], 'Refusé');\n    case 'pas_destinataire': return avec(['Cette notification ne vous est pas destinée.'], 'Notification d\\'une autre personne');\n    case 'notification_perimee': return avec(['Cette notification n\\'est plus valable : la facture a changé d\\'état.'], 'Notification périmée');\n    case 'notification_expiree': return avec(['Cette notification a expiré.'], 'Notification expirée');\n    case 'bouton_inconnu': case 'action_inconnue': return avec(['Bouton non reconnu.'], 'Bouton non reconnu');\n    default: return avec(['Je ne comprends que les boutons des notifications et les justifications.'], 'Non compris');\n  }\n}\n// >>>\n// <<< src/canaux/telegram.js\n// Couche de canal Telegram (D-062) : traduit une mise à jour Telegram en\n// événement indépendant du canal, et présente une notification ou une\n// réponse en message Telegram. Seul module de src/ à connaître Telegram.\n// Limites relevées dans la documentation de l'API Bot (2026-10-08) :\n// callback_data 1 à 64 octets ; texte d'un message 1 à 4 096 caractères ;\n// réponse à un bouton (answerCallbackQuery) 0 à 200 caractères ; en mode\n// HTML, < > & et \" hors balises s'écrivent &lt; &gt; &amp; &quot;.\n// Aucun import (recopié dans un nœud Code, D-041).\n\nconst CANAL_TELEGRAM = 'telegram';\nconst LIMITE_DONNEE_BOUTON = 64; // octets\nconst LIMITE_TEXTE = 4096; // caractères\nconst LIMITE_ALERTE_BOUTON = 200; // caractères\nconst DONNEE_BOUTON = /^([0-9a-f]{32}):(\\d{1,3})$/;\nconst COMMANDE_START = /^\\/start(?:@\\w+)?(?:\\s+(\\S+))?\\s*$/;\nconst SYMBOLES_GRAVITE = Object.freeze({ bloquant: '⛔', avertissement: '⚠️', validation: '🔎' });\n\n/** Échappe un texte pour le mode HTML de Telegram. */\nfunction echapperHtml(texte) {\n  return String(texte ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n}\n\n/** Donnée d'un bouton : jeton et indice de l'action, au plus 64 octets. */\nfunction donneeBouton(jeton, indice) {\n  const donnee = `${jeton}:${indice}`;\n  if (!DONNEE_BOUTON.test(donnee)) throw new Error(`donnée de bouton invalide : ${donnee}`);\n  // Caractères ASCII seulement (vérifié ci-dessus) : un caractère = un octet.\n  if (donnee.length > LIMITE_DONNEE_BOUTON) throw new Error('donnée de bouton trop longue');\n  return donnee;\n}\n\n/**\n * Traduit une mise à jour Telegram (Update) en événement pour\n * recevoir_evenement(). L'adresse est from.id, fourni par Telegram : elle\n * ne vient jamais du contenu du message ni du bouton.\n * @returns {{evenement: object, repondre: {chat_id: number|null, callback_query_id: string|null, prive: boolean}}}\n */\nfunction evenementTelegram(miseAJour) {\n  const base = { canal: CANAL_TELEGRAM, reference: String(miseAJour.update_id) };\n  const cq = miseAJour.callback_query;\n  if (cq) {\n    const chat = cq.message?.chat ?? null;\n    const prive = chat?.type === 'private';\n    const m = DONNEE_BOUTON.exec(cq.data ?? '');\n    const evenement = { ...base, adresse: String(cq.from.id), type: prive && m ? 'action' : 'autre' };\n    if (prive && m) Object.assign(evenement, { jeton: m[1], indice: m[2] });\n    return { evenement, repondre: { chat_id: chat?.id ?? null, callback_query_id: cq.id, prive } };\n  }\n  const msg = miseAJour.message;\n  if (msg) {\n    const prive = msg.chat?.type === 'private' && msg.from && !msg.from.is_bot;\n    const evenement = { ...base, adresse: msg.from ? String(msg.from.id) : null, type: 'autre' };\n    const texte = typeof msg.text === 'string' ? msg.text.trim() : '';\n    if (prive && texte) {\n      const start = COMMANDE_START.exec(texte);\n      if (start?.[1]) Object.assign(evenement, { type: 'inscription', code: start[1] });\n      else if (!texte.startsWith('/')) Object.assign(evenement, { type: 'texte', texte });\n    }\n    return { evenement, repondre: { chat_id: msg.chat?.id ?? null, callback_query_id: null, prive } };\n  }\n  // Autres types de mises à jour (non demandés) : tracés, sans réponse.\n  return { evenement: { ...base, adresse: null, type: 'autre' }, repondre: { chat_id: null, callback_query_id: null, prive: false } };\n}\n\n/** Curseur suivant : un de plus que la plus grande mise à jour reçue. */\nfunction curseurSuivant(misesAJour, curseur) {\n  return misesAJour.reduce((max, u) => Math.max(max, u.update_id + 1), Number(curseur));\n}\n\n/**\n * Message Telegram d'une notification : texte HTML et un bouton par action.\n * @param {{titre: string, champs: string[][], alertes: object[], note: string}} contenu\n * @param {{libelle: string}[]} actions\n * @param {string} jeton jeton en clair, renvoyé une seule fois par creer_notification()\n */\nfunction messageNotification(contenu, actions, jeton) {\n  const entete = [`<b>${echapperHtml(contenu.titre)}</b>`, '',\n    ...contenu.champs.map(([libelle, valeur]) => `${echapperHtml(libelle)} : ${echapperHtml(valeur)}`)];\n  const pied = contenu.note ? ['', `<i>${echapperHtml(contenu.note)}</i>`] : [];\n  const alertes = contenu.alertes.map((a) => `${SYMBOLES_GRAVITE[a.gravite] ?? '•'} <b>${echapperHtml(a.libelle)}</b> — ${echapperHtml(a.message)}`);\n  // Respecte la limite de 4 096 caractères : on retire des alertes, en le disant.\n  let gardees = alertes.length;\n  const composer = (n) => [...entete, ...(n ? ['', ...alertes.slice(0, n)] : []),\n    ...(n < alertes.length ? [`… et ${alertes.length - n} autre(s) alerte(s), à voir dans le tableau de bord.`] : []), ...pied].join('\\n');\n  while (gardees > 0 && composer(gardees).length > LIMITE_TEXTE) gardees -= 1;\n  return {\n    text: composer(gardees).slice(0, LIMITE_TEXTE),\n    parse_mode: 'HTML',\n    reply_markup: { inline_keyboard: actions.map((a, i) => [{ text: a.libelle, callback_data: donneeBouton(jeton, i) }]) },\n  };\n}\n\n/**\n * Message Telegram d'une réponse ; demande une réponse au message quand une\n * justification est attendue (ForceReply).\n * @param {{lignes: string[], attendJustification: boolean}} reponse de messageReponse()\n */\nfunction messageReponseTelegram(reponse) {\n  const message = { text: reponse.lignes.map(echapperHtml).join('\\n').slice(0, LIMITE_TEXTE), parse_mode: 'HTML' };\n  if (reponse.attendJustification) message.reply_markup = { force_reply: true, input_field_placeholder: 'Votre justification' };\n  return message;\n}\n\n/** Texte court affiché quand on touche un bouton (answerCallbackQuery). */\nfunction alerteBouton(reponse) {\n  return String(reponse?.alerteCourte ?? '').slice(0, LIMITE_ALERTE_BOUTON);\n}\n// >>>\n\nconst lues = $('Mise à jour à traiter ?').all();\nconst envois = [];\n$input.all().forEach((i, k) => {\n  const { repondre } = lues[i.pairedItem?.item ?? k].json;\n  const reponse = messageReponse(i.json.resultat);\n  if (repondre.callback_query_id) {\n    envois.push({ methode: 'answerCallbackQuery', corps: { callback_query_id: repondre.callback_query_id, text: alerteBouton(reponse) } });\n  }\n  // Jamais de réponse dans un groupe : conversation privée seulement.\n  if (reponse && repondre.prive && repondre.chat_id !== null) {\n    envois.push({ methode: 'sendMessage', corps: { chat_id: repondre.chat_id, ...messageReponseTelegram(reponse) } });\n  }\n});\nreturn envois.length ? envois.map((e) => ({ json: e })) : [{ json: { rien: true } }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000073",
+      "name": "Préparer les réponses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0de0000-0000-4000-8000-000000000074",
+              "leftValue": "={{ $json.rien !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000075",
+      "name": "Réponse à envoyer ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000076",
+      "name": "Une réponse à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1760,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://passerelle-telegram:8885/telegram/' + $json.methode }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corps) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 40000
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000077",
+      "name": "Répondre (passerelle)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1980,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rendre_bail_canal('telegram', $1::uuid, $2::bigint) AS rendu;",
+        "options": {
+          "queryReplacement": "={{ [ $('Lire les mises à jour').first().json.bail_jeton, $('Lire les mises à jour').first().json.curseur ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000078",
+      "name": "Rendre le bail",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2200,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "executeOnce": true
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "executionTimeout": 120
+  },
+  "pinData": {},
+  "connections": {
+    "Toutes les minutes": {
+      "main": [
+        [
+          {
+            "node": "Prendre le bail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prendre le bail": {
+      "main": [
+        [
+          {
+            "node": "Interroger Telegram (attente longue)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interroger Telegram (attente longue)": {
+      "main": [
+        [
+          {
+            "node": "Lire les mises à jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire les mises à jour": {
+      "main": [
+        [
+          {
+            "node": "Mise à jour à traiter ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mise à jour à traiter ?": {
+      "main": [
+        [
+          {
+            "node": "Recevoir l'événement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rendre le bail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recevoir l'événement": {
+      "main": [
+        [
+          {
+            "node": "Préparer les réponses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer les réponses": {
+      "main": [
+        [
+          {
+            "node": "Réponse à envoyer ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réponse à envoyer ?": {
+      "main": [
+        [
+          {
+            "node": "Une réponse à la fois",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rendre le bail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Une réponse à la fois": {
+      "main": [
+        [
+          {
+            "node": "Rendre le bail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre (passerelle)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Répondre (passerelle)": {
+      "main": [
+        [
+          {
+            "node": "Une réponse à la fois",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

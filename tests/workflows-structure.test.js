@@ -9,10 +9,13 @@ const lire = (chemin) => JSON.parse(readFileSync(chemin, 'utf8'));
 const sous = lire('workflows/extraction-llm.json');
 const principal = lire('workflows/reception-extraction.json');
 const controles = lire('workflows/controles.json');
+const notificationsTelegram = lire('workflows/notifications-telegram.json');
+const reponsesTelegram = lire('workflows/reponses-telegram.json');
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DECLENCHEURS = new Set(['n8n-nodes-base.scheduleTrigger', 'n8n-nodes-base.executeWorkflowTrigger', 'n8n-nodes-base.manualTrigger']);
 
-for (const [nom, wf] of [['sous-workflow', sous], ['workflow principal', principal], ['workflow Contrôles', controles]]) {
+for (const [nom, wf] of [['sous-workflow', sous], ['workflow principal', principal], ['workflow Contrôles', controles],
+  ['notifications Telegram', notificationsTelegram], ['réponses Telegram', reponsesTelegram]]) {
   test(`${nom} : noms uniques, connexions valides, aucun nœud orphelin`, () => {
     const noms = wf.nodes.map((n) => n.name);
     assert.equal(new Set(noms).size, noms.length, 'noms de nœuds uniques');

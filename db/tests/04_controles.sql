@@ -155,6 +155,14 @@ $$, 'a_valider:controle,conforme:controle,bloquee:-',
     'seuil → « a_valider », rien → « conforme » (fournisseur rattaché), bloquant → « bloquee »');
 
 -- Décisions humaines ----------------------------------------------------------------
+-- Depuis D-062, mizan_app ne crée plus de décision directement : seule la
+-- fonction recevoir_evenement (canal authentifié) le fait (05_canaux.sql).
+-- Les déclencheurs de décision sont donc testés ici sous l'administrateur.
+SELECT pg_temp.doit_echouer($$
+    INSERT INTO decisions_humaines (facture_id, utilisateur_id, decision, justification)
+    VALUES (pg_temp.f('C-tva.pdf'), pg_temp.u('Test – Responsable A'), 'valider', 'Décision sans passer par un canal')
+$$, '42501', 'mizan_app ne peut pas insérer une décision directement (D-062)');
+RESET ROLE;
 SELECT pg_temp.doit_echouer($$
     INSERT INTO decisions_humaines (facture_id, utilisateur_id, decision, justification)
     VALUES (pg_temp.f('C-tva.pdf'), pg_temp.u('Test – Validateur'), 'valider', 'TVA vérifiée avec le fournisseur')
@@ -196,9 +204,10 @@ SELECT pg_temp.doit_echouer($$
     INSERT INTO decisions_humaines (facture_id, utilisateur_id, decision, justification)
     VALUES (pg_temp.f('C-devise.pdf'), pg_temp.u('Test – Responsable A'), 'rejeter', 'Rejet demandé après validation')
 $$, 'MZ010', 'une facture validée ne peut plus changer de statut');
-SELECT pg_temp.doit_echouer($$DELETE FROM decisions_humaines$$, '42501', 'une décision ne se supprime pas');
+SELECT pg_temp.doit_echouer($$DELETE FROM decisions_humaines$$, 'MZ001', 'une décision ne se supprime pas (ajout seul)');
 
 -- Référentiel : plus d'écriture directe (D-056) ---------------------------------------
+SET ROLE mizan_app;
 SELECT pg_temp.doit_echouer($$INSERT INTO fournisseurs (raison_sociale, matricule_fiscal) VALUES ('Pirate', '9900001A')$$,
     '42501', 'mizan_app ne crée pas de fournisseur directement');
 SELECT pg_temp.doit_echouer($$UPDATE fournisseur_ribs SET rib = '99003000000000000269'$$,
@@ -212,6 +221,7 @@ SELECT pg_temp.doit_valoir($$
                      rib_cle_valide('10006035183598478831'), rib_cle_valide('9900100000000000016'))
 $$, 't|f|t|f', 'clé RIB vérifiée comme src/rib.js (exemple du registre IBAN compris)');
 
+RESET ROLE;
 -- Changement de RIB : demande, quatre yeux, méthode de vérification ------------------
 SELECT pg_temp.doit_echouer($$
     INSERT INTO demandes_referentiel (type_demande, fournisseur_id, facture_id, donnees, demande_par, justification)
@@ -329,6 +339,7 @@ $$, 'Nouveau Fournisseur Test|99004000000000000321|facture|extraite|t|decision|1
     'fournisseur et RIB créés ; facture rattachée par décision et renvoyée aux contrôles ; création au journal');
 
 -- Un rattachement décidé par une personne n'est pas remplacé par les contrôles.
+SET ROLE mizan_app;
 SELECT pg_temp.doit_reussir($$
     SELECT reserver_facture_a_controler(); SELECT reserver_facture_a_controler();
     SELECT enregistrer_controles(jsonb_build_object('facture_id', pg_temp.f('C-inconnu.pdf'), 'fournisseur_id', NULL,

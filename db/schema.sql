@@ -29,6 +29,85 @@ CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
 COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiST';
 
 
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id bigint NOT NULL,
+    canal text NOT NULL,
+    utilisateur_id bigint NOT NULL,
+    objet text NOT NULL,
+    facture_id bigint,
+    demande_id bigint,
+    statut_facture text,
+    passage_controle bigint,
+    actions jsonb NOT NULL,
+    contenu jsonb NOT NULL,
+    jeton_empreinte character(64) NOT NULL,
+    etat text DEFAULT 'a_envoyer'::text NOT NULL,
+    reference_canal text,
+    erreur text,
+    cree_le timestamp with time zone DEFAULT now() NOT NULL,
+    envoyee_le timestamp with time zone,
+    expire_le timestamp with time zone NOT NULL,
+    CONSTRAINT notifications_actions_ck CHECK ((jsonb_typeof(actions) = 'array'::text)),
+    CONSTRAINT notifications_canal_ck CHECK ((canal = 'telegram'::text)),
+    CONSTRAINT notifications_etat_ck CHECK ((etat = ANY (ARRAY['a_envoyer'::text, 'envoyee'::text, 'echec'::text]))),
+    CONSTRAINT notifications_objet_ck CHECK ((((objet = 'facture'::text) AND (facture_id IS NOT NULL) AND (demande_id IS NULL)) OR ((objet = 'demande'::text) AND (demande_id IS NOT NULL))))
+);
+
+
+--
+-- Name: appliquer_action(public.notifications, jsonb, bigint, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.appliquer_action(p_notif public.notifications, p_action jsonb, p_utilisateur bigint, p_texte text, p_canal text) RETURNS bigint
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+    v_code    TEXT := p_action ->> 'code';
+    v_params  JSONB := coalesce(p_action -> 'params', '{}'::jsonb);
+    v_facture factures%ROWTYPE;
+    v_id      BIGINT;
+BEGIN
+    SELECT * INTO v_facture FROM factures WHERE id = p_notif.facture_id;
+    IF v_code IN ('valider', 'rejeter', 'renvoyer_aux_controles', 'confirmer_fournisseur') THEN
+        INSERT INTO decisions_humaines (facture_id, utilisateur_id, decision, justification, corrections, canal)
+        VALUES (p_notif.facture_id, p_utilisateur,
+                CASE v_code WHEN 'valider' THEN 'valider' WHEN 'rejeter' THEN 'rejeter' ELSE 'renvoyer_aux_controles' END,
+                p_texte,
+                CASE WHEN v_code = 'confirmer_fournisseur'
+                     THEN jsonb_build_object('fournisseur_id', (v_params ->> 'fournisseur_id')::BIGINT) ELSE '{}'::jsonb END,
+                p_canal)
+        RETURNING id INTO v_id;
+    ELSIF v_code = 'demander_changement_rib' THEN
+        INSERT INTO demandes_referentiel (type_demande, fournisseur_id, facture_id, donnees, demande_par, justification, canal)
+        VALUES ('changement_rib', v_facture.fournisseur_id, v_facture.id, jsonb_build_object('rib', v_params ->> 'rib'),
+                p_utilisateur, p_texte, p_canal)
+        RETURNING id INTO v_id;
+    ELSIF v_code = 'demander_creation_fournisseur' THEN
+        INSERT INTO demandes_referentiel (type_demande, facture_id, donnees, demande_par, justification, canal)
+        VALUES ('creation_fournisseur', v_facture.id, v_params, p_utilisateur, p_texte, p_canal)
+        RETURNING id INTO v_id;
+    ELSIF v_code IN ('approuver', 'refuser') THEN
+        INSERT INTO decisions_referentiel (demande_id, decision, utilisateur_id, methode_verification, justification, canal)
+        VALUES (p_notif.demande_id, CASE v_code WHEN 'approuver' THEN 'approuvee' ELSE 'refusee' END, p_utilisateur,
+                v_params ->> 'methode_verification', p_texte, p_canal)
+        RETURNING id INTO v_id;
+    ELSE
+        RAISE EXCEPTION 'action « % » inconnue', v_code USING ERRCODE = 'MZ032';
+    END IF;
+    RETURN v_id;
+END;
+$$;
+
+
 --
 -- Name: contexte_controles(bigint); Type: FUNCTION; Schema: public; Owner: -
 --
@@ -109,6 +188,64 @@ BEGIN
         'regles', (SELECT jsonb_agg(jsonb_build_object('regle', regle, 'derogeable', derogeable) ORDER BY regle)
                    FROM regles_controle WHERE actif)
     );
+END;
+$$;
+
+
+--
+-- Name: creer_code_inscription(bigint, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.creer_code_inscription(p_utilisateur bigint, p_canal text, p_code text) RETURNS bigint
+    LANGUAGE sql
+    AS $$
+    INSERT INTO codes_inscription (utilisateur_id, canal, code_empreinte, expire_le)
+    VALUES (p_utilisateur, p_canal, encode(sha256(convert_to(p_code, 'UTF8')), 'hex'),
+            now() + make_interval(mins => parametre_controle('inscription.validite_minutes')::INTEGER))
+    RETURNING id;
+$$;
+
+
+--
+-- Name: creer_notification(jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.creer_notification(p jsonb) RETURNS TABLE(notification_id bigint, jeton text)
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+    -- 32 caractères hexadécimaux (UUID v4, 122 bits aléatoires) : un bouton
+    -- Telegram porte au plus 64 octets (jeton, séparateur et indice).
+    v_jeton   TEXT := replace(gen_random_uuid()::text, '-', '');
+    v_id      BIGINT;
+    v_canal   TEXT := p ->> 'canal';
+    v_facture factures%ROWTYPE;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM adresses_canal a JOIN utilisateurs u ON u.id = a.utilisateur_id
+                   WHERE a.utilisateur_id = (p ->> 'utilisateur_id')::BIGINT AND a.canal = v_canal AND a.active AND u.actif) THEN
+        RAISE EXCEPTION 'destinataire non inscrit sur le canal %', v_canal USING ERRCODE = 'MZ030';
+    END IF;
+    IF p ->> 'objet' = 'facture' THEN
+        SELECT * INTO v_facture FROM factures WHERE id = (p ->> 'facture_id')::BIGINT;
+        IF v_facture.statut IS DISTINCT FROM p ->> 'statut_facture' THEN
+            RAISE EXCEPTION 'la facture n''est plus au statut notifié' USING ERRCODE = 'MZ031';
+        END IF;
+    END IF;
+    IF jsonb_typeof(p -> 'actions') <> 'array' OR EXISTS (
+        SELECT 1 FROM jsonb_array_elements(p -> 'actions') a
+        WHERE a ->> 'code' NOT IN ('valider', 'rejeter', 'renvoyer_aux_controles', 'confirmer_fournisseur',
+                                   'demander_changement_rib', 'demander_creation_fournisseur', 'approuver', 'refuser')) THEN
+        RAISE EXCEPTION 'action inconnue dans la notification' USING ERRCODE = 'MZ032';
+    END IF;
+    INSERT INTO notifications (canal, utilisateur_id, objet, facture_id, demande_id, statut_facture, passage_controle,
+                               actions, contenu, jeton_empreinte, expire_le)
+    VALUES (v_canal, (p ->> 'utilisateur_id')::BIGINT, p ->> 'objet', (p ->> 'facture_id')::BIGINT,
+            (p ->> 'demande_id')::BIGINT, p ->> 'statut_facture', (p ->> 'passage_controle')::BIGINT,
+            p -> 'actions', p -> 'contenu', encode(sha256(convert_to(v_jeton, 'UTF8')), 'hex'),
+            now() + make_interval(days => parametre_controle('notification.validite_jours')::INTEGER))
+    RETURNING id INTO v_id;
+    RETURN QUERY SELECT v_id, v_jeton;
 END;
 $$;
 
@@ -372,6 +509,41 @@ BEGIN
     RETURN NEW;
 END;
 $_$;
+
+
+--
+-- Name: donnees_notifications(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.donnees_notifications(p_canal text) RETURNS SETOF jsonb
+    LANGUAGE sql STABLE
+    AS $$
+    SELECT jsonb_build_object(
+        'candidat', jsonb_build_object(
+            'canal', p_canal, 'objet', c.objet, 'utilisateur_id', c.utilisateur_id, 'role', c.role,
+            'passage_controle', c.passage_controle,
+            'adresse', (SELECT a.adresse FROM adresses_canal a
+                        WHERE a.utilisateur_id = c.utilisateur_id AND a.canal = p_canal AND a.active)),
+        'facture', to_jsonb(f) - 'extraction_brute',
+        -- Facture : son fournisseur ; demande de changement de RIB : celui de la demande.
+        'fournisseur', (SELECT jsonb_build_object(
+                            'raison_sociale', fo.raison_sociale, 'matricule_fiscal', fo.matricule_fiscal,
+                            'rib_actif', (SELECT r.rib FROM fournisseur_ribs r WHERE r.fournisseur_id = fo.id AND r.valide_au IS NULL))
+                        FROM fournisseurs fo
+                        WHERE fo.id = CASE c.objet WHEN 'demande' THEN d.fournisseur_id ELSE f.fournisseur_id END),
+        'resultats', coalesce((SELECT jsonb_agg(jsonb_build_object('regle', r.regle, 'resultat', r.resultat, 'gravite', r.gravite,
+                                                                   'message', r.message, 'detail', r.detail) ORDER BY r.regle)
+                               FROM resultats_controles r WHERE r.facture_id = c.facture_id AND r.passage = c.passage_controle), '[]'::jsonb),
+        'regles', (SELECT jsonb_agg(jsonb_build_object('regle', g.regle, 'derogeable', g.derogeable) ORDER BY g.regle) FROM regles_controle g),
+        'demande', CASE WHEN d.id IS NOT NULL THEN to_jsonb(d) || jsonb_build_object('demande_par_nom', u.nom) END,
+        'methodes', (SELECT jsonb_agg(jsonb_build_object('code', m.code, 'type_demande', m.type_demande, 'libelle', m.libelle) ORDER BY m.code)
+                     FROM methodes_verification m))
+    FROM notifications_a_preparer(p_canal) c
+    LEFT JOIN factures f ON f.id = c.facture_id
+    LEFT JOIN demandes_referentiel d ON d.id = c.demande_id
+    LEFT JOIN utilisateurs u ON u.id = d.demande_par
+    ORDER BY c.objet DESC, c.facture_id, c.utilisateur_id;
+$$;
 
 
 --
@@ -708,12 +880,63 @@ $$;
 
 
 --
+-- Name: marquer_notification(bigint, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.marquer_notification(p_id bigint, p_reference text, p_erreur text DEFAULT NULL::text) RETURNS void
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+    UPDATE notifications
+    SET etat = CASE WHEN p_erreur IS NULL THEN 'envoyee' ELSE 'echec' END,
+        reference_canal = p_reference, erreur = p_erreur,
+        envoyee_le = CASE WHEN p_erreur IS NULL THEN now() END
+    WHERE id = p_id AND etat = 'a_envoyer';
+$$;
+
+
+--
 -- Name: normaliser_numero_facture(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
 CREATE FUNCTION public.normaliser_numero_facture(numero text) RETURNS text
     LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
     RETURN upper(regexp_replace(numero, '[[:space:]]'::text, ''::text, 'g'::text));
+
+
+--
+-- Name: notifications_a_preparer(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.notifications_a_preparer(p_canal text) RETURNS TABLE(objet text, facture_id bigint, demande_id bigint, utilisateur_id bigint, role text, statut_facture text, passage_controle bigint)
+    LANGUAGE sql STABLE
+    AS $$
+    WITH destinataires AS (
+        SELECT u.id, u.role FROM utilisateurs u
+        JOIN adresses_canal a ON a.utilisateur_id = u.id AND a.canal = p_canal AND a.active
+        WHERE u.actif),
+    factures_en_attente AS (
+        SELECT f.id, f.statut, (SELECT max(r.passage) FROM resultats_controles r WHERE r.facture_id = f.id) AS passage
+        FROM factures f WHERE f.statut IN ('a_valider', 'anomalie', 'bloquee'))
+    SELECT 'facture', fa.id, NULL::BIGINT, d.id, d.role, fa.statut, fa.passage
+    FROM factures_en_attente fa JOIN destinataires d
+      ON fa.statut <> 'bloquee' OR d.role = 'responsable'
+    WHERE NOT EXISTS (
+        SELECT 1 FROM notifications n
+        WHERE n.facture_id = fa.id AND n.utilisateur_id = d.id AND n.canal = p_canal
+          AND n.statut_facture = fa.statut AND n.passage_controle IS NOT DISTINCT FROM fa.passage
+          AND n.expire_le > now()
+          AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
+    UNION ALL
+    SELECT 'demande', dr.facture_id, dr.id, d.id, d.role, NULL, NULL
+    FROM demandes_referentiel dr JOIN destinataires d
+      ON d.role = 'responsable' AND d.id <> dr.demande_par   -- quatre yeux
+    WHERE NOT EXISTS (SELECT 1 FROM decisions_referentiel x WHERE x.demande_id = dr.id)
+      AND NOT EXISTS (
+        SELECT 1 FROM notifications n
+        WHERE n.demande_id = dr.id AND n.utilisateur_id = d.id AND n.canal = p_canal AND n.expire_le > now()
+          AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')));
+$$;
 
 
 --
@@ -749,6 +972,149 @@ $$;
 
 
 --
+-- Name: prendre_bail_canal(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.prendre_bail_canal(p_canal text) RETURNS TABLE(bail_jeton uuid, curseur bigint)
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+    UPDATE etats_canal e
+    SET bail_jeton = gen_random_uuid(),
+        bail_jusqu_a = now() + make_interval(secs => parametre_controle('canal.bail_secondes'))
+    WHERE e.canal = p_canal AND (e.bail_jusqu_a IS NULL OR e.bail_jusqu_a < now())
+    RETURNING e.bail_jeton, e.curseur;
+$$;
+
+
+--
+-- Name: recevoir_evenement(jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.recevoir_evenement(p jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $_$
+DECLARE
+    v_canal    TEXT := p ->> 'canal';
+    v_adresse  TEXT := p ->> 'adresse';
+    v_type     TEXT := coalesce(p ->> 'type', 'autre');
+    v_util     utilisateurs%ROWTYPE;
+    v_code     codes_inscription%ROWTYPE;
+    v_notif    notifications%ROWTYPE;
+    v_attente  actions_en_attente%ROWTYPE;
+    v_action   JSONB;
+    v_facture  factures%ROWTYPE;
+    v_passage  BIGINT;
+    v_res      JSONB;
+    v_id       BIGINT;
+BEGIN
+    IF EXISTS (SELECT 1 FROM evenements_entrants WHERE canal = v_canal AND reference = p ->> 'reference') THEN
+        RETURN jsonb_build_object('code', 'deja_traite');
+    END IF;
+
+    SELECT u.* INTO v_util FROM utilisateurs u JOIN adresses_canal a ON a.utilisateur_id = u.id
+    WHERE a.canal = v_canal AND a.adresse = v_adresse AND a.active AND u.actif;
+
+    IF v_type = 'inscription' THEN
+        SELECT * INTO v_code FROM codes_inscription
+        WHERE canal = v_canal AND code_empreinte = encode(sha256(convert_to(coalesce(p ->> 'code', ''), 'UTF8')), 'hex')
+        FOR UPDATE;
+        IF NOT FOUND OR v_code.utilise_le IS NOT NULL OR v_code.expire_le < now() THEN
+            v_res := jsonb_build_object('code', 'inscription_refusee');
+        ELSIF EXISTS (SELECT 1 FROM adresses_canal WHERE canal = v_canal AND adresse = v_adresse) THEN
+            v_res := jsonb_build_object('code', 'adresse_deja_inscrite');
+        ELSE
+            UPDATE codes_inscription SET utilise_le = now() WHERE id = v_code.id;
+            UPDATE adresses_canal SET active = FALSE WHERE utilisateur_id = v_code.utilisateur_id AND canal = v_canal;
+            INSERT INTO adresses_canal (utilisateur_id, canal, adresse) VALUES (v_code.utilisateur_id, v_canal, v_adresse);
+            INSERT INTO journal_audit (acteur, action, entite, entite_id, canal, donnees_apres)
+            VALUES ('utilisateur:' || v_code.utilisateur_id, 'utilisateur.adresse_inscrite', 'utilisateurs',
+                    v_code.utilisateur_id::text, v_canal, jsonb_build_object('adresse', v_adresse, 'code_id', v_code.id));
+            v_res := jsonb_build_object('code', 'inscription_reussie',
+                                        'nom', (SELECT nom FROM utilisateurs WHERE id = v_code.utilisateur_id));
+        END IF;
+
+    ELSIF v_util.id IS NULL THEN
+        -- Expéditeur inconnu : rien n'est fait, l'événement est tracé.
+        v_res := jsonb_build_object('code', 'expediteur_inconnu');
+
+    ELSIF v_type = 'action' THEN
+        SELECT * INTO v_notif FROM notifications
+        WHERE canal = v_canal AND jeton_empreinte = encode(sha256(convert_to(coalesce(p ->> 'jeton', ''), 'UTF8')), 'hex');
+        -- Indice strictement entier et positif (en JSONB, -1 désignerait le dernier élément).
+        v_action := CASE WHEN coalesce(p ->> 'indice', '') ~ '^\d{1,3}$'
+                         THEN v_notif.actions -> ((p ->> 'indice')::INTEGER) END;
+        IF v_notif.id IS NULL THEN
+            v_res := jsonb_build_object('code', 'bouton_inconnu');
+        ELSIF v_notif.utilisateur_id <> v_util.id THEN
+            -- Le bouton ne suffit pas : il faut être le destinataire.
+            v_res := jsonb_build_object('code', 'pas_destinataire');
+            INSERT INTO journal_audit (acteur, action, entite, entite_id, canal, donnees_apres)
+            VALUES ('utilisateur:' || v_util.id, 'canal.bouton_d_un_autre', 'notifications', v_notif.id::text, v_canal,
+                    jsonb_build_object('destinataire', v_notif.utilisateur_id));
+        ELSIF v_notif.expire_le < now() THEN
+            v_res := jsonb_build_object('code', 'notification_expiree');
+        ELSIF v_action IS NULL THEN
+            v_res := jsonb_build_object('code', 'action_inconnue');
+        ELSE
+            IF v_notif.objet = 'facture' THEN
+                SELECT * INTO v_facture FROM factures WHERE id = v_notif.facture_id;
+                v_passage := (SELECT max(passage) FROM resultats_controles WHERE facture_id = v_notif.facture_id);
+            END IF;
+            IF v_notif.objet = 'facture' AND (v_facture.statut IS DISTINCT FROM v_notif.statut_facture
+                                               OR v_passage IS DISTINCT FROM v_notif.passage_controle) THEN
+                v_res := jsonb_build_object('code', 'notification_perimee', 'statut', v_facture.statut);
+            ELSIF v_notif.objet = 'demande' AND EXISTS (SELECT 1 FROM decisions_referentiel WHERE demande_id = v_notif.demande_id) THEN
+                v_res := jsonb_build_object('code', 'notification_perimee');
+            ELSE
+                UPDATE actions_en_attente SET conclue_le = now(), resultat = 'remplacee'
+                WHERE utilisateur_id = v_util.id AND canal = v_canal AND conclue_le IS NULL;
+                INSERT INTO actions_en_attente (notification_id, utilisateur_id, canal, adresse, indice_action, expire_le)
+                VALUES (v_notif.id, v_util.id, v_canal, v_adresse, (p ->> 'indice')::INTEGER,
+                        now() + make_interval(mins => parametre_controle('justification.delai_minutes')::INTEGER));
+                v_res := jsonb_build_object('code', 'justification_demandee', 'action', v_action,
+                                            'contenu', v_notif.contenu,
+                                            'delai_minutes', parametre_controle('justification.delai_minutes'));
+            END IF;
+        END IF;
+
+    ELSIF v_type = 'texte' THEN
+        SELECT * INTO v_attente FROM actions_en_attente
+        WHERE utilisateur_id = v_util.id AND canal = v_canal AND conclue_le IS NULL FOR UPDATE;
+        IF v_attente.id IS NULL THEN
+            v_res := jsonb_build_object('code', 'aucune_action_en_attente');
+        ELSIF v_attente.expire_le < now() OR v_attente.adresse <> v_adresse THEN
+            UPDATE actions_en_attente SET conclue_le = now(), resultat = 'expiree' WHERE id = v_attente.id;
+            v_res := jsonb_build_object('code', 'justification_trop_tard');
+        ELSE
+            SELECT * INTO v_notif FROM notifications WHERE id = v_attente.notification_id;
+            v_action := v_notif.actions -> v_attente.indice_action;
+            BEGIN
+                v_id := appliquer_action(v_notif, v_action, v_util.id, p ->> 'texte', v_canal);
+                v_res := jsonb_build_object('code', 'decision_enregistree', 'action', v_action, 'id', v_id,
+                                            'statut', (SELECT statut FROM factures WHERE id = v_notif.facture_id));
+            EXCEPTION WHEN OTHERS THEN
+                -- Refus de la base (rôle, justification, règle non dérogeable,
+                -- quatre yeux…) : rien n'est appliqué, le motif est renvoyé.
+                v_res := jsonb_build_object('code', 'decision_refusee', 'action', v_action,
+                                            'erreur', SQLSTATE, 'motif', SQLERRM);
+            END;
+            UPDATE actions_en_attente SET conclue_le = now(), resultat = v_res ->> 'code' WHERE id = v_attente.id;
+        END IF;
+
+    ELSE
+        v_res := jsonb_build_object('code', 'non_compris');
+    END IF;
+
+    INSERT INTO evenements_entrants (canal, reference, adresse, type, resultat)
+    VALUES (v_canal, p ->> 'reference', v_adresse, v_type, v_res);
+    RETURN v_res;
+END;
+$_$;
+
+
+--
 -- Name: refuser_modification(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -759,6 +1125,22 @@ BEGIN
     RAISE EXCEPTION '% est en ajout seul : % interdit', TG_TABLE_NAME, TG_OP
         USING ERRCODE = 'MZ001';
 END;
+$$;
+
+
+--
+-- Name: rendre_bail_canal(text, uuid, bigint); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.rendre_bail_canal(p_canal text, p_bail_jeton uuid, p_curseur bigint) RETURNS boolean
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+    WITH rendu AS (
+        UPDATE etats_canal SET curseur = greatest(curseur, p_curseur), bail_jeton = NULL, bail_jusqu_a = NULL
+        WHERE canal = p_canal AND bail_jeton = p_bail_jeton
+        RETURNING 1)
+    SELECT count(*) = 1 FROM rendu;
 $$;
 
 
@@ -830,10 +1212,6 @@ CREATE FUNCTION public.ribs_referentiel() RETURNS jsonb
 $$;
 
 
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
 --
 -- Name: utilisateurs; Type: TABLE; Schema: public; Owner: -
 --
@@ -842,7 +1220,6 @@ CREATE TABLE public.utilisateurs (
     id bigint NOT NULL,
     nom text NOT NULL,
     role text NOT NULL,
-    telegram_id text,
     actif boolean DEFAULT true NOT NULL,
     fictif boolean DEFAULT false NOT NULL,
     cree_le timestamp with time zone DEFAULT now() NOT NULL,
@@ -888,6 +1265,97 @@ BEGIN
     END IF;
 END;
 $$;
+
+
+--
+-- Name: actions_en_attente; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.actions_en_attente (
+    id bigint NOT NULL,
+    notification_id bigint NOT NULL,
+    utilisateur_id bigint NOT NULL,
+    canal text NOT NULL,
+    adresse text NOT NULL,
+    indice_action integer NOT NULL,
+    ouverte_le timestamp with time zone DEFAULT now() NOT NULL,
+    expire_le timestamp with time zone NOT NULL,
+    conclue_le timestamp with time zone,
+    resultat text
+);
+
+
+--
+-- Name: actions_en_attente_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.actions_en_attente ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.actions_en_attente_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: adresses_canal; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.adresses_canal (
+    id bigint NOT NULL,
+    utilisateur_id bigint NOT NULL,
+    canal text NOT NULL,
+    adresse text NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    inscrite_le timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT adresses_canal_canal_ck CHECK ((canal = 'telegram'::text))
+);
+
+
+--
+-- Name: adresses_canal_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.adresses_canal ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.adresses_canal_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: codes_inscription; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.codes_inscription (
+    id bigint NOT NULL,
+    utilisateur_id bigint NOT NULL,
+    canal text NOT NULL,
+    code_empreinte character(64) NOT NULL,
+    cree_le timestamp with time zone DEFAULT now() NOT NULL,
+    expire_le timestamp with time zone NOT NULL,
+    utilise_le timestamp with time zone,
+    CONSTRAINT codes_inscription_canal_ck CHECK ((canal = 'telegram'::text))
+);
+
+
+--
+-- Name: codes_inscription_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.codes_inscription ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.codes_inscription_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
 
 
 --
@@ -976,6 +1444,7 @@ CREATE TABLE public.decisions_referentiel (
     methode_verification text,
     justification text NOT NULL,
     decide_le timestamp with time zone DEFAULT now() NOT NULL,
+    canal text,
     CONSTRAINT decisions_referentiel_decision_ck CHECK ((decision = ANY (ARRAY['approuvee'::text, 'refusee'::text]))),
     CONSTRAINT decisions_referentiel_methode_ck CHECK (((decision = 'refusee'::text) OR (methode_verification IS NOT NULL)))
 );
@@ -1009,6 +1478,7 @@ CREATE TABLE public.demandes_referentiel (
     demande_par bigint NOT NULL,
     justification text NOT NULL,
     demande_le timestamp with time zone DEFAULT now() NOT NULL,
+    canal text,
     CONSTRAINT demandes_referentiel_fournisseur_ck CHECK (((type_demande = 'changement_rib'::text) = (fournisseur_id IS NOT NULL))),
     CONSTRAINT demandes_referentiel_type_ck CHECK ((type_demande = ANY (ARRAY['creation_fournisseur'::text, 'changement_rib'::text])))
 );
@@ -1020,6 +1490,49 @@ CREATE TABLE public.demandes_referentiel (
 
 ALTER TABLE public.demandes_referentiel ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.demandes_referentiel_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: etats_canal; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.etats_canal (
+    canal text NOT NULL,
+    curseur bigint DEFAULT 0 NOT NULL,
+    bail_jeton uuid,
+    bail_jusqu_a timestamp with time zone,
+    CONSTRAINT etats_canal_canal_ck CHECK ((canal = 'telegram'::text))
+);
+
+
+--
+-- Name: evenements_entrants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.evenements_entrants (
+    id bigint NOT NULL,
+    canal text NOT NULL,
+    reference text NOT NULL,
+    adresse text,
+    type text NOT NULL,
+    recu_le timestamp with time zone DEFAULT now() NOT NULL,
+    resultat jsonb NOT NULL,
+    CONSTRAINT evenements_entrants_type_ck CHECK ((type = ANY (ARRAY['inscription'::text, 'action'::text, 'texte'::text, 'autre'::text])))
+);
+
+
+--
+-- Name: evenements_entrants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.evenements_entrants ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.evenements_entrants_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1326,6 +1839,20 @@ CREATE TABLE public.methodes_verification (
 
 
 --
+-- Name: notifications_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.notifications ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.notifications_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: parametres_controle; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1340,7 +1867,7 @@ CREATE TABLE public.parametres_controle (
     justification text NOT NULL,
     cree_le timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT parametres_controle_periode_ck CHECK (((valide_au IS NULL) OR (valide_au > valide_du))),
-    CONSTRAINT parametres_controle_unite_ck CHECK ((unite = ANY (ARRAY['TND'::text, 'millimes'::text, 'caracteres'::text]))),
+    CONSTRAINT parametres_controle_unite_ck CHECK ((unite = ANY (ARRAY['TND'::text, 'millimes'::text, 'caracteres'::text, 'jours'::text, 'minutes'::text, 'secondes'::text]))),
     CONSTRAINT parametres_controle_valeur_ck CHECK ((valeur >= (0)::numeric))
 );
 
@@ -1528,6 +2055,46 @@ ALTER TABLE public.utilisateurs ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY
 
 
 --
+-- Name: actions_en_attente actions_en_attente_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.actions_en_attente
+    ADD CONSTRAINT actions_en_attente_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: adresses_canal adresses_canal_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.adresses_canal
+    ADD CONSTRAINT adresses_canal_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: adresses_canal adresses_canal_uk; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.adresses_canal
+    ADD CONSTRAINT adresses_canal_uk UNIQUE (canal, adresse);
+
+
+--
+-- Name: codes_inscription codes_inscription_code_empreinte_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.codes_inscription
+    ADD CONSTRAINT codes_inscription_code_empreinte_key UNIQUE (code_empreinte);
+
+
+--
+-- Name: codes_inscription codes_inscription_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.codes_inscription
+    ADD CONSTRAINT codes_inscription_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: config_fiscale config_fiscale_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1573,6 +2140,30 @@ ALTER TABLE ONLY public.decisions_referentiel
 
 ALTER TABLE ONLY public.demandes_referentiel
     ADD CONSTRAINT demandes_referentiel_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: etats_canal etats_canal_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.etats_canal
+    ADD CONSTRAINT etats_canal_pkey PRIMARY KEY (canal);
+
+
+--
+-- Name: evenements_entrants evenements_entrants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evenements_entrants
+    ADD CONSTRAINT evenements_entrants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: evenements_entrants evenements_entrants_uk; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.evenements_entrants
+    ADD CONSTRAINT evenements_entrants_uk UNIQUE (canal, reference);
 
 
 --
@@ -1661,6 +2252,22 @@ ALTER TABLE ONLY public.lignes_releve
 
 ALTER TABLE ONLY public.methodes_verification
     ADD CONSTRAINT methodes_verification_pkey PRIMARY KEY (code);
+
+
+--
+-- Name: notifications notifications_jeton_empreinte_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_jeton_empreinte_key UNIQUE (jeton_empreinte);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
 
 
 --
@@ -1760,11 +2367,17 @@ ALTER TABLE ONLY public.utilisateurs
 
 
 --
--- Name: utilisateurs utilisateurs_telegram_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: actions_en_attente_ouverte_uk; Type: INDEX; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.utilisateurs
-    ADD CONSTRAINT utilisateurs_telegram_id_key UNIQUE (telegram_id);
+CREATE UNIQUE INDEX actions_en_attente_ouverte_uk ON public.actions_en_attente USING btree (utilisateur_id, canal) WHERE (conclue_le IS NULL);
+
+
+--
+-- Name: adresses_canal_utilisateur_uk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX adresses_canal_utilisateur_uk ON public.adresses_canal USING btree (utilisateur_id, canal) WHERE active;
 
 
 --
@@ -1880,6 +2493,20 @@ CREATE INDEX lignes_releve_date_ix ON public.lignes_releve USING btree (date_ope
 
 
 --
+-- Name: notifications_demande_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notifications_demande_ix ON public.notifications USING btree (demande_id, utilisateur_id, canal);
+
+
+--
+-- Name: notifications_facture_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notifications_facture_ix ON public.notifications USING btree (facture_id, utilisateur_id, canal);
+
+
+--
 -- Name: rapprochements_ligne_releve_ix; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1992,6 +2619,13 @@ CREATE TRIGGER demandes_referentiel_verification BEFORE INSERT ON public.demande
 
 
 --
+-- Name: evenements_entrants evenements_entrants_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER evenements_entrants_pas_de_modification BEFORE DELETE OR UPDATE ON public.evenements_entrants FOR EACH ROW EXECUTE FUNCTION public.refuser_modification();
+
+
+--
 -- Name: extractions extractions_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2066,6 +2700,38 @@ CREATE TRIGGER resultats_controles_pas_de_modification BEFORE DELETE OR UPDATE O
 --
 
 CREATE TRIGGER resultats_controles_pas_de_vidage BEFORE TRUNCATE ON public.resultats_controles FOR EACH STATEMENT EXECUTE FUNCTION public.refuser_modification();
+
+
+--
+-- Name: actions_en_attente actions_en_attente_notification_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.actions_en_attente
+    ADD CONSTRAINT actions_en_attente_notification_id_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id);
+
+
+--
+-- Name: actions_en_attente actions_en_attente_utilisateur_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.actions_en_attente
+    ADD CONSTRAINT actions_en_attente_utilisateur_id_fkey FOREIGN KEY (utilisateur_id) REFERENCES public.utilisateurs(id);
+
+
+--
+-- Name: adresses_canal adresses_canal_utilisateur_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.adresses_canal
+    ADD CONSTRAINT adresses_canal_utilisateur_id_fkey FOREIGN KEY (utilisateur_id) REFERENCES public.utilisateurs(id);
+
+
+--
+-- Name: codes_inscription codes_inscription_utilisateur_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.codes_inscription
+    ADD CONSTRAINT codes_inscription_utilisateur_id_fkey FOREIGN KEY (utilisateur_id) REFERENCES public.utilisateurs(id);
 
 
 --
@@ -2189,6 +2855,30 @@ ALTER TABLE ONLY public.lignes_releve
 
 
 --
+-- Name: notifications notifications_demande_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_demande_id_fkey FOREIGN KEY (demande_id) REFERENCES public.demandes_referentiel(id);
+
+
+--
+-- Name: notifications notifications_facture_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_facture_id_fkey FOREIGN KEY (facture_id) REFERENCES public.factures(id);
+
+
+--
+-- Name: notifications notifications_utilisateur_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_utilisateur_id_fkey FOREIGN KEY (utilisateur_id) REFERENCES public.utilisateurs(id);
+
+
+--
 -- Name: rapprochements rapprochements_facture_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2248,4 +2938,7 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261006110000'),
     ('20261006110100'),
     ('20261006120000'),
-    ('20261006130000');
+    ('20261006130000'),
+    ('20261008090000'),
+    ('20261008100000'),
+    ('20261008110000');
