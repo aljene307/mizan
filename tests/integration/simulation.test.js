@@ -6,7 +6,9 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import pg from 'pg';
 import { creerCodeInscription, nouveauCode } from '../../scripts/creer-code-inscription.js';
-import { demandesEnAttente, deciderCommeSecondResponsable } from '../../scripts/simuler-second-responsable.js';
+import {
+  demandesEnAttente, deciderCommeSecondResponsable, annulationsEnAttente, deciderAnnulationCommeSecondResponsable,
+} from '../../scripts/simuler-second-responsable.js';
 import { chargerUtilisateursDemo } from '../../scripts/charger-utilisateurs-demo.js';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -56,4 +58,21 @@ test('second responsable fictif : décide une demande, avec les garde-fous habit
   const { rows: [x] } = await client.query('SELECT canal, decision FROM decisions_referentiel WHERE demande_id = $1', [d.id]);
   assert.deepEqual(x, { canal: 'simulation', decision: 'approuvee' });
   assert.ok(!(await demandesEnAttente(client)).some((y) => y.id === d.id));
+});
+
+test('annulation d\'un rapprochement (D-077) : le compte fictif approuve la demande d\'un autre responsable', async () => {
+  // Rapprochement confirmé laissé par restitution-scripts.test.js (facture INT-O-1).
+  const { rows: [p] } = await client.query(`SELECT x.id FROM propositions_rapprochement x JOIN rapprochements r ON r.proposition_id = x.id
+    JOIN factures f ON f.id = r.facture_id WHERE f.numero = 'INT-O-1' AND x.statut = 'confirme'`);
+  assert.ok(p, 'rapprochement confirmé de INT-O-1');
+  const { rows: [demandeur] } = await client.query("SELECT id FROM utilisateurs WHERE nom = 'Intégration – Responsable ordres'");
+  const { rows: [d] } = await client.query(`INSERT INTO demandes_annulation (proposition_id, demande_par, justification, canal)
+    VALUES ($1, $2, 'Rapprochement erroné, à reprendre', 'test') RETURNING id`, [p.id, demandeur.id]);
+  const attente = (await annulationsEnAttente(client)).find((a) => a.id === d.id);
+  assert.match(attente.factures, /INT-O-1 \(reglement\)/);
+  await deciderAnnulationCommeSecondResponsable(client, { demandeId: d.id, decision: 'approuvee', justification: 'Vérifié pour la démonstration' });
+  const { rows: [x] } = await client.query(`SELECT a.canal, a.decision, p.statut FROM decisions_annulation a
+    JOIN demandes_annulation d ON d.id = a.demande_id JOIN propositions_rapprochement p ON p.id = d.proposition_id WHERE a.demande_id = $1`, [d.id]);
+  assert.deepEqual(x, { canal: 'simulation', decision: 'approuvee', statut: 'annule' });
+  assert.ok(!(await annulationsEnAttente(client)).some((a) => a.id === d.id));
 });

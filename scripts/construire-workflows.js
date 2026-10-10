@@ -396,6 +396,8 @@ const preparer = {
   synthese: (d) => notificationSynthese({ candidat: d.candidat, synthese: d.synthese }),
   lot_paiement: (d) => notificationLot({ candidat: d.candidat, lot: d.lot }, deps),
   ligne_a_rapprocher: (d) => notificationLigneARapprocher({ candidat: d.candidat, ligne_a_rapprocher: d.ligne_a_rapprocher }, deps),
+  choix_annulation: (d) => notificationChoixAnnulation({ candidat: d.candidat, choix_annulation: d.choix_annulation }, deps),
+  demande_annulation: (d) => notificationDemandeAnnulation({ candidat: d.candidat, demande_annulation: d.demande_annulation }, deps),
 };
 return $input.all().map((i) => {
   const d = i.json.donnees;

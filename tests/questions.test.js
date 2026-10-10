@@ -111,6 +111,9 @@ test('Telegram : « /q » suivi d\'une question → événement question ; sans 
   assert.equal(evenementTelegram(msg('/q@MizanBot factures en retard')).evenement.type, 'question');
   assert.equal(evenementTelegram(msg('/q')).evenement.type, 'autre');
   assert.equal(evenementTelegram(msg('/question en retard')).evenement.type, 'autre');
+  assert.deepEqual(evenementTelegram(msg('/annuler ISS260302')).evenement,
+    { canal: 'telegram', reference: '9', adresse: '5', type: 'commande', commande: 'annuler', argument: 'ISS260302' });
+  assert.equal(evenementTelegram(msg('/annuler')).evenement.type, 'autre', '/annuler sans numéro : ignoré');
   const groupe = evenementTelegram({ update_id: 10, message: { chat: { id: -1, type: 'group' }, from: { id: 5, is_bot: false }, text: '/q x' } });
   assert.equal(groupe.evenement.type, 'autre', 'jamais dans un groupe');
 });

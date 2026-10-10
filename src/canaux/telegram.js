@@ -15,6 +15,8 @@ const DONNEE_BOUTON = /^([0-9a-f]{32}):(\d{1,3})$/;
 const COMMANDE_START = /^\/start(?:@\w+)?(?:\s+(\S+))?\s*$/;
 // Question en langage naturel (D-068, B2) : « /q » suivi de la question.
 const COMMANDE_QUESTION = /^\/q(?:@\w+)?\s+([\s\S]+)$/;
+// Annulation d'un rapprochement (D-077) : « /annuler » suivi du numéro de facture.
+const COMMANDE_ANNULER = /^\/annuler(?:@\w+)?\s+(\S[^\n]{0,59})$/;
 const SYMBOLES_GRAVITE = Object.freeze({ bloquant: '⛔', avertissement: '⚠️', validation: '🔎' });
 
 /** Échappe un texte pour le mode HTML de Telegram. */
@@ -56,8 +58,10 @@ function evenementTelegram(miseAJour) {
     if (prive && texte) {
       const start = COMMANDE_START.exec(texte);
       const question = COMMANDE_QUESTION.exec(texte);
+      const annuler = COMMANDE_ANNULER.exec(texte);
       if (start?.[1]) Object.assign(evenement, { type: 'inscription', code: start[1] });
       else if (question) Object.assign(evenement, { type: 'question', texte: question[1].trim() });
+      else if (annuler) Object.assign(evenement, { type: 'commande', commande: 'annuler', argument: annuler[1].trim() });
       else if (!texte.startsWith('/')) Object.assign(evenement, { type: 'texte', texte });
     }
     return { evenement, repondre: { chat_id: msg.chat?.id ?? null, callback_query_id: null, prive } };

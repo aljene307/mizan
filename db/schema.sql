@@ -67,10 +67,12 @@ CREATE TABLE public.notifications (
     releve_id bigint,
     lot_id bigint,
     ligne_releve_id bigint,
+    recherche_annulation_id bigint,
+    demande_annulation_id bigint,
     CONSTRAINT notifications_actions_ck CHECK ((jsonb_typeof(actions) = 'array'::text)),
     CONSTRAINT notifications_canal_ck CHECK ((canal = 'telegram'::text)),
     CONSTRAINT notifications_etat_ck CHECK ((etat = ANY (ARRAY['a_envoyer'::text, 'envoyee'::text, 'echec'::text]))),
-    CONSTRAINT notifications_objet_ck CHECK ((((objet = 'facture'::text) AND (facture_id IS NOT NULL) AND (demande_id IS NULL)) OR ((objet = 'demande'::text) AND (demande_id IS NOT NULL)) OR ((objet = 'rapprochement'::text) AND (proposition_id IS NOT NULL)) OR ((objet = 'signalement'::text) AND (signalement_id IS NOT NULL)) OR ((objet = 'synthese'::text) AND (releve_id IS NOT NULL)) OR ((objet = 'lot_paiement'::text) AND (lot_id IS NOT NULL)) OR ((objet = 'ligne_a_rapprocher'::text) AND (ligne_releve_id IS NOT NULL))))
+    CONSTRAINT notifications_objet_ck CHECK ((((objet = 'facture'::text) AND (facture_id IS NOT NULL) AND (demande_id IS NULL)) OR ((objet = 'demande'::text) AND (demande_id IS NOT NULL)) OR ((objet = 'rapprochement'::text) AND (proposition_id IS NOT NULL)) OR ((objet = 'signalement'::text) AND (signalement_id IS NOT NULL)) OR ((objet = 'synthese'::text) AND (releve_id IS NOT NULL)) OR ((objet = 'lot_paiement'::text) AND (lot_id IS NOT NULL)) OR ((objet = 'ligne_a_rapprocher'::text) AND (ligne_releve_id IS NOT NULL)) OR ((objet = 'choix_annulation'::text) AND (recherche_annulation_id IS NOT NULL)) OR ((objet = 'demande_annulation'::text) AND (demande_annulation_id IS NOT NULL))))
 );
 
 
@@ -135,6 +137,15 @@ BEGIN
                     p_utilisateur, p_texte, p_canal);
     ELSIF v_code = 'signaler_sans_facture' THEN
         v_id := signaler_ligne_sans_facture(p_notif.ligne_releve_id, p_utilisateur, p_texte, p_canal);
+    ELSIF v_code = 'demander_annulation' THEN
+        INSERT INTO demandes_annulation (proposition_id, demande_par, justification, canal)
+        VALUES ((v_params ->> 'proposition_id')::BIGINT, p_utilisateur, p_texte, p_canal)
+        RETURNING id INTO v_id;
+    ELSIF v_code IN ('approuver_annulation', 'refuser_annulation') THEN
+        INSERT INTO decisions_annulation (demande_id, decision, utilisateur_id, justification, canal)
+        VALUES (p_notif.demande_annulation_id, CASE v_code WHEN 'approuver_annulation' THEN 'approuvee' ELSE 'refusee' END,
+                p_utilisateur, p_texte, p_canal)
+        RETURNING id INTO v_id;
     ELSE
         RAISE EXCEPTION 'action « % » inconnue', v_code USING ERRCODE = 'MZ032';
     END IF;
@@ -394,24 +405,99 @@ BEGIN
        AND NOT EXISTS (SELECT 1 FROM lignes_a_rapprocher WHERE ligne_releve_id = (p ->> 'ligne_releve_id')::BIGINT) THEN
         RAISE EXCEPTION 'la ligne n''est plus à rapprocher' USING ERRCODE = 'MZ031';
     END IF;
+    IF p ->> 'objet' = 'demande_annulation' AND EXISTS (SELECT 1 FROM decisions_annulation x
+                                                       WHERE x.demande_id = (p ->> 'demande_annulation_id')::BIGINT) THEN
+        RAISE EXCEPTION 'la demande d''annulation est déjà décidée' USING ERRCODE = 'MZ031';
+    END IF;
+    -- Choix : chaque bouton désigne un rapprochement confirmé d'une facture du numéro recherché.
+    IF p ->> 'objet' = 'choix_annulation' AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(p -> 'actions') a
+        WHERE a ->> 'code' = 'demander_annulation'
+          AND NOT EXISTS (SELECT 1 FROM recherches_annulation ra
+                          JOIN propositions_rapprochement x ON x.id = (a -> 'params' ->> 'proposition_id')::BIGINT AND x.statut = 'confirme'
+                          JOIN rapprochements r ON r.proposition_id = x.id
+                          JOIN factures fx ON fx.id = r.facture_id
+                          WHERE ra.id = (p ->> 'recherche_annulation_id')::BIGINT
+                            AND upper(regexp_replace(fx.numero, '\s', '', 'g')) = upper(regexp_replace(ra.numero, '\s', '', 'g')))) THEN
+        RAISE EXCEPTION 'bouton d''annulation hors de la recherche' USING ERRCODE = 'MZ032';
+    END IF;
     IF jsonb_typeof(p -> 'actions') <> 'array' OR EXISTS (
         SELECT 1 FROM jsonb_array_elements(p -> 'actions') a
         WHERE a ->> 'code' NOT IN ('valider', 'rejeter', 'renvoyer_aux_controles', 'confirmer_fournisseur',
                                    'demander_changement_rib', 'demander_creation_fournisseur', 'approuver', 'refuser',
                                    'confirmer_rapprochement', 'rejeter_rapprochement', 'classer_signalement',
                                    'approuver_lot', 'refuser_lot',
-                                   'rapprocher_facture', 'rapprocher_autre', 'signaler_sans_facture')) THEN
+                                   'rapprocher_facture', 'rapprocher_autre', 'signaler_sans_facture',
+                                   'demander_annulation', 'approuver_annulation', 'refuser_annulation')) THEN
         RAISE EXCEPTION 'action inconnue dans la notification' USING ERRCODE = 'MZ032';
     END IF;
-    INSERT INTO notifications (canal, utilisateur_id, objet, facture_id, demande_id, proposition_id, signalement_id, releve_id, lot_id, ligne_releve_id,
+    INSERT INTO notifications (canal, utilisateur_id, objet, facture_id, demande_id, proposition_id, signalement_id, releve_id, lot_id, ligne_releve_id, recherche_annulation_id, demande_annulation_id,
                                statut_facture, passage_controle, actions, contenu, jeton_empreinte, expire_le)
     VALUES (v_canal, (p ->> 'utilisateur_id')::BIGINT, p ->> 'objet', (p ->> 'facture_id')::BIGINT,
             (p ->> 'demande_id')::BIGINT, (p ->> 'proposition_id')::BIGINT, (p ->> 'signalement_id')::BIGINT,
-            (p ->> 'releve_id')::BIGINT, (p ->> 'lot_id')::BIGINT, (p ->> 'ligne_releve_id')::BIGINT, p ->> 'statut_facture', (p ->> 'passage_controle')::BIGINT,
+            (p ->> 'releve_id')::BIGINT, (p ->> 'lot_id')::BIGINT, (p ->> 'ligne_releve_id')::BIGINT, (p ->> 'recherche_annulation_id')::BIGINT,
+            (p ->> 'demande_annulation_id')::BIGINT, p ->> 'statut_facture', (p ->> 'passage_controle')::BIGINT,
             p -> 'actions', p -> 'contenu', encode(sha256(convert_to(v_jeton, 'UTF8')), 'hex'),
             now() + make_interval(days => parametre_controle('notification.validite_jours')::INTEGER))
     RETURNING id INTO v_id;
     RETURN QUERY SELECT v_id, v_jeton;
+END;
+$$;
+
+
+--
+-- Name: decisions_annulation_appliquer(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.decisions_annulation_appliquer() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+    v_demande demandes_annulation%ROWTYPE;
+BEGIN
+    SELECT * INTO v_demande FROM demandes_annulation WHERE id = NEW.demande_id;
+    IF NEW.decision = 'approuvee' THEN
+        UPDATE propositions_rapprochement SET statut = 'annule' WHERE id = v_demande.proposition_id;
+        UPDATE rapprochements SET statut = 'annule' WHERE proposition_id = v_demande.proposition_id;
+    END IF;
+    INSERT INTO journal_audit (acteur, action, entite, entite_id, canal, donnees_apres, commentaire)
+    VALUES ('utilisateur:' || NEW.utilisateur_id,
+            CASE NEW.decision WHEN 'approuvee' THEN 'rapprochement.annule' ELSE 'rapprochement.annulation_refusee' END,
+            'propositions_rapprochement', v_demande.proposition_id::text, NEW.canal,
+            jsonb_build_object('demande_id', v_demande.id, 'decision_id', NEW.id, 'demande_par', v_demande.demande_par,
+                               'factures', (SELECT jsonb_agg(jsonb_build_object('facture_id', r.facture_id, 'role', r.role,
+                                                    'montant', r.montant_affecte) ORDER BY r.id)
+                                            FROM rapprochements r WHERE r.proposition_id = v_demande.proposition_id)),
+            NEW.justification);
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: decisions_annulation_verifier(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.decisions_annulation_verifier() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_demande demandes_annulation%ROWTYPE;
+BEGIN
+    SELECT * INTO v_demande FROM demandes_annulation WHERE id = NEW.demande_id;
+    PERFORM utilisateur_autorise(NEW.utilisateur_id, ARRAY['responsable']);
+    PERFORM verifier_justification(NEW.justification);
+    IF NEW.utilisateur_id = v_demande.demande_par THEN
+        RAISE EXCEPTION 'quatre yeux : le demandeur ne peut pas décider de sa propre demande' USING ERRCODE = 'MZ018';
+    END IF;
+    PERFORM 1 FROM propositions_rapprochement WHERE id = v_demande.proposition_id FOR UPDATE;
+    IF NEW.decision = 'approuvee'
+       AND (SELECT statut FROM propositions_rapprochement WHERE id = v_demande.proposition_id) IS DISTINCT FROM 'confirme' THEN
+        RAISE EXCEPTION 'proposition % : plus confirmée', v_demande.proposition_id USING ERRCODE = 'MZ042';
+    END IF;
+    NEW.decide_le := now();
+    RETURN NEW;
 END;
 $$;
 
@@ -551,6 +637,8 @@ BEGIN
         SELECT string_agg(format('%s (%s)', o.reference,
                    CASE WHEN f.statut NOT IN ('conforme', 'validee') THEN 'facture plus approuvée'
                         WHEN r.valide_au IS NOT NULL THEN 'RIB plus actif au référentiel'
+                        WHEN EXISTS (SELECT 1 FROM factures_bloquees_ordres b WHERE b.facture_id = o.facture_id)
+                            THEN 'rapprochement annulé, ligne à retraiter'
                         ELSE 'montant plus dû' END), ', ' ORDER BY o.id)
         INTO v_motif
         FROM ordres_paiement o JOIN factures f ON f.id = o.facture_id JOIN fournisseur_ribs r ON r.id = o.fournisseur_rib_id
@@ -771,6 +859,47 @@ $$;
 
 
 --
+-- Name: demandes_annulation_tracer(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.demandes_annulation_tracer() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+    INSERT INTO journal_audit (acteur, action, entite, entite_id, canal, donnees_apres, commentaire)
+    VALUES ('utilisateur:' || NEW.demande_par, 'rapprochement.annulation_demandee', 'propositions_rapprochement',
+            NEW.proposition_id::text, NEW.canal, jsonb_build_object('demande_id', NEW.id), NEW.justification);
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: demandes_annulation_verifier(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.demandes_annulation_verifier() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    PERFORM utilisateur_autorise(NEW.demande_par, ARRAY['responsable']);
+    PERFORM verifier_justification(NEW.justification);
+    PERFORM 1 FROM propositions_rapprochement WHERE id = NEW.proposition_id FOR UPDATE;
+    IF (SELECT statut FROM propositions_rapprochement WHERE id = NEW.proposition_id) IS DISTINCT FROM 'confirme' THEN
+        RAISE EXCEPTION 'proposition % : seul un rapprochement confirmé peut être annulé', NEW.proposition_id USING ERRCODE = 'MZ042';
+    END IF;
+    IF EXISTS (SELECT 1 FROM demandes_annulation d WHERE d.proposition_id = NEW.proposition_id
+               AND NOT EXISTS (SELECT 1 FROM decisions_annulation x WHERE x.demande_id = d.id)) THEN
+        RAISE EXCEPTION 'proposition % : une demande d''annulation est déjà en attente', NEW.proposition_id USING ERRCODE = 'MZ042';
+    END IF;
+    NEW.demande_le := now();
+    RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: demandes_referentiel_journaliser(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -830,6 +959,26 @@ $_$;
 
 
 --
+-- Name: detail_proposition(bigint); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.detail_proposition(p_id bigint) RETURNS jsonb
+    LANGUAGE sql STABLE
+    AS $$
+    SELECT jsonb_build_object('id', x.id, 'cas', x.cas, 'methode', x.methode, 'statut', x.statut,
+        'ligne', (SELECT jsonb_build_object('id', l.id, 'releve_id', l.releve_id, 'numero_ligne', l.numero_ligne,
+                         'date_operation', l.date_operation, 'libelle', l.libelle, 'debit', l.debit)
+                  FROM lignes_releve l WHERE l.id = x.ligne_releve_id),
+        'affectations', (SELECT jsonb_agg(jsonb_build_object('facture_id', fx.id, 'numero', fx.numero,
+                                 'raison_sociale', coalesce(fo.raison_sociale, fx.raison_sociale_lue), 'role', r.role,
+                                 'montant', r.montant_affecte) ORDER BY r.role DESC, fx.id)
+                         FROM rapprochements r JOIN factures fx ON fx.id = r.facture_id
+                         LEFT JOIN fournisseurs fo ON fo.id = fx.fournisseur_id WHERE r.proposition_id = x.id))
+    FROM propositions_rapprochement x WHERE x.id = p_id;
+$$;
+
+
+--
 -- Name: donnees_notifications(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -841,6 +990,7 @@ CREATE FUNCTION public.donnees_notifications(p_canal text) RETURNS SETOF jsonb
             'canal', p_canal, 'objet', c.objet, 'utilisateur_id', c.utilisateur_id, 'role', c.role,
             'passage_controle', c.passage_controle, 'proposition_id', c.proposition_id,
             'signalement_id', c.signalement_id, 'releve_id', c.releve_id, 'lot_id', c.lot_id, 'ligne_releve_id', c.ligne_releve_id,
+            'recherche_annulation_id', c.recherche_annulation_id, 'demande_annulation_id', c.demande_annulation_id,
             'adresse', (SELECT a.adresse FROM adresses_canal a
                         WHERE a.utilisateur_id = c.utilisateur_id AND a.canal = p_canal AND a.active)),
         'facture', to_jsonb(f) - 'extraction_brute',
@@ -900,6 +1050,16 @@ CREATE FUNCTION public.donnees_notifications(p_canal text) RETURNS SETOF jsonb
                       AND NOT (s.facture_id = ANY (coalesce(a.factures_rejetees, '{}')))
                     ORDER BY abs(s.reste_a_payer - s.paiement_propose - a.debit), s.facture_id LIMIT 30) x))
             FROM lignes_a_rapprocher a WHERE a.ligne_releve_id = c.ligne_releve_id),
+        'choix_annulation', (SELECT jsonb_build_object('numero', ra.numero,
+                'propositions', (SELECT coalesce(jsonb_agg(detail_proposition(x.id) ORDER BY x.id), '[]'::jsonb)
+                    FROM propositions_rapprochement x WHERE x.statut = 'confirme' AND EXISTS (
+                        SELECT 1 FROM rapprochements r JOIN factures fx ON fx.id = r.facture_id WHERE r.proposition_id = x.id
+                          AND upper(regexp_replace(fx.numero, '\s', '', 'g')) = upper(regexp_replace(ra.numero, '\s', '', 'g')))))
+            FROM recherches_annulation ra WHERE ra.id = c.recherche_annulation_id),
+        'demande_annulation', (SELECT jsonb_build_object('id', da.id, 'justification', da.justification,
+                'demande_le', da.demande_le, 'demande_par_nom', (SELECT nom FROM utilisateurs WHERE id = da.demande_par),
+                'proposition', detail_proposition(da.proposition_id))
+            FROM demandes_annulation da WHERE da.id = c.demande_annulation_id),
         'methodes', (SELECT jsonb_agg(jsonb_build_object('code', m.code, 'type_demande', m.type_demande, 'libelle', m.libelle) ORDER BY m.code)
                      FROM methodes_verification m))
     FROM notifications_a_preparer(p_canal) c
@@ -1362,6 +1522,24 @@ $$;
 
 
 --
+-- Name: ligne_a_rapprocher_depuis(bigint); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.ligne_a_rapprocher_depuis(p_ligne bigint) RETURNS timestamp with time zone
+    LANGUAGE sql STABLE
+    AS $$
+    SELECT greatest(
+        (SELECT max(d.decide_le) FROM decisions_rapprochement d
+         JOIN propositions_rapprochement x ON x.id = d.proposition_id
+         WHERE x.ligne_releve_id = p_ligne AND d.decision = 'rejeter'),
+        (SELECT max(a.decide_le) FROM decisions_annulation a
+         JOIN demandes_annulation da ON da.id = a.demande_id
+         JOIN propositions_rapprochement x ON x.id = da.proposition_id
+         WHERE x.ligne_releve_id = p_ligne AND a.decision = 'approuvee'));
+$$;
+
+
+--
 -- Name: maj_modifie_le(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1398,10 +1576,11 @@ $$;
 CREATE FUNCTION public.montant_a_ordonner(p_facture_id bigint, p_sauf_lot bigint DEFAULT NULL::bigint) RETURNS numeric
     LANGUAGE sql STABLE
     AS $$
-    SELECT s.reste_a_payer - s.paiement_propose
-           - coalesce((SELECT sum(e.reste_a_executer) FROM ordres_en_cours e
-                       WHERE e.facture_id = s.facture_id AND current_date <= e.expire_le
-                         AND e.lot_id IS DISTINCT FROM p_sauf_lot), 0)
+    SELECT CASE WHEN EXISTS (SELECT 1 FROM factures_bloquees_ordres b WHERE b.facture_id = s.facture_id) THEN 0
+           ELSE s.reste_a_payer - s.paiement_propose
+                - coalesce((SELECT sum(e.reste_a_executer) FROM ordres_en_cours e
+                            WHERE e.facture_id = s.facture_id AND current_date <= e.expire_le
+                              AND e.lot_id IS DISTINCT FROM p_sauf_lot), 0) END
     FROM situation_paiement s WHERE s.facture_id = p_facture_id;
 $$;
 
@@ -1430,7 +1609,7 @@ CREATE FUNCTION public.normaliser_numero_facture(numero text) RETURNS text
 -- Name: notifications_a_preparer(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.notifications_a_preparer(p_canal text) RETURNS TABLE(objet text, facture_id bigint, demande_id bigint, proposition_id bigint, signalement_id bigint, releve_id bigint, utilisateur_id bigint, role text, statut_facture text, passage_controle bigint, lot_id bigint, ligne_releve_id bigint)
+CREATE FUNCTION public.notifications_a_preparer(p_canal text) RETURNS TABLE(objet text, facture_id bigint, demande_id bigint, proposition_id bigint, signalement_id bigint, releve_id bigint, utilisateur_id bigint, role text, statut_facture text, passage_controle bigint, lot_id bigint, ligne_releve_id bigint, recherche_annulation_id bigint, demande_annulation_id bigint)
     LANGUAGE sql STABLE
     AS $$
     WITH destinataires AS (
@@ -1440,7 +1619,7 @@ CREATE FUNCTION public.notifications_a_preparer(p_canal text) RETURNS TABLE(obje
     factures_en_attente AS (
         SELECT f.id, f.statut, (SELECT max(r.passage) FROM resultats_controles r WHERE r.facture_id = f.id) AS passage
         FROM factures f WHERE f.statut IN ('a_valider', 'anomalie', 'bloquee'))
-    SELECT 'facture', fa.id, NULL::BIGINT, NULL::BIGINT, NULL::BIGINT, NULL::BIGINT, d.id, d.role, fa.statut, fa.passage, NULL::BIGINT, NULL::BIGINT
+    SELECT 'facture', fa.id, NULL::BIGINT, NULL::BIGINT, NULL::BIGINT, NULL::BIGINT, d.id, d.role, fa.statut, fa.passage, NULL::BIGINT, NULL::BIGINT, NULL::BIGINT, NULL::BIGINT
     FROM factures_en_attente fa JOIN destinataires d
       ON fa.statut <> 'bloquee' OR d.role = 'responsable'
     WHERE NOT EXISTS (
@@ -1450,7 +1629,7 @@ CREATE FUNCTION public.notifications_a_preparer(p_canal text) RETURNS TABLE(obje
           AND n.expire_le > now()
           AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
     UNION ALL
-    SELECT 'demande', dr.facture_id, dr.id, NULL, NULL, NULL, d.id, d.role, NULL, NULL, NULL, NULL
+    SELECT 'demande', dr.facture_id, dr.id, NULL, NULL, NULL, d.id, d.role, NULL, NULL, NULL, NULL, NULL, NULL
     FROM demandes_referentiel dr JOIN destinataires d
       ON d.role = 'responsable' AND d.id <> dr.demande_par   -- quatre yeux
     WHERE NOT EXISTS (SELECT 1 FROM decisions_referentiel x WHERE x.demande_id = dr.id)
@@ -1460,38 +1639,52 @@ CREATE FUNCTION public.notifications_a_preparer(p_canal text) RETURNS TABLE(obje
           AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
     UNION ALL
     -- Propositions de rapprochement à confirmer : validateurs et responsables (D-065).
-    SELECT 'rapprochement', NULL, NULL, p.id, NULL, l.releve_id, d.id, d.role, NULL, NULL, NULL, NULL
+    SELECT 'rapprochement', NULL, NULL, p.id, NULL, l.releve_id, d.id, d.role, NULL, NULL, NULL, NULL, NULL, NULL
     FROM propositions_rapprochement p JOIN lignes_releve l ON l.id = p.ligne_releve_id JOIN destinataires d ON TRUE
     WHERE p.statut = 'propose'
       AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.proposition_id = p.id AND n.utilisateur_id = d.id
                         AND n.canal = p_canal AND n.expire_le > now() AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
     UNION ALL
     -- Signalements ouverts : responsables seulement (D-065).
-    SELECT 'signalement', s.facture_id, NULL, NULL, s.id, l.releve_id, d.id, d.role, NULL, NULL, NULL, NULL
+    SELECT 'signalement', s.facture_id, NULL, NULL, s.id, l.releve_id, d.id, d.role, NULL, NULL, NULL, NULL, NULL, NULL
     FROM signalements_paiement s JOIN lignes_releve l ON l.id = s.ligne_releve_id JOIN destinataires d ON d.role = 'responsable'
     WHERE s.statut = 'ouvert'
       AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.signalement_id = s.id AND n.utilisateur_id = d.id
                         AND n.canal = p_canal AND n.expire_le > now() AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
     UNION ALL
     -- Synthèse : une par passage de rapprochement d'un relevé et par destinataire.
-    SELECT 'synthese', NULL, NULL, NULL, NULL, r.id, d.id, d.role, NULL, NULL, NULL, NULL
+    SELECT 'synthese', NULL, NULL, NULL, NULL, r.id, d.id, d.role, NULL, NULL, NULL, NULL, NULL, NULL
     FROM releves_bancaires r JOIN destinataires d ON TRUE
     WHERE r.rapproche_le IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.objet = 'synthese' AND n.releve_id = r.id AND n.utilisateur_id = d.id
                         AND n.canal = p_canal AND n.cree_le >= r.rapproche_le AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
     UNION ALL
     -- Lot d'ordres de paiement en attente : responsables seulement (D-068, C-a1).
-    SELECT 'lot_paiement', NULL, NULL, NULL, NULL, NULL, d.id, d.role, NULL, NULL, lp.id, NULL
+    SELECT 'lot_paiement', NULL, NULL, NULL, NULL, NULL, d.id, d.role, NULL, NULL, lp.id, NULL, NULL, NULL
     FROM lots_paiement lp JOIN destinataires d ON d.role = 'responsable'
     WHERE lp.statut = 'propose'
       AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.lot_id = lp.id AND n.utilisateur_id = d.id
                         AND n.canal = p_canal AND n.expire_le > now() AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
     UNION ALL
     -- Ligne dont la proposition a été rejetée : validateurs et responsables (D-068, D1).
-    SELECT 'ligne_a_rapprocher', NULL, NULL, NULL, NULL, a.releve_id, d.id, d.role, NULL, NULL, NULL, a.ligne_releve_id
+    SELECT 'ligne_a_rapprocher', NULL, NULL, NULL, NULL, a.releve_id, d.id, d.role, NULL, NULL, NULL, a.ligne_releve_id, NULL, NULL
     FROM lignes_a_rapprocher a JOIN destinataires d ON TRUE
     WHERE NOT EXISTS (SELECT 1 FROM notifications n WHERE n.objet = 'ligne_a_rapprocher' AND n.ligne_releve_id = a.ligne_releve_id
-                        AND n.utilisateur_id = d.id AND n.canal = p_canal AND n.expire_le > now() AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')));
+                        AND n.cree_le >= ligne_a_rapprocher_depuis(a.ligne_releve_id)
+                        AND n.utilisateur_id = d.id AND n.canal = p_canal AND n.expire_le > now() AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
+    UNION ALL
+    -- Choix du rapprochement à annuler : au seul responsable qui a lancé la recherche (D-077).
+    SELECT 'choix_annulation', NULL, NULL, NULL, NULL, NULL, d.id, d.role, NULL, NULL, NULL, NULL, ra.id, NULL
+    FROM recherches_annulation ra JOIN destinataires d ON d.id = ra.utilisateur_id AND d.role = 'responsable'
+    WHERE ra.canal = p_canal AND ra.cree_le > now() - interval '1 day'
+      AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.recherche_annulation_id = ra.id AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')))
+    UNION ALL
+    -- Demande d'annulation en attente : aux AUTRES responsables (quatre yeux).
+    SELECT 'demande_annulation', NULL, NULL, da.proposition_id, NULL, NULL, d.id, d.role, NULL, NULL, NULL, NULL, NULL, da.id
+    FROM demandes_annulation da JOIN destinataires d ON d.role = 'responsable' AND d.id <> da.demande_par
+    WHERE NOT EXISTS (SELECT 1 FROM decisions_annulation x WHERE x.demande_id = da.id)
+      AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.demande_annulation_id = da.id AND n.utilisateur_id = d.id
+                        AND n.canal = p_canal AND n.expire_le > now() AND (n.etat = 'envoyee' OR (n.etat = 'a_envoyer' AND n.cree_le > now() - interval '10 minutes')));
 $$;
 
 
@@ -1761,7 +1954,15 @@ BEGIN
                   AND (SELECT statut FROM lots_paiement WHERE id = v_notif.lot_id) <> 'propose' THEN
                 v_res := jsonb_build_object('code', 'notification_perimee');
             ELSIF v_notif.objet = 'ligne_a_rapprocher'
-                  AND NOT EXISTS (SELECT 1 FROM lignes_a_rapprocher WHERE ligne_releve_id = v_notif.ligne_releve_id) THEN
+                  AND (NOT EXISTS (SELECT 1 FROM lignes_a_rapprocher WHERE ligne_releve_id = v_notif.ligne_releve_id)
+                       OR v_notif.cree_le < ligne_a_rapprocher_depuis(v_notif.ligne_releve_id)) THEN
+                v_res := jsonb_build_object('code', 'notification_perimee');
+            ELSIF v_notif.objet = 'demande_annulation'
+                  AND EXISTS (SELECT 1 FROM decisions_annulation x WHERE x.demande_id = v_notif.demande_annulation_id) THEN
+                v_res := jsonb_build_object('code', 'notification_perimee');
+            ELSIF v_notif.objet = 'choix_annulation'
+                  AND (SELECT statut FROM propositions_rapprochement WHERE id = (v_action -> 'params' ->> 'proposition_id')::BIGINT)
+                      IS DISTINCT FROM 'confirme' THEN
                 v_res := jsonb_build_object('code', 'notification_perimee');
             ELSE
                 UPDATE actions_en_attente SET conclue_le = now(), resultat = 'remplacee'
@@ -1772,6 +1973,24 @@ BEGIN
                 v_res := jsonb_build_object('code', 'justification_demandee', 'action', v_action,
                                             'contenu', v_notif.contenu,
                                             'delai_minutes', parametre_controle('justification.delai_minutes'));
+            END IF;
+        END IF;
+
+    ELSIF v_type = 'commande' AND p ->> 'commande' = 'annuler' THEN
+        -- Annulation d'un rapprochement (D-077) : responsable seulement ; la
+        -- liste des rapprochements confirmés de la facture arrive par notification.
+        IF v_util.role <> 'responsable' THEN
+            v_res := jsonb_build_object('code', 'commande_refusee', 'motif', 'role');
+        ELSE
+            SELECT count(DISTINCT x.id) INTO v_id FROM propositions_rapprochement x
+            JOIN rapprochements r ON r.proposition_id = x.id JOIN factures fx ON fx.id = r.facture_id
+            WHERE x.statut = 'confirme'
+              AND upper(regexp_replace(fx.numero, '\s', '', 'g')) = upper(regexp_replace(coalesce(p ->> 'argument', ''), '\s', '', 'g'));
+            IF v_id = 0 THEN
+                v_res := jsonb_build_object('code', 'annulation_introuvable', 'numero', p ->> 'argument');
+            ELSE
+                INSERT INTO recherches_annulation (utilisateur_id, canal, numero) VALUES (v_util.id, v_canal, btrim(p ->> 'argument'));
+                v_res := jsonb_build_object('code', 'recherche_annulation_enregistree', 'numero', p ->> 'argument', 'rapprochements', v_id);
             END IF;
         END IF;
 
@@ -1809,10 +2028,21 @@ BEGIN
                 v_res := jsonb_build_object('code', 'decision_enregistree', 'action', v_action, 'id', v_id,
                                             'statut', (SELECT statut FROM factures WHERE id = v_notif.facture_id));
             EXCEPTION WHEN OTHERS THEN
-                -- Refus de la base (rôle, justification, règle non dérogeable,
-                -- quatre yeux…) : rien n'est appliqué, le motif est renvoyé.
-                v_res := jsonb_build_object('code', 'decision_refusee', 'action', v_action,
-                                            'erreur', SQLSTATE, 'motif', SQLERRM);
+                -- Refus de la base : rien n'est appliqué. Un refus prévu (code
+                -- MZ : rôle, justification, quatre yeux…) est expliqué ; une
+                -- erreur interne n'est JAMAIS renvoyée telle quelle (défaut du
+                -- 2026-10-10) : détail au journal, référence à l'usager.
+                IF SQLSTATE LIKE 'MZ%' THEN
+                    v_res := jsonb_build_object('code', 'decision_refusee', 'action', v_action,
+                                                'erreur', SQLSTATE, 'motif', SQLERRM);
+                ELSE
+                    INSERT INTO journal_audit (acteur, action, entite, entite_id, canal, donnees_apres)
+                    VALUES ('utilisateur:' || v_util.id, 'canal.erreur_interne', 'notifications', v_notif.id::text, v_canal,
+                            jsonb_build_object('sqlstate', SQLSTATE, 'message', SQLERRM, 'action', v_action))
+                    RETURNING id INTO v_id;
+                    v_res := jsonb_build_object('code', 'decision_refusee', 'action', v_action,
+                                                'erreur', 'interne', 'reference', v_id);
+                END IF;
             END;
             UPDATE actions_en_attente SET conclue_le = now(), resultat = v_res ->> 'code' WHERE id = v_attente.id;
         END IF;
@@ -2157,6 +2387,36 @@ ALTER TABLE public.config_fiscale ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
 
 
 --
+-- Name: decisions_annulation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.decisions_annulation (
+    id bigint NOT NULL,
+    demande_id bigint NOT NULL,
+    decision text NOT NULL,
+    utilisateur_id bigint NOT NULL,
+    justification text NOT NULL,
+    canal text,
+    decide_le timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT decisions_annulation_decision_ck CHECK ((decision = ANY (ARRAY['approuvee'::text, 'refusee'::text])))
+);
+
+
+--
+-- Name: decisions_annulation_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.decisions_annulation ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.decisions_annulation_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: decisions_humaines; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2315,6 +2575,34 @@ ALTER TABLE public.decisions_signalement ALTER COLUMN id ADD GENERATED ALWAYS AS
 
 
 --
+-- Name: demandes_annulation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.demandes_annulation (
+    id bigint NOT NULL,
+    proposition_id bigint NOT NULL,
+    demande_par bigint NOT NULL,
+    justification text NOT NULL,
+    canal text,
+    demande_le timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: demandes_annulation_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.demandes_annulation ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.demandes_annulation_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: demandes_referentiel; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2373,7 +2661,7 @@ CREATE TABLE public.evenements_entrants (
     type text NOT NULL,
     recu_le timestamp with time zone DEFAULT now() NOT NULL,
     resultat jsonb NOT NULL,
-    CONSTRAINT evenements_entrants_type_ck CHECK ((type = ANY (ARRAY['inscription'::text, 'action'::text, 'texte'::text, 'question'::text, 'autre'::text])))
+    CONSTRAINT evenements_entrants_type_ck CHECK ((type = ANY (ARRAY['inscription'::text, 'action'::text, 'texte'::text, 'question'::text, 'commande'::text, 'autre'::text])))
 );
 
 
@@ -2499,6 +2787,138 @@ CREATE TABLE public.factures (
 
 
 --
+-- Name: lignes_releve; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lignes_releve (
+    id bigint NOT NULL,
+    releve_id bigint NOT NULL,
+    numero_ligne integer NOT NULL,
+    date_operation date NOT NULL,
+    date_valeur date,
+    libelle text NOT NULL,
+    reference text,
+    debit numeric(15,3) DEFAULT 0 NOT NULL,
+    credit numeric(15,3) DEFAULT 0 NOT NULL,
+    solde numeric(15,3),
+    categorie text,
+    CONSTRAINT lignes_releve_montants_ck CHECK (((debit >= (0)::numeric) AND (credit >= (0)::numeric) AND (NOT ((debit > (0)::numeric) AND (credit > (0)::numeric))))),
+    CONSTRAINT lignes_releve_numero_ck CHECK ((numero_ligne > 0))
+);
+
+
+--
+-- Name: propositions_rapprochement; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.propositions_rapprochement (
+    id bigint NOT NULL,
+    ligne_releve_id bigint NOT NULL,
+    cas text NOT NULL,
+    score numeric(5,4) NOT NULL,
+    raisons jsonb DEFAULT '[]'::jsonb NOT NULL,
+    ecart numeric(15,3) DEFAULT 0 NOT NULL,
+    methode text NOT NULL,
+    statut text NOT NULL,
+    motif_ecart text,
+    cree_le timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT propositions_rapprochement_cas_ck CHECK ((cas = ANY (ARRAY['exact'::text, 'groupe'::text, 'partiel'::text, 'net_avoir'::text, 'ecart'::text]))),
+    CONSTRAINT propositions_rapprochement_methode_ck CHECK ((methode = ANY (ARRAY['auto'::text, 'manuel'::text]))),
+    CONSTRAINT propositions_rapprochement_motif_ck CHECK ((motif_ecart = ANY (ARRAY['frais_bancaires'::text, 'arrondi'::text, 'retenue_source'::text, 'escompte'::text, 'autre'::text]))),
+    CONSTRAINT propositions_rapprochement_score_ck CHECK (((score >= (0)::numeric) AND (score <= (1)::numeric))),
+    CONSTRAINT propositions_rapprochement_statut_ck CHECK ((statut = ANY (ARRAY['propose'::text, 'confirme'::text, 'rejete'::text, 'annule'::text])))
+);
+
+
+--
+-- Name: rapprochements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rapprochements (
+    id bigint NOT NULL,
+    facture_id bigint NOT NULL,
+    ligne_releve_id bigint NOT NULL,
+    montant_affecte numeric(15,3) NOT NULL,
+    methode text NOT NULL,
+    score numeric(5,4),
+    statut text DEFAULT 'propose'::text NOT NULL,
+    ecart numeric(15,3),
+    commentaire text,
+    cree_par text NOT NULL,
+    cree_le timestamp with time zone DEFAULT now() NOT NULL,
+    modifie_le timestamp with time zone DEFAULT now() NOT NULL,
+    proposition_id bigint,
+    role text DEFAULT 'reglement'::text NOT NULL,
+    CONSTRAINT rapprochements_methode_ck CHECK ((methode = ANY (ARRAY['auto'::text, 'manuel'::text]))),
+    CONSTRAINT rapprochements_montant_ck CHECK ((montant_affecte > (0)::numeric)),
+    CONSTRAINT rapprochements_role_ck CHECK ((role = ANY (ARRAY['reglement'::text, 'imputation_avoir'::text]))),
+    CONSTRAINT rapprochements_score_ck CHECK (((score >= (0)::numeric) AND (score <= (1)::numeric))),
+    CONSTRAINT rapprochements_statut_ck CHECK ((statut = ANY (ARRAY['propose'::text, 'confirme'::text, 'rejete'::text, 'annule'::text])))
+);
+
+
+--
+-- Name: signalements_paiement; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.signalements_paiement (
+    id bigint NOT NULL,
+    type text NOT NULL,
+    ligne_releve_id bigint NOT NULL,
+    facture_id bigint,
+    message text NOT NULL,
+    detail jsonb DEFAULT '{}'::jsonb NOT NULL,
+    statut text DEFAULT 'ouvert'::text NOT NULL,
+    cree_le timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT signalements_paiement_statut_ck CHECK ((statut = ANY (ARRAY['ouvert'::text, 'classe'::text]))),
+    CONSTRAINT signalements_paiement_type_ck CHECK ((type = ANY (ARRAY['payee_non_approuvee'::text, 'sortie_sans_facture'::text, 'sortie_sans_ordre'::text])))
+);
+
+
+--
+-- Name: lignes_a_rapprocher; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.lignes_a_rapprocher AS
+ SELECT id AS ligne_releve_id,
+    releve_id,
+    numero_ligne,
+    date_operation,
+    libelle,
+    debit,
+    ( SELECT array_agg(DISTINCT r.facture_id ORDER BY r.facture_id) AS array_agg
+           FROM (public.propositions_rapprochement x
+             JOIN public.rapprochements r ON ((r.proposition_id = x.id)))
+          WHERE ((x.ligne_releve_id = l.id) AND (x.statut = ANY (ARRAY['rejete'::text, 'annule'::text])))) AS factures_rejetees,
+        CASE
+            WHEN (EXISTS ( SELECT 1
+               FROM public.propositions_rapprochement x
+              WHERE ((x.ligne_releve_id = l.id) AND (x.statut = 'annule'::text)))) THEN 'rapprochement annulé'::text
+            ELSE 'proposition rejetée'::text
+        END AS motif
+   FROM public.lignes_releve l
+  WHERE ((debit > (0)::numeric) AND (categorie IS NULL) AND (EXISTS ( SELECT 1
+           FROM public.propositions_rapprochement x
+          WHERE ((x.ligne_releve_id = l.id) AND (x.statut = ANY (ARRAY['rejete'::text, 'annule'::text]))))) AND (NOT (EXISTS ( SELECT 1
+           FROM public.propositions_rapprochement x
+          WHERE ((x.ligne_releve_id = l.id) AND (x.statut <> ALL (ARRAY['rejete'::text, 'annule'::text])))))) AND (NOT (EXISTS ( SELECT 1
+           FROM public.signalements_paiement s
+          WHERE ((s.ligne_releve_id = l.id) AND (s.type <> 'sortie_sans_ordre'::text))))));
+
+
+--
+-- Name: factures_bloquees_ordres; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.factures_bloquees_ordres AS
+ SELECT DISTINCT r.facture_id,
+    a.ligne_releve_id
+   FROM (public.rapprochements r
+     JOIN public.lignes_a_rapprocher a ON ((a.ligne_releve_id = r.ligne_releve_id)))
+  WHERE ((r.statut = 'annule'::text) AND (r.role = 'reglement'::text));
+
+
+--
 -- Name: factures_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -2608,120 +3028,6 @@ ALTER TABLE public.journal_audit ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTIT
     NO MAXVALUE
     CACHE 1
 );
-
-
---
--- Name: lignes_releve; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.lignes_releve (
-    id bigint NOT NULL,
-    releve_id bigint NOT NULL,
-    numero_ligne integer NOT NULL,
-    date_operation date NOT NULL,
-    date_valeur date,
-    libelle text NOT NULL,
-    reference text,
-    debit numeric(15,3) DEFAULT 0 NOT NULL,
-    credit numeric(15,3) DEFAULT 0 NOT NULL,
-    solde numeric(15,3),
-    categorie text,
-    CONSTRAINT lignes_releve_montants_ck CHECK (((debit >= (0)::numeric) AND (credit >= (0)::numeric) AND (NOT ((debit > (0)::numeric) AND (credit > (0)::numeric))))),
-    CONSTRAINT lignes_releve_numero_ck CHECK ((numero_ligne > 0))
-);
-
-
---
--- Name: propositions_rapprochement; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.propositions_rapprochement (
-    id bigint NOT NULL,
-    ligne_releve_id bigint NOT NULL,
-    cas text NOT NULL,
-    score numeric(5,4) NOT NULL,
-    raisons jsonb DEFAULT '[]'::jsonb NOT NULL,
-    ecart numeric(15,3) DEFAULT 0 NOT NULL,
-    methode text NOT NULL,
-    statut text NOT NULL,
-    motif_ecart text,
-    cree_le timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT propositions_rapprochement_cas_ck CHECK ((cas = ANY (ARRAY['exact'::text, 'groupe'::text, 'partiel'::text, 'net_avoir'::text, 'ecart'::text]))),
-    CONSTRAINT propositions_rapprochement_methode_ck CHECK ((methode = ANY (ARRAY['auto'::text, 'manuel'::text]))),
-    CONSTRAINT propositions_rapprochement_motif_ck CHECK ((motif_ecart = ANY (ARRAY['frais_bancaires'::text, 'arrondi'::text, 'retenue_source'::text, 'escompte'::text, 'autre'::text]))),
-    CONSTRAINT propositions_rapprochement_score_ck CHECK (((score >= (0)::numeric) AND (score <= (1)::numeric))),
-    CONSTRAINT propositions_rapprochement_statut_ck CHECK ((statut = ANY (ARRAY['propose'::text, 'confirme'::text, 'rejete'::text])))
-);
-
-
---
--- Name: rapprochements; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.rapprochements (
-    id bigint NOT NULL,
-    facture_id bigint NOT NULL,
-    ligne_releve_id bigint NOT NULL,
-    montant_affecte numeric(15,3) NOT NULL,
-    methode text NOT NULL,
-    score numeric(5,4),
-    statut text DEFAULT 'propose'::text NOT NULL,
-    ecart numeric(15,3),
-    commentaire text,
-    cree_par text NOT NULL,
-    cree_le timestamp with time zone DEFAULT now() NOT NULL,
-    modifie_le timestamp with time zone DEFAULT now() NOT NULL,
-    proposition_id bigint,
-    role text DEFAULT 'reglement'::text NOT NULL,
-    CONSTRAINT rapprochements_methode_ck CHECK ((methode = ANY (ARRAY['auto'::text, 'manuel'::text]))),
-    CONSTRAINT rapprochements_montant_ck CHECK ((montant_affecte > (0)::numeric)),
-    CONSTRAINT rapprochements_role_ck CHECK ((role = ANY (ARRAY['reglement'::text, 'imputation_avoir'::text]))),
-    CONSTRAINT rapprochements_score_ck CHECK (((score >= (0)::numeric) AND (score <= (1)::numeric))),
-    CONSTRAINT rapprochements_statut_ck CHECK ((statut = ANY (ARRAY['propose'::text, 'confirme'::text, 'rejete'::text])))
-);
-
-
---
--- Name: signalements_paiement; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.signalements_paiement (
-    id bigint NOT NULL,
-    type text NOT NULL,
-    ligne_releve_id bigint NOT NULL,
-    facture_id bigint,
-    message text NOT NULL,
-    detail jsonb DEFAULT '{}'::jsonb NOT NULL,
-    statut text DEFAULT 'ouvert'::text NOT NULL,
-    cree_le timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT signalements_paiement_statut_ck CHECK ((statut = ANY (ARRAY['ouvert'::text, 'classe'::text]))),
-    CONSTRAINT signalements_paiement_type_ck CHECK ((type = ANY (ARRAY['payee_non_approuvee'::text, 'sortie_sans_facture'::text, 'sortie_sans_ordre'::text])))
-);
-
-
---
--- Name: lignes_a_rapprocher; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW public.lignes_a_rapprocher AS
- SELECT id AS ligne_releve_id,
-    releve_id,
-    numero_ligne,
-    date_operation,
-    libelle,
-    debit,
-    ( SELECT array_agg(DISTINCT r.facture_id ORDER BY r.facture_id) AS array_agg
-           FROM (public.propositions_rapprochement x
-             JOIN public.rapprochements r ON ((r.proposition_id = x.id)))
-          WHERE ((x.ligne_releve_id = l.id) AND (x.statut = 'rejete'::text))) AS factures_rejetees
-   FROM public.lignes_releve l
-  WHERE ((debit > (0)::numeric) AND (categorie IS NULL) AND (EXISTS ( SELECT 1
-           FROM public.propositions_rapprochement x
-          WHERE ((x.ligne_releve_id = l.id) AND (x.statut = 'rejete'::text)))) AND (NOT (EXISTS ( SELECT 1
-           FROM public.propositions_rapprochement x
-          WHERE ((x.ligne_releve_id = l.id) AND (x.statut <> 'rejete'::text))))) AND (NOT (EXISTS ( SELECT 1
-           FROM public.signalements_paiement s
-          WHERE (s.ligne_releve_id = l.id)))));
 
 
 --
@@ -2998,6 +3304,33 @@ ALTER TABLE public.rapprochements ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
 
 
 --
+-- Name: recherches_annulation; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.recherches_annulation (
+    id bigint NOT NULL,
+    utilisateur_id bigint NOT NULL,
+    canal text NOT NULL,
+    numero text NOT NULL,
+    cree_le timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: recherches_annulation_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.recherches_annulation ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.recherches_annulation_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: regles_controle; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3224,9 +3557,26 @@ UNION ALL
     a.libelle AS objet,
     NULL::text AS fournisseur,
     a.debit AS montant,
-    'proposition rejetée'::text AS detail,
+    (a.motif || COALESCE((' ; facture(s) exclue(s) des ordres : '::text || ( SELECT string_agg(fx.numero, ', '::text ORDER BY fx.numero) AS string_agg
+           FROM (public.factures_bloquees_ordres b
+             JOIN public.factures fx ON ((fx.id = b.facture_id)))
+          WHERE (b.ligne_releve_id = a.ligne_releve_id))), ''::text)) AS detail,
     (a.date_operation)::timestamp with time zone AS depuis
-   FROM public.lignes_a_rapprocher a;
+   FROM public.lignes_a_rapprocher a
+UNION ALL
+ SELECT 'annulation_a_approuver'::text AS type,
+    d.id AS reference_id,
+    l.libelle AS objet,
+    NULL::text AS fournisseur,
+    l.debit AS montant,
+    ('demandée le '::text || to_char(d.demande_le, 'YYYY-MM-DD'::text)) AS detail,
+    d.demande_le AS depuis
+   FROM ((public.demandes_annulation d
+     JOIN public.propositions_rapprochement p ON ((p.id = d.proposition_id)))
+     JOIN public.lignes_releve l ON ((l.id = p.ligne_releve_id)))
+  WHERE (NOT (EXISTS ( SELECT 1
+           FROM public.decisions_annulation x
+          WHERE (x.demande_id = d.id))));
 
 
 --
@@ -3260,7 +3610,13 @@ CREATE VIEW restitution.echeancier AS
             WHEN s.en_retard THEN (CURRENT_DATE - s.date_echeance)
             ELSE NULL::integer
         END AS jours_de_retard,
-    rib.rib AS rib_paiement
+    rib.rib AS rib_paiement,
+        CASE
+            WHEN (EXISTS ( SELECT 1
+               FROM public.factures_bloquees_ordres b
+              WHERE (b.facture_id = s.facture_id))) THEN 'exclue des ordres : rapprochement annulé, ligne à retraiter'::text
+            ELSE NULL::text
+        END AS blocage
    FROM (((public.situation_paiement s
      JOIN public.factures f ON ((f.id = s.facture_id)))
      JOIN public.fournisseurs fo ON ((fo.id = s.fournisseur_id)))
@@ -3499,6 +3855,22 @@ ALTER TABLE ONLY public.config_fiscale
 
 
 --
+-- Name: decisions_annulation decisions_annulation_demande_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decisions_annulation
+    ADD CONSTRAINT decisions_annulation_demande_id_key UNIQUE (demande_id);
+
+
+--
+-- Name: decisions_annulation decisions_annulation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decisions_annulation
+    ADD CONSTRAINT decisions_annulation_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: decisions_humaines decisions_humaines_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3560,6 +3932,14 @@ ALTER TABLE ONLY public.decisions_signalement
 
 ALTER TABLE ONLY public.decisions_signalement
     ADD CONSTRAINT decisions_signalement_signalement_id_key UNIQUE (signalement_id);
+
+
+--
+-- Name: demandes_annulation demandes_annulation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.demandes_annulation
+    ADD CONSTRAINT demandes_annulation_pkey PRIMARY KEY (id);
 
 
 --
@@ -3755,19 +4135,19 @@ ALTER TABLE ONLY public.questions
 
 
 --
--- Name: rapprochements rapprochements_paire_uk; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.rapprochements
-    ADD CONSTRAINT rapprochements_paire_uk UNIQUE (facture_id, ligne_releve_id);
-
-
---
 -- Name: rapprochements rapprochements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rapprochements
     ADD CONSTRAINT rapprochements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: recherches_annulation recherches_annulation_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recherches_annulation
+    ADD CONSTRAINT recherches_annulation_pkey PRIMARY KEY (id);
 
 
 --
@@ -3861,6 +4241,13 @@ CREATE UNIQUE INDEX adresses_canal_utilisateur_uk ON public.adresses_canal USING
 --
 
 CREATE INDEX decisions_humaines_facture_ix ON public.decisions_humaines USING btree (facture_id, id DESC);
+
+
+--
+-- Name: demandes_annulation_proposition_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX demandes_annulation_proposition_ix ON public.demandes_annulation USING btree (proposition_id);
 
 
 --
@@ -3976,6 +4363,13 @@ CREATE UNIQUE INDEX lots_paiement_un_propose_uk ON public.lots_paiement USING bt
 
 
 --
+-- Name: notifications_annulation_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notifications_annulation_ix ON public.notifications USING btree (demande_annulation_id, utilisateur_id, canal);
+
+
+--
 -- Name: notifications_demande_ix; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4028,7 +4422,7 @@ CREATE INDEX ordres_paiement_facture_ix ON public.ordres_paiement USING btree (f
 -- Name: propositions_rapprochement_ligne_uk; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX propositions_rapprochement_ligne_uk ON public.propositions_rapprochement USING btree (ligne_releve_id) WHERE (statut <> 'rejete'::text);
+CREATE UNIQUE INDEX propositions_rapprochement_ligne_uk ON public.propositions_rapprochement USING btree (ligne_releve_id) WHERE (statut <> ALL (ARRAY['rejete'::text, 'annule'::text]));
 
 
 --
@@ -4050,6 +4444,13 @@ CREATE INDEX questions_utilisateur_ix ON public.questions USING btree (utilisate
 --
 
 CREATE INDEX rapprochements_ligne_releve_ix ON public.rapprochements USING btree (ligne_releve_id);
+
+
+--
+-- Name: rapprochements_paire_active_uk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX rapprochements_paire_active_uk ON public.rapprochements USING btree (facture_id, ligne_releve_id) WHERE (statut <> ALL (ARRAY['rejete'::text, 'annule'::text]));
 
 
 --
@@ -4085,6 +4486,34 @@ CREATE INDEX resultats_controles_regle_ix ON public.resultats_controles USING bt
 --
 
 CREATE UNIQUE INDEX signalements_paiement_uk ON public.signalements_paiement USING btree (type, ligne_releve_id, COALESCE(facture_id, (0)::bigint));
+
+
+--
+-- Name: decisions_annulation decisions_annulation_application; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER decisions_annulation_application AFTER INSERT ON public.decisions_annulation FOR EACH ROW EXECUTE FUNCTION public.decisions_annulation_appliquer();
+
+
+--
+-- Name: decisions_annulation decisions_annulation_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER decisions_annulation_pas_de_modification BEFORE DELETE OR UPDATE ON public.decisions_annulation FOR EACH ROW EXECUTE FUNCTION public.refuser_modification();
+
+
+--
+-- Name: decisions_annulation decisions_annulation_pas_de_vidage; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER decisions_annulation_pas_de_vidage BEFORE TRUNCATE ON public.decisions_annulation FOR EACH STATEMENT EXECUTE FUNCTION public.refuser_modification();
+
+
+--
+-- Name: decisions_annulation decisions_annulation_verification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER decisions_annulation_verification BEFORE INSERT ON public.decisions_annulation FOR EACH ROW EXECUTE FUNCTION public.decisions_annulation_verifier();
 
 
 --
@@ -4228,6 +4657,34 @@ CREATE TRIGGER decisions_signalement_verification BEFORE INSERT ON public.decisi
 
 
 --
+-- Name: demandes_annulation demandes_annulation_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER demandes_annulation_pas_de_modification BEFORE DELETE OR UPDATE ON public.demandes_annulation FOR EACH ROW EXECUTE FUNCTION public.refuser_modification();
+
+
+--
+-- Name: demandes_annulation demandes_annulation_pas_de_vidage; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER demandes_annulation_pas_de_vidage BEFORE TRUNCATE ON public.demandes_annulation FOR EACH STATEMENT EXECUTE FUNCTION public.refuser_modification();
+
+
+--
+-- Name: demandes_annulation demandes_annulation_trace; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER demandes_annulation_trace AFTER INSERT ON public.demandes_annulation FOR EACH ROW EXECUTE FUNCTION public.demandes_annulation_tracer();
+
+
+--
+-- Name: demandes_annulation demandes_annulation_verification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER demandes_annulation_verification BEFORE INSERT ON public.demandes_annulation FOR EACH ROW EXECUTE FUNCTION public.demandes_annulation_verifier();
+
+
+--
 -- Name: demandes_referentiel demandes_referentiel_journal; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4361,6 +4818,13 @@ CREATE TRIGGER rapprochements_maj_modifie_le BEFORE UPDATE ON public.rapprocheme
 
 
 --
+-- Name: recherches_annulation recherches_annulation_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER recherches_annulation_pas_de_modification BEFORE DELETE OR UPDATE ON public.recherches_annulation FOR EACH ROW EXECUTE FUNCTION public.refuser_modification();
+
+
+--
 -- Name: resultats_controles resultats_controles_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4404,6 +4868,22 @@ ALTER TABLE ONLY public.adresses_canal
 
 ALTER TABLE ONLY public.codes_inscription
     ADD CONSTRAINT codes_inscription_utilisateur_id_fkey FOREIGN KEY (utilisateur_id) REFERENCES public.utilisateurs(id);
+
+
+--
+-- Name: decisions_annulation decisions_annulation_demande_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decisions_annulation
+    ADD CONSTRAINT decisions_annulation_demande_id_fkey FOREIGN KEY (demande_id) REFERENCES public.demandes_annulation(id);
+
+
+--
+-- Name: decisions_annulation decisions_annulation_utilisateur_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decisions_annulation
+    ADD CONSTRAINT decisions_annulation_utilisateur_id_fkey FOREIGN KEY (utilisateur_id) REFERENCES public.utilisateurs(id);
 
 
 --
@@ -4495,6 +4975,22 @@ ALTER TABLE ONLY public.decisions_signalement
 
 
 --
+-- Name: demandes_annulation demandes_annulation_demande_par_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.demandes_annulation
+    ADD CONSTRAINT demandes_annulation_demande_par_fkey FOREIGN KEY (demande_par) REFERENCES public.utilisateurs(id);
+
+
+--
+-- Name: demandes_annulation demandes_annulation_proposition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.demandes_annulation
+    ADD CONSTRAINT demandes_annulation_proposition_id_fkey FOREIGN KEY (proposition_id) REFERENCES public.propositions_rapprochement(id);
+
+
+--
 -- Name: demandes_referentiel demandes_referentiel_demande_par_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4583,6 +5079,14 @@ ALTER TABLE ONLY public.lignes_releve
 
 
 --
+-- Name: notifications notifications_demande_annulation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_demande_annulation_id_fkey FOREIGN KEY (demande_annulation_id) REFERENCES public.demandes_annulation(id);
+
+
+--
 -- Name: notifications notifications_demande_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4620,6 +5124,14 @@ ALTER TABLE ONLY public.notifications
 
 ALTER TABLE ONLY public.notifications
     ADD CONSTRAINT notifications_proposition_id_fkey FOREIGN KEY (proposition_id) REFERENCES public.propositions_rapprochement(id);
+
+
+--
+-- Name: notifications notifications_recherche_annulation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_recherche_annulation_id_fkey FOREIGN KEY (recherche_annulation_id) REFERENCES public.recherches_annulation(id);
 
 
 --
@@ -4719,6 +5231,14 @@ ALTER TABLE ONLY public.rapprochements
 
 
 --
+-- Name: recherches_annulation recherches_annulation_utilisateur_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recherches_annulation
+    ADD CONSTRAINT recherches_annulation_utilisateur_id_fkey FOREIGN KEY (utilisateur_id) REFERENCES public.utilisateurs(id);
+
+
+--
 -- Name: resultats_controles resultats_controles_facture_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4791,4 +5311,9 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261009090000'),
     ('20261009100000'),
     ('20261009110000'),
-    ('20261009120000');
+    ('20261009120000'),
+    ('20261010090000'),
+    ('20261010100000'),
+    ('20261010110000'),
+    ('20261010120000'),
+    ('20261010130000');

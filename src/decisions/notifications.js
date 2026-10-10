@@ -290,6 +290,75 @@ function notificationLigneARapprocher({ candidat, ligne_a_rapprocher: a }, deps)
   };
 }
 
+// --- Annulation d'un rapprochement (D-077) --------------------------------------------
+const ANNULATIONS_AFFICHEES = 8;
+
+/** Lignes décrivant un rapprochement : opération, puis CHAQUE facture concernée. */
+function champsRapprochement(prop, deps) {
+  const reglements = (prop.affectations ?? []).filter((a) => a.role === 'reglement');
+  const avoirs = (prop.affectations ?? []).filter((a) => a.role === 'imputation_avoir');
+  return [
+    ['Opération', `${prop.ligne.date_operation} — ${prop.ligne.libelle} — ${tnd(prop.ligne.debit, deps)}`],
+    ...reglements.map((a) => [`Facture ${a.numero}`, `${a.raison_sociale ?? '—'} : ${tnd(a.montant, deps)} réglés`]),
+    ...avoirs.map((a) => [`Avoir ${a.numero}`, `${tnd(a.montant, deps)} imputés`]),
+  ];
+}
+
+/** Virement groupé (ou avoir imputé) : l'annulation emporte toutes les factures du rapprochement. */
+function alerteGroupe(prop, numeroRecherche) {
+  const autres = (prop.affectations ?? []).filter((a) => a.numero !== numeroRecherche).map((a) => a.numero);
+  return autres.length
+    ? { gravite: 'avertissement', libelle: 'Virement groupé', regle: 'annulation_groupee',
+      message: `L'annulation porte sur tout le rapprochement : elle concerne aussi ${autres.join(', ')}.` }
+    : null;
+}
+
+/**
+ * Choix du rapprochement à annuler (au seul responsable qui a envoyé
+ * « /annuler <numéro> ») : un bouton par rapprochement confirmé.
+ */
+function notificationChoixAnnulation({ candidat, choix_annulation: c }, deps) {
+  const props = c.propositions.slice(0, ANNULATIONS_AFFICHEES);
+  const alertes = props.map((p) => alerteGroupe(p, c.numero)).filter(Boolean);
+  return {
+    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'choix_annulation',
+    recherche_annulation_id: candidat.recherche_annulation_id,
+    actions: props.map((p) => ({
+      code: 'demander_annulation', params: { proposition_id: p.id },
+      libelle: `Annuler : ${p.ligne.date_operation} — ${tnd(p.ligne.debit, deps)}${p.affectations.length > 1 ? ` (${p.affectations.length} factures)` : ''}`,
+    })),
+    contenu: {
+      objet: 'choix_annulation', titre: `Rapprochements confirmés de ${c.numero}`,
+      champs: props.flatMap((p, i) => [[`Rapprochement ${i + 1}`, `${p.methode === 'auto' ? 'confirmé automatiquement' : 'confirmé par une personne'}`],
+        ...champsRapprochement(p, deps)]),
+      alertes,
+      note: 'Choisissez le rapprochement à annuler puis justifiez : un autre responsable devra approuver (quatre yeux). '
+        + 'Rien n\'est effacé ; la ligne du relevé redeviendra « à rapprocher ».',
+    },
+  };
+}
+
+/** Demande d'annulation à approuver (aux autres responsables seulement). */
+function notificationDemandeAnnulation({ candidat, demande_annulation: d }, deps) {
+  const p = d.proposition;
+  const alerte = (p.affectations ?? []).length > 1
+    ? [{ gravite: 'avertissement', libelle: 'Virement groupé', regle: 'annulation_groupee',
+      message: `L'annulation porte sur toutes ces factures : ${p.affectations.map((a) => a.numero).join(', ')}.` }]
+    : [];
+  return {
+    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'demande_annulation',
+    demande_annulation_id: d.id,
+    actions: [{ code: 'approuver_annulation', libelle: 'Approuver l\'annulation' }, { code: 'refuser_annulation', libelle: 'Refuser' }],
+    contenu: {
+      objet: 'demande_annulation', titre: `Annulation d'un rapprochement demandée par ${d.demande_par_nom}`,
+      champs: [['Justification', d.justification], ...champsRapprochement(p, deps)],
+      alertes: alerte,
+      note: 'Approuver remet la ligne « à rapprocher » et la facture « à payer » ; elle sera exclue des ordres '
+        + 'de paiement tant que la ligne n\'est pas de nouveau rapprochée (D-077).',
+    },
+  };
+}
+
 // Messages renvoyés selon le résultat de recevoir_evenement().
 const MOTIFS_REFUS = Object.freeze({
   MZ010: 'la facture a changé de statut entre-temps : décision impossible.',
@@ -326,6 +395,9 @@ const CONFIRMATIONS = Object.freeze({
   rapprocher_facture: 'Paiement rapproché de la facture.',
   rapprocher_autre: 'Paiement rapproché de la facture indiquée.',
   signaler_sans_facture: 'Ligne signalée sans facture : un responsable l\'examinera.',
+  demander_annulation: 'Demande d\'annulation enregistrée : un autre responsable doit l\'approuver.',
+  approuver_annulation: 'Annulation approuvée : la ligne du relevé est de nouveau à rapprocher.',
+  refuser_annulation: 'Demande d\'annulation refusée : le rapprochement reste confirmé.',
 });
 
 /**
@@ -349,12 +421,20 @@ function messageReponse(r) {
     case 'aucune_action_en_attente': return avec(['Aucune décision en attente. Touchez d\'abord un bouton d\'une notification.'], 'Aucune décision en attente');
     case 'decision_enregistree': return avec([CONFIRMATIONS[r.action?.code] ?? 'Décision enregistrée.'], 'Décision enregistrée');
     case 'decision_refusee':
-      return avec([`Refusé : ${MOTIFS_REFUS[r.erreur] ?? `la base a refusé la décision (${r.motif}).`}`, 'Rien n\'a été appliqué.'], 'Refusé');
+      // Jamais le message technique de la base (défaut du 2026-10-10) : motif
+      // prévu (code MZ) ou, sinon, la référence de l'incident tracé au journal.
+      return avec([`Refusé : ${MOTIFS_REFUS[r.erreur]
+        ?? `incident technique${r.reference ? ` n° ${r.reference}` : ''}, enregistré au journal d'audit. Signalez ce numéro au responsable.`}`,
+      'Rien n\'a été appliqué.'], 'Refusé');
     case 'pas_destinataire': return avec(['Cette notification ne vous est pas destinée.'], 'Notification d\'une autre personne');
     case 'notification_perimee': return avec(['Cette notification n\'est plus valable : la facture a changé d\'état.'], 'Notification périmée');
     case 'notification_expiree': return avec(['Cette notification a expiré.'], 'Notification expirée');
     case 'bouton_inconnu': case 'action_inconnue': return avec(['Bouton non reconnu.'], 'Bouton non reconnu');
     case 'question_recue': return avec(['Question reçue : réponse dans une minute environ.'], 'Question reçue');
+    case 'recherche_annulation_enregistree':
+      return avec([`${r.rapprochements} rapprochement(s) confirmé(s) pour ${r.numero} : la liste arrive dans une minute environ.`], 'Recherche enregistrée');
+    case 'annulation_introuvable': return avec([`Aucun rapprochement confirmé pour la facture « ${r.numero} ».`], 'Introuvable');
+    case 'commande_refusee': return avec(['Cette commande est réservée aux responsables.'], 'Refusé');
     case 'question_refusee':
       return avec([r.motif === 'quota'
         ? `Limite atteinte : ${r.max_par_heure} questions par heure. Réessayez plus tard.`
@@ -365,5 +445,5 @@ function messageReponse(r) {
 
 export {
   LIBELLES_STATUT, METHODES_COURTES, MOTIFS_ECART, notificationFacture, notificationDemande,
-  notificationRapprochement, notificationSignalement, notificationSynthese, notificationLot, notificationLigneARapprocher, messageReponse,
+  notificationRapprochement, notificationSignalement, notificationSynthese, notificationLot, notificationLigneARapprocher, notificationChoixAnnulation, notificationDemandeAnnulation, messageReponse,
 };

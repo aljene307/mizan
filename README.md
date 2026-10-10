@@ -357,10 +357,35 @@ est ensuite enregistré.
 
 > **Limites.**
 > - Une ligne ne se rapproche que d'une facture à la fois.
-> - **Un rapprochement confirmé ne peut pas encore être annulé.** Lors de la
->   démonstration, un chèque a été rapproché d'une autre facture que celle de
->   la vérité terrain, et l'erreur est restée en base (D-075). L'annulation
->   par contre-passation, à deux personnes, est la prochaine étape (D-077).
+> - Lors de la démonstration, un chèque a été rapproché d'une autre facture
+>   que celle de la vérité terrain (D-075) : c'est ce qui a conduit à
+>   l'annulation ci-dessous.
+
+### Annulation d'un rapprochement (contre-passation, quatre yeux)
+
+Un rapprochement confirmé, automatiquement ou par une personne, peut être
+annulé (D-077, D-080) :
+1. un responsable envoie `/annuler <numéro de facture>` et reçoit la liste des
+   rapprochements confirmés de cette facture, avec un bouton pour chacun ;
+2. il choisit et justifie : c'est une **demande**, qui ne change encore rien ;
+3. un **autre** responsable approuve ou refuse, avec une justification.
+
+Un virement groupé est annoncé comme tel, avec toutes ses factures, dans la
+liste comme dans la demande : l'annulation porte sur tout le rapprochement.
+
+**Rien n'est effacé :** la proposition et ses affectations passent à l'état
+« annulé » ; demande, décision et journal gardent l'histoire. La facture
+redevient à payer et la ligne du relevé redevient « à rapprocher ».
+
+**Protection contre un double paiement :** tant que la ligne n'est pas de
+nouveau rapprochée (ou signalée « aucune facture »), la facture est exclue des
+lots d'ordres. L'échéancier et « à traiter » affichent le motif du blocage.
+
+> **Limites.**
+> - Une annulation juste retarde le paiement de la facture jusqu'au nouveau
+>   traitement de la ligne : c'est le prix de la protection.
+> - Les signalements liés au rapprochement annulé restent ouverts, au
+>   responsable de les classer.
 
 ### Questions en langage naturel
 
@@ -456,6 +481,7 @@ npm run test:mutations               # test par mutation des contrôles
 npm run evaluer-controles-reel       # contrôles sur l'extraction réelle
 npm run creer-code-inscription -- --nom "Prénom Nom" --role responsable   # code /start à usage unique (30 min)
 npm run simuler-second-responsable   # demandes en attente ; décision du compte fictif (--demande n --approuver méthode | --refuser)
+                                     #   annulation d'un rapprochement : --annulation n --approuver | --refuser --justification "…"
 npm run evaluer-rapprochement        # rapprochement sur le relevé de développement (n'écrit rien)
 npm run exporter-ordres              # liste les lots ; --lot <n> : fichier à signer (sorties/ordres/)
 npm run generer-releve-demo          # second relevé de démonstration (data/demo/), d'après les ordres approuvés

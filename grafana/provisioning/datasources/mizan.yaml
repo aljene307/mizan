@@ -18,5 +18,11 @@ datasources:
       database: $MIZAN_DB
       sslmode: disable
       timescaledb: false
+      # Pool limité (défaut Grafana : 100) : mizan_lecture n'a que 10 connexions,
+      # partagées avec le workflow « Questions » et les scripts (incident du 2026-10-10).
+      maxOpenConns: 2
+      maxIdleConnsAuto: false
+      maxIdleConns: 1
+      connMaxLifetime: 300
     secureJsonData:
       password: $MIZAN_LECTURE_PASSWORD

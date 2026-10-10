@@ -59,6 +59,16 @@ test('chaque requête du tableau de bord s\'exécute avec mizan_lecture', async 
   assert.deepEqual(qui.results.A.frames[0].data.values, [['mizan_lecture']]);
 });
 
+test('après toutes les requêtes du tableau de bord, Grafana garde au plus 2 connexions (incident du 2026-10-10)', async () => {
+  const ip = spawnSync('docker', ['inspect', '-f', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', 'mizan-grafana-1'], { encoding: 'utf8' }).stdout.trim();
+  assert.match(ip, /^\d+\.\d+\.\d+\.\d+$/);
+  const r = spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'sh', '-c',
+    `psql -X -tA -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) FROM pg_stat_activity WHERE usename = 'mizan_lecture' AND client_addr = '${ip}'"`],
+  { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(Number(r.stdout.trim()) <= 2, `${r.stdout.trim()} connexions de Grafana`);
+});
+
 test('par Grafana, une écriture ou une lecture hors restitution est refusée par la base', async () => {
   for (const sql of ['DELETE FROM public.factures', 'SELECT * FROM public.fournisseur_ribs', 'CREATE TABLE restitution.x (a int)']) {
     const r = await (await appel('/api/ds/query', { auth: admin, corps: requeteSql(sql) })).json();

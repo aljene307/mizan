@@ -1852,7 +1852,8 @@ restitution.
   « à rapprocher », la facture écartée exclue de ses candidates.
 - **Quatre yeux :** demandée par un responsable, approuvée par un autre
   responsable (même discipline que D-056).
-- **Protection ajoutée par Mohamed :** tant que la ligne n'est pas de nouveau
+- **Protection ajoutée par Mohamed** (gardée, avec les deux aménagements
+  ci-dessous, validés le 2026-10-10) : tant que la ligne n'est pas de nouveau
   traitée, la facture dont le rapprochement a été annulé est exclue des lots
   d'ordres de paiement (risque de double paiement si l'annulation était
   elle-même une erreur). **Inconvénient relevé :** si l'annulation était juste
@@ -1862,6 +1863,62 @@ restitution.
   blocage tombe dès que la ligne est rapprochée d'une facture ou signalée
   « aucune facture ».
 - **Signalements liés :** restent ouverts, au responsable de les classer.
+
+### D-080 · Annulation d'un rapprochement : réalisation
+Réalisation de D-077, 2026-10-10 ; choix de Mohamed : a1 (désignation par le
+numéro de facture, puis choix par bouton), b1 (annulation permise aussi pour
+une confirmation automatique). Migrations `20261010090000` (modèle) et
+`20261010100000` (canal, générée).
+- **Commande** `/annuler <numéro>` (responsable) : recherche enregistrée
+  (`recherches_annulation`), puis notification au seul demandeur avec un
+  bouton par rapprochement confirmé de la facture. La base refuse un bouton
+  qui désignerait un rapprochement d'une autre facture (MZ032).
+- **Demande** (`demandes_annulation`, ajout seul) : responsable, justifiée,
+  proposition confirmée, une seule demande en attente (MZ042). Notifiée aux
+  **autres** responsables.
+- **Décision** (`decisions_annulation`, ajout seul) : responsable, différent
+  du demandeur (MZ018), justifiée. Approuvée : proposition et affectations à
+  l'état `annule` ; rien n'est effacé ; journal.
+- **Virement groupé** (précision de Mohamed) : la liste et la demande
+  nomment explicitement toutes les factures du rapprochement.
+- **Ligne de nouveau « à rapprocher »** (motif « rapprochement annulé ») ;
+  les factures annulées sont exclues de ses candidates (comme les
+  rejetées) ; un signalement « sortie sans ordre » ne bloque plus la ligne.
+- **Protection (D-077) :** vue `factures_bloquees_ordres` ; le montant à
+  ordonner d'une facture bloquée est nul (hors des lots) ; l'approbation
+  d'un lot qui la contiendrait est refusée avec le motif ; échéancier
+  (colonne `blocage`) et « à traiter » affichent le motif. Blocage levé dès
+  que la ligne est de nouveau traitée.
+- **Démonstration :** `simuler-second-responsable` décide d'une demande
+  d'annulation (canal « simulation »).
+- **Défaut trouvé en démonstration (migration `20261010120000`) :** la
+  ligne du chèque 9886778, redevenue « à rapprocher », n'a pas été
+  renotifiée. La notification de la veille, envoyée après le rejet et
+  encore valable, comptait comme déjà envoyée ; ses boutons, aux candidates
+  calculées avant l'annulation, restaient actifs. Correctif : une
+  notification de ligne ne vaut que si elle date d'après le moment où la
+  ligne est (re)devenue à rapprocher (dernier rejet ou dernière annulation
+  approuvée, `ligne_a_rapprocher_depuis`) ; une notification antérieure est
+  périmée. Test qui rejoue le cas.
+- **Deux autres défauts trouvés en démonstration (migration
+  `20261010130000`) :**
+  1. Le chèque ne pouvait pas être rapproché à la main de MC2026-00089 : la
+     contrainte d'unicité (facture, ligne), présente depuis le premier modèle,
+     comptait aussi le lien **rejeté** gardé dans l'historique. Remplacée par
+     une unicité limitée aux liens actifs (proposé, confirmé) ; rien n'est
+     effacé. Cas normal : un rejet qui était lui-même une erreur.
+  2. Le message technique de la base (« duplicate key value… ») arrivait tel
+     quel à l'utilisateur. Règle : une erreur interne (hors codes MZ) n'est
+     jamais renvoyée telle quelle ; son détail (code, message, action) va au
+     journal d'audit (`canal.erreur_interne`) et l'utilisateur reçoit un
+     message lisible avec la référence de l'incident. Le détail n'est pas non
+     plus gardé dans le résultat de l'événement.
+  Tests qui rejouent les deux cas (vérifiés en échec sans le correctif).
+- **Incident trouvé en testant :** le pool de connexions de Grafana gardait
+  les 5 connexions permises à `mizan_lecture` ; le workflow « Questions » et
+  les scripts ne pouvaient plus se connecter. Grafana limité à 2 connexions
+  (provisionnement), limite du rôle portée à 10 (migration
+  `20261010110000`), test d'intégration sur le nombre de connexions.
 
 ### D-078 · État de démonstration reproductible : choix
 Choix de Mohamed le 2026-10-10 : option B (script de reconstruction, sans

@@ -36,6 +36,9 @@ psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$MIZAN_DB" -f /db/tests/09
 echo "== Questions en langage naturel : file et quota (préparation par $POSTGRES_USER, actions en tant que mizan_app)"
 psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$MIZAN_DB" -f /db/tests/10_questions.sql
 
+echo "== Annulation d'un rapprochement (préparation par $POSTGRES_USER, actions en tant que mizan_app)"
+psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$MIZAN_DB" -f /db/tests/11_annulation.sql
+
 echo "== Restitution : vraie connexion en tant que mizan_lecture (réglages de session)"
 lecture() {
     PGPASSWORD="$MIZAN_LECTURE_PASSWORD" psql -X -q -t -A -h localhost -U mizan_lecture -d "$MIZAN_DB" -c "$1" 2>&1

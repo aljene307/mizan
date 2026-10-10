@@ -38,6 +38,10 @@ test('provisionnement : une seule source, mizan_lecture, mot de passe pris dans 
   assert.match(yaml, /^\s+password: \$MIZAN_LECTURE_PASSWORD$/m);
   assert.match(yaml, /^\s+uid: mizan-lecture$/m);
   assert.match(yaml, /^\s+editable: false$/m);
+  // Pool limité : mizan_lecture n'a que 10 connexions, partagées (incident du 2026-10-10).
+  assert.match(yaml, /^\s+maxOpenConns: 2$/m);
+  assert.match(yaml, /^\s+maxIdleConnsAuto: false$/m);
+  assert.match(yaml, /^\s+maxIdleConns: 1$/m);
   const tableaux = readFileSync('grafana/provisioning/dashboards/mizan.yaml', 'utf8');
   assert.match(tableaux, /allowUiUpdates: false/);
 });

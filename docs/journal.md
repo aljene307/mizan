@@ -601,3 +601,60 @@ empreinte, traçabilité de chaque extraction).
 - README : section « Restitution » (tableau de bord, ordres de paiement,
   rapprochement manuel, questions), limites de chaque mesure, imports et
   credentials, commandes. Captures d'écran relues à part, avant tout commit.
+
+## 2026-10-10 — Après la clôture de la restitution
+
+- Commit a5f09cb poussé sur `main`.
+- Captures d'écran : aucune n'est commitée. Elles seront toutes refaites en
+  une fois à l'étape de finition, sur la base reconstruite (D-078), pour être
+  cohérentes avec le README. Captures à prévoir :
+  1. le tableau de bord Grafana ;
+  2. une notification de facture sur Telegram ;
+  3. une validation (bouton, justification, confirmation) ;
+  4. un refus sur changement de RIB (règle non dérogeable) ;
+  5. un lot d'ordres de paiement ;
+  6. un signalement (par exemple « sortie sans ordre ») ;
+  7. une question en langage naturel et sa réponse ;
+  8. un refus « hors catalogue ».
+- Protection de l'annulation validée par Mohamed (D-077), avec les deux
+  aménagements : facture visible dans l'échéancier et dans « à traiter »
+  avec le motif du blocage ; blocage levé dès que la ligne est de nouveau
+  rapprochée ou signalée « aucune facture ».
+
+## 2026-10-10 — Annulation d'un rapprochement
+
+- Plan validé par Mohamed (a1, b1, virement groupé explicite, script de
+  simulation, découpage des fonctions du canal reporté à la finition).
+- Migration n° 31 (modèle : état `annule`, demandes et décisions à quatre
+  yeux, ligne de nouveau « à rapprocher », facture bloquée pour les ordres) ;
+  migration n° 32 (canal, générée : commande `/annuler`, choix et demande
+  d'annulation, détail des rapprochements avec toutes les factures).
+- Incident trouvé en lançant les tests : le pool de Grafana occupait les 5
+  connexions de `mizan_lecture`, bloquant le workflow « Questions » ; pool
+  de Grafana limité à 2, limite du rôle portée à 10 (migration n° 33), test.
+- Constats en écrivant les tests : `notifications_a_preparer` s'exécute avec
+  les droits de `mizan_app` (droit de lecture ajouté) ; le retour arrière de
+  la migration du modèle impose un ordre strict entre vues dépendantes.
+- Tests : 397 SQL (nouveau `11_annulation.sql`), 276 unitaires,
+  38 d'intégration.
+- Démonstration (Mohamed) : annulation n° 17 approuvée par le compte fictif
+  (décision n° 15), mais pas de message « Paiement à rapprocher à la main ».
+  Diagnostic en base : rapprochement bien annulé, ligne 66 bien « à
+  rapprocher », aucune candidate à notifier : la notification n° 291 de la
+  veille (après le rejet, valable jusqu'au 2026-10-16) faisait croire la
+  ligne déjà notifiée. Correctif (migration n° 34) : la notification doit
+  dater d'après le moment où la ligne est redevenue à rapprocher ; une
+  notification antérieure est périmée. Notification n° 400 envoyée aussitôt.
+  Premier essai de comparaison strict écarté : il périmait les notifications
+  créées dans la même transaction que la décision (tests SQL).
+- Tests : 401 SQL, 276 unitaires, 38 d'intégration.
+- Démonstration (Mohamed), dernière étape : « Autre facture » avec
+  MC2026-00089 refusé, et le bot affichait le message technique de la base.
+  Vérifié : rien d'appliqué (ligne 66 toujours à rapprocher, aucune nouvelle
+  proposition). Causes : contrainte d'unicité (facture, ligne) du premier
+  modèle, qui comptait le lien rejeté de la veille ; refus inattendus
+  renvoyés tels quels. Correctifs (migration n° 35) : unicité sur les liens
+  actifs seulement ; erreur interne tracée au journal, message lisible avec
+  référence. Test qui rejoue le cas complet (rejet, autre facture, annulation,
+  rapprochement avec la facture rejetée), vérifié en échec sans correctif.
+- Tests : 410 SQL, 276 unitaires, 38 d'intégration.

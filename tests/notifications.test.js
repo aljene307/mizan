@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import {
   notificationFacture, notificationDemande, notificationRapprochement, notificationSignalement, notificationSynthese,
-  notificationLot, notificationLigneARapprocher, messageReponse,
+  notificationLot, notificationLigneARapprocher, notificationChoixAnnulation, notificationDemandeAnnulation, messageReponse,
 } from '../src/decisions/notifications.js';
 import { fournisseurDansLibelle } from '../src/rapprochement/appariement.js';
 import { formaterMontant, enMillimes } from '../src/montants.js';
@@ -138,7 +138,12 @@ test('réponses : une par résultat ; rien pour un événement déjà traité ; 
   assert.equal(j.attendJustification, true);
   assert.match(j.lignes.join(' '), /10 minutes/);
   assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ015', motif: '…' }).lignes[0], /non dérogeable/);
-  assert.match(messageReponse({ code: 'decision_refusee', erreur: 'XX000', motif: 'autre' }).lignes[0], /autre/);
+  // Erreur interne : jamais le message technique de la base (défaut du 2026-10-10).
+  const interne = messageReponse({ code: 'decision_refusee', erreur: 'interne', reference: 42,
+    motif: 'duplicate key value violates unique constraint "rapprochements_paire_uk"' }).lignes.join(' ');
+  assert.match(interne, /incident technique n° 42, enregistré au journal d'audit/);
+  assert.doesNotMatch(interne, /duplicate|constraint|rapprochements_paire_uk/);
+  assert.doesNotMatch(messageReponse({ code: 'decision_refusee', erreur: '23505', motif: 'duplicate key' }).lignes.join(' '), /duplicate/);
   assert.match(messageReponse({ code: 'decision_enregistree', action: { code: 'demander_changement_rib' } }).lignes[0], /autre responsable/);
   assert.match(messageReponse({ code: 'pas_destinataire' }).lignes[0], /pas destinée/);
   assert.match(messageReponse({ code: 'quelque_chose' }).lignes[0], /comprends/);
@@ -229,4 +234,43 @@ test('réponses du rapprochement manuel : consigne du numéro, refus lisibles', 
   assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ046' }).lignes[0], /dépasse/);
   assert.equal(messageReponse({ code: 'decision_enregistree', action: { code: 'signaler_sans_facture' } }).lignes[0],
     'Ligne signalée sans facture : un responsable l\'examinera.');
+});
+
+const propositionGroupee = {
+  id: 77, cas: 'groupe', methode: 'manuel', statut: 'confirme',
+  ligne: { id: 5, date_operation: '2026-04-15', libelle: 'VIR EMIS YASMINE FACT 2026/155 2026/137', debit: 6706.163 },
+  affectations: [{ facture_id: 1, numero: '2026/155', raison_sociale: 'Yasmine', role: 'reglement', montant: 3380.136 },
+    { facture_id: 2, numero: '2026/137', raison_sociale: 'Yasmine', role: 'reglement', montant: 3326.027 }],
+};
+
+test('choix d\'annulation : un bouton par rapprochement ; virement groupé dit explicitement, autres factures listées', () => {
+  const n = notificationChoixAnnulation({ candidat: { ...candidatRappr('responsable'), recherche_annulation_id: 9 },
+    choix_annulation: { numero: '2026/155', propositions: [propositionGroupee] } }, deps);
+  assert.deepEqual([n.objet, n.recherche_annulation_id], ['choix_annulation', 9]);
+  assert.deepEqual(n.actions.map((a) => [a.code, a.params.proposition_id]), [['demander_annulation', 77]]);
+  assert.match(n.actions[0].libelle, /\(2 factures\)$/);
+  assert.equal(n.contenu.alertes[0].libelle, 'Virement groupé');
+  assert.match(n.contenu.alertes[0].message, /concerne aussi 2026\/137/);
+  assert.ok(n.contenu.champs.some(([l]) => l === 'Facture 2026/137'));
+  assert.match(n.contenu.note, /un autre responsable devra approuver/);
+});
+
+test('demande d\'annulation : approuver ou refuser ; demandeur, justification et toutes les factures du virement groupé', () => {
+  const n = notificationDemandeAnnulation({ candidat: candidatRappr('responsable'), demande_annulation: {
+    id: 4, demande_par_nom: 'Mohamed', justification: 'Mauvaise facture', proposition: propositionGroupee } }, deps);
+  assert.deepEqual([n.objet, n.demande_annulation_id, codes(n)], ['demande_annulation', 4, ['approuver_annulation', 'refuser_annulation']]);
+  assert.match(n.contenu.titre, /demandée par Mohamed/);
+  assert.equal(champ(n, 'Justification'), 'Mauvaise facture');
+  assert.match(n.contenu.alertes[0].message, /2026\/155, 2026\/137/);
+  const simple = notificationDemandeAnnulation({ candidat: candidatRappr('responsable'), demande_annulation: {
+    id: 5, demande_par_nom: 'Mohamed', justification: 'x', proposition: { ...propositionGroupee, affectations: [propositionGroupee.affectations[0]] } } }, deps);
+  assert.deepEqual(simple.contenu.alertes, [], 'une seule facture : pas d\'alerte de virement groupé');
+});
+
+test('réponses de l\'annulation : recherche, introuvable, rôle, confirmations', () => {
+  assert.match(messageReponse({ code: 'recherche_annulation_enregistree', numero: 'ISS260302', rapprochements: 1 }).lignes[0], /1 rapprochement\(s\) confirmé\(s\) pour ISS260302/);
+  assert.match(messageReponse({ code: 'annulation_introuvable', numero: 'X' }).lignes[0], /Aucun rapprochement confirmé/);
+  assert.match(messageReponse({ code: 'commande_refusee', motif: 'role' }).lignes[0], /réservée aux responsables/);
+  assert.match(messageReponse({ code: 'decision_enregistree', action: { code: 'demander_annulation' } }).lignes[0], /un autre responsable/);
+  assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ018' }).lignes[0], /quatre yeux/);
 });
