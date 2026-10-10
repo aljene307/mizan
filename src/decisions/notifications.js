@@ -179,6 +179,7 @@ function notificationRapprochement({ candidat, proposition }, deps) {
 const TITRES_SIGNALEMENT = Object.freeze({
   payee_non_approuvee: 'Paiement d\'une facture non approuvée',
   sortie_sans_facture: 'Sortie d\'argent sans facture',
+  sortie_sans_ordre: 'Paiement sans ordre de paiement approuvé',
 });
 
 /** Signalement à examiner (responsable seulement). */
@@ -219,6 +220,76 @@ function notificationSynthese({ candidat, synthese }) {
   };
 }
 
+// --- Ordres de paiement (D-068) ------------------------------------------------------
+const ORDRES_AFFICHES = 15;
+
+/**
+ * Lot d'ordres de paiement à approuver (responsable seulement, C-a1). Chaque
+ * ordre porte le RIB du référentiel (D-058), copié à la création du lot.
+ * Au-delà de ORDRES_AFFICHES ordres, le détail est au tableau de bord.
+ */
+function notificationLot({ candidat, lot }, deps) {
+  const ordres = lot.ordres ?? [];
+  const totalMillimes = ordres.reduce((t, o) => t + deps.enMillimes(o.montant), 0);
+  const champs = [
+    ['Échéances jusqu\'au', lot.echeances_jusqu_au],
+    ['Ordres', String(ordres.length)],
+    ['Total', `${deps.formaterMontant(totalMillimes)} TND`],
+    ...ordres.slice(0, ORDRES_AFFICHES).map((o) => [o.reference,
+      `${o.beneficiaire} : ${tnd(o.montant, deps)} — RIB ${o.rib} — échéance ${o.date_echeance ?? '—'}`]),
+  ];
+  if (ordres.length > ORDRES_AFFICHES) {
+    champs.push(['…', `et ${ordres.length - ORDRES_AFFICHES} autre(s) ordre(s) : voir le tableau de bord`]);
+  }
+  return {
+    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'lot_paiement', lot_id: lot.id,
+    actions: [{ code: 'approuver_lot', libelle: 'Approuver le lot' }, { code: 'refuser_lot', libelle: 'Refuser le lot' }],
+    contenu: {
+      objet: 'lot_paiement', titre: `Lot d'ordres de paiement n° ${lot.id}`, champs, alertes: [],
+      note: 'Chaque RIB est celui du référentiel, jamais celui lu sur la facture (D-058). '
+        + 'Après approbation, le fichier des ordres est produit pour signature à la banque.',
+    },
+  };
+}
+
+// --- Rapprochement manuel d'une ligne rejetée (D-068, D1) ------------------------------
+const CANDIDATS_AFFICHES = 5;
+const court = (t, n) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
+
+/**
+ * Ligne dont la proposition a été rejetée (validateur ou responsable) : les
+ * 5 factures les plus plausibles (fournisseur reconnu dans le libellé, puis
+ * montant le plus proche), « Autre facture » (réponse : numéro puis
+ * justification) et « Aucune facture » (signalement). La base revérifie tout.
+ * @param {{formaterMontant: Function, enMillimes: Function, fournisseurDansLibelle: Function}} deps
+ */
+function notificationLigneARapprocher({ candidat, ligne_a_rapprocher: a }, deps) {
+  const ligne = a.ligne;
+  const debit = deps.enMillimes(ligne.debit);
+  const rang = (c) => [deps.fournisseurDansLibelle(c.raison_sociale, ligne.libelle) ? 0 : 1, Math.abs(deps.enMillimes(c.a_payer) - debit)];
+  const candidats = [...a.candidats]
+    .sort((x, y) => { const [a1, a2] = rang(x); const [b1, b2] = rang(y); return a1 - b1 || a2 - b2 || x.facture_id - y.facture_id; })
+    .slice(0, CANDIDATS_AFFICHES);
+  const actions = candidats.map((c) => ({
+    code: 'rapprocher_facture', libelle: `${c.numero} — ${court(c.raison_sociale, 18)} — ${tnd(c.a_payer, deps)}`,
+    params: { facture_id: c.facture_id },
+  }));
+  actions.push({ code: 'rapprocher_autre', libelle: 'Autre facture (répondre par son numéro)' },
+    { code: 'signaler_sans_facture', libelle: 'Aucune facture : signaler' });
+  return {
+    canal: candidat.canal, utilisateur_id: candidat.utilisateur_id, objet: 'ligne_a_rapprocher',
+    ligne_releve_id: ligne.id, releve_id: candidat.releve_id, actions,
+    contenu: {
+      objet: 'ligne_a_rapprocher', titre: `Paiement à rapprocher à la main : ${tnd(ligne.debit, deps)} du ${ligne.date_operation}`,
+      champs: [['Opération', `${ligne.date_operation} — ${ligne.libelle}`], ['Montant', tnd(ligne.debit, deps)],
+        ...candidats.map((c) => [`Facture ${c.numero}`, `${c.raison_sociale} : ${tnd(c.a_payer, deps)} à payer, échéance ${c.date_echeance ?? '—'}`])],
+      alertes: [],
+      note: 'La proposition automatique a été rejetée. Choisissez la facture que ce paiement règle, '
+        + 'désignez-en une autre par son numéro, ou signalez qu\'aucune facture ne correspond.',
+    },
+  };
+}
+
 // Messages renvoyés selon le résultat de recevoir_evenement().
 const MOTIFS_REFUS = Object.freeze({
   MZ010: 'la facture a changé de statut entre-temps : décision impossible.',
@@ -234,6 +305,9 @@ const MOTIFS_REFUS = Object.freeze({
   MZ041: 'une facture de la proposition n\'est plus approuvée.',
   MZ042: 'déjà décidé par ailleurs.',
   MZ043: 'un écart doit être qualifié par un motif.',
+  MZ045: 'aucune facture approuvée (ou plusieurs) ne porte ce numéro : vérifiez-le, il doit commencer votre réponse.',
+  MZ046: 'le paiement dépasse ce qui reste dû sur cette facture (au-delà de la tolérance) : choisissez une autre facture ou signalez.',
+  MZ051: 'des ordres du lot ne sont plus valables (facture, RIB ou montant) : refusez ce lot, le suivant reprendra les factures.',
 });
 const CONFIRMATIONS = Object.freeze({
   valider: 'Facture validée.',
@@ -247,6 +321,11 @@ const CONFIRMATIONS = Object.freeze({
   confirmer_rapprochement: 'Rapprochement confirmé.',
   rejeter_rapprochement: 'Proposition de rapprochement rejetée.',
   classer_signalement: 'Signalement classé.',
+  approuver_lot: 'Lot d\'ordres de paiement approuvé.',
+  refuser_lot: 'Lot d\'ordres de paiement refusé.',
+  rapprocher_facture: 'Paiement rapproché de la facture.',
+  rapprocher_autre: 'Paiement rapproché de la facture indiquée.',
+  signaler_sans_facture: 'Ligne signalée sans facture : un responsable l\'examinera.',
 });
 
 /**
@@ -263,7 +342,9 @@ function messageReponse(r) {
     case 'expediteur_inconnu': return avec(['Accès réservé. Pour vous inscrire : /start suivi de votre code.'], 'Accès réservé');
     case 'justification_demandee':
       return avec([`Action : ${r.action?.libelle ?? r.action?.code} — ${r.contenu?.titre ?? ''}`.trim(),
-        `Répondez à ce message par votre justification, dans les ${r.delai_minutes} minutes.`], 'Justification demandée', true);
+        r.action?.code === 'rapprocher_autre'
+          ? `Répondez par le numéro de la facture, puis votre justification (exemple : « FA-2026-0300 virement confirmé par le fournisseur »), dans les ${r.delai_minutes} minutes.`
+          : `Répondez à ce message par votre justification, dans les ${r.delai_minutes} minutes.`], 'Justification demandée', true);
     case 'justification_trop_tard': return avec(['Délai dépassé : rien n\'a été appliqué. Touchez de nouveau le bouton.'], 'Délai dépassé');
     case 'aucune_action_en_attente': return avec(['Aucune décision en attente. Touchez d\'abord un bouton d\'une notification.'], 'Aucune décision en attente');
     case 'decision_enregistree': return avec([CONFIRMATIONS[r.action?.code] ?? 'Décision enregistrée.'], 'Décision enregistrée');
@@ -273,11 +354,16 @@ function messageReponse(r) {
     case 'notification_perimee': return avec(['Cette notification n\'est plus valable : la facture a changé d\'état.'], 'Notification périmée');
     case 'notification_expiree': return avec(['Cette notification a expiré.'], 'Notification expirée');
     case 'bouton_inconnu': case 'action_inconnue': return avec(['Bouton non reconnu.'], 'Bouton non reconnu');
-    default: return avec(['Je ne comprends que les boutons des notifications et les justifications.'], 'Non compris');
+    case 'question_recue': return avec(['Question reçue : réponse dans une minute environ.'], 'Question reçue');
+    case 'question_refusee':
+      return avec([r.motif === 'quota'
+        ? `Limite atteinte : ${r.max_par_heure} questions par heure. Réessayez plus tard.`
+        : `Question vide ou trop longue (${r.longueur_max} caractères au plus).`], 'Question refusée');
+    default: return avec(['Je comprends les boutons des notifications, les justifications, et les questions : /q suivi de la question.'], 'Non compris');
   }
 }
 
 export {
   LIBELLES_STATUT, METHODES_COURTES, MOTIFS_ECART, notificationFacture, notificationDemande,
-  notificationRapprochement, notificationSignalement, notificationSynthese, messageReponse,
+  notificationRapprochement, notificationSignalement, notificationSynthese, notificationLot, notificationLigneARapprocher, messageReponse,
 };

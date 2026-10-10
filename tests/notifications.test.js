@@ -2,10 +2,12 @@
 // indépendants du canal.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
-  notificationFacture, notificationDemande, notificationRapprochement, notificationSignalement, notificationSynthese, messageReponse,
+  notificationFacture, notificationDemande, notificationRapprochement, notificationSignalement, notificationSynthese,
+  notificationLot, notificationLigneARapprocher, messageReponse,
 } from '../src/decisions/notifications.js';
+import { fournisseurDansLibelle } from '../src/rapprochement/appariement.js';
 import { formaterMontant, enMillimes } from '../src/montants.js';
 
 const deps = { formaterMontant, enMillimes };
@@ -120,7 +122,9 @@ test('demande de changement de RIB : une approbation par méthode de vérificati
 
 test('les codes d\'action produits sont ceux qu\'accepte la base (creer_notification)', () => {
   // Version en vigueur de creer_notification : la plus récente migration qui la définit (partie « up »).
-  const migration = readFileSync('db/migrations/20261008130000_canaux_rapprochement.sql', 'utf8').split('-- migrate:down')[0];
+  const [migration] = readdirSync('db/migrations').sort().reverse()
+    .map((f) => readFileSync(`db/migrations/${f}`, 'utf8').split('-- migrate:down')[0])
+    .filter((up) => /FUNCTION creer_notification/.test(up));
   const liste = migration.match(/WHERE a ->> 'code' NOT IN \(([^)]*)\)/)[1];
   const acceptes = [...liste.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
   const source = readFileSync('src/decisions/notifications.js', 'utf8');
@@ -183,4 +187,46 @@ test('réponses du rapprochement : confirmations et motifs de refus lisibles', (
   assert.equal(messageReponse({ code: 'decision_enregistree', action: { code: 'confirmer_rapprochement' } }).lignes[0], 'Rapprochement confirmé.');
   assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ043' }).lignes[0], /motif/);
   assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ041' }).lignes[0], /n'est plus approuvée/);
+});
+
+test('lot d\'ordres : approuver ou refuser ; RIB du référentiel, total en millimes, liste limitée', () => {
+  const ordre = (k) => ({ reference: `FACT F-${k}`, beneficiaire: 'Fournisseur Canal', rib: RIB_REFERENTIEL,
+    montant: 0.1, date_echeance: '2026-10-05' });
+  const lot = (n) => ({ id: 5, echeances_jusqu_au: '2026-10-16', ordres: Array.from({ length: n }, (_, k) => ordre(k + 1)) });
+  const n = notificationLot({ candidat: candidatRappr('responsable'), lot: lot(3) }, deps);
+  assert.deepEqual([n.objet, n.lot_id, codes(n)], ['lot_paiement', 5, ['approuver_lot', 'refuser_lot']]);
+  assert.equal(champ(n, 'Total'), '0,300 TND', 'somme en millimes : 0,1 + 0,1 + 0,1 sans erreur d\'arrondi');
+  assert.match(champ(n, 'FACT F-1'), new RegExp(`RIB ${RIB_REFERENTIEL}`));
+  assert.match(n.contenu.note, /jamais celui lu sur la facture/);
+  const grand = notificationLot({ candidat: candidatRappr('responsable'), lot: lot(18) }, deps);
+  assert.equal(champ(grand, 'Ordres'), '18');
+  assert.equal(grand.contenu.champs.filter(([l]) => l.startsWith('FACT ')).length, 15);
+  assert.match(champ(grand, '…'), /3 autre\(s\) ordre\(s\)/);
+});
+
+test('réponses des ordres : approbation, refus et lot périmé lisibles', () => {
+  assert.equal(messageReponse({ code: 'decision_enregistree', action: { code: 'approuver_lot' } }).lignes[0], 'Lot d\'ordres de paiement approuvé.');
+  assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ051' }).lignes[0], /refusez ce lot/);
+});
+
+test('ligne à rapprocher : 5 candidates (fournisseur du libellé d\'abord, puis montant le plus proche), autre facture, aucune facture', () => {
+  const c = (id, numero, raison_sociale, a_payer) => ({ facture_id: id, numero, raison_sociale, a_payer, date_echeance: '2026-09-30' });
+  const n = notificationLigneARapprocher({ candidat: candidatRappr('validateur'), ligne_a_rapprocher: {
+    ligne: { id: 40, date_operation: '2026-04-02', libelle: 'VIR EMIS TRANS-CAP LOGISTIQUE REF 88', debit: 1000 },
+    candidats: [c(1, 'A-1', 'Autre Fournisseur', 1000), c(2, 'T-2', 'Trans-Cap Logistique', 1500), c(3, 'A-3', 'Autre Fournisseur', 999),
+      c(4, 'A-4', 'Autre Fournisseur', 1200), c(5, 'A-5', 'Autre Fournisseur', 700), c(6, 'A-6', 'Autre Fournisseur', 5000)] } },
+  { ...deps, fournisseurDansLibelle });
+  assert.deepEqual([n.objet, n.ligne_releve_id], ['ligne_a_rapprocher', 40]);
+  assert.deepEqual(n.actions.filter((a) => a.code === 'rapprocher_facture').map((a) => a.params.facture_id), [2, 1, 3, 4, 5]);
+  assert.deepEqual(n.actions.slice(-2).map((a) => a.code), ['rapprocher_autre', 'signaler_sans_facture']);
+  assert.ok(n.actions.every((a) => a.libelle.length <= 64), 'libellés de bouton courts');
+});
+
+test('réponses du rapprochement manuel : consigne du numéro, refus lisibles', () => {
+  const j = messageReponse({ code: 'justification_demandee', action: { code: 'rapprocher_autre' }, contenu: { titre: 'X' }, delai_minutes: 10 });
+  assert.match(j.lignes[1], /numéro de la facture, puis votre justification/);
+  assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ045' }).lignes[0], /ce numéro/);
+  assert.match(messageReponse({ code: 'decision_refusee', erreur: 'MZ046' }).lignes[0], /dépasse/);
+  assert.equal(messageReponse({ code: 'decision_enregistree', action: { code: 'signaler_sans_facture' } }).lignes[0],
+    'Ligne signalée sans facture : un responsable l\'examinera.');
 });

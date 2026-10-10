@@ -1,0 +1,93 @@
+{
+  "name": "Mizan – Ordres de paiement",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000091",
+      "name": "Chaque lundi à 8 h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -80
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5e1f0000-0000-4000-8000-000000000092",
+      "name": "Lancement manuel",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT proposer_lot_paiement($1::jsonb) AS bilan;",
+        "options": {
+          "queryReplacement": "={{ [ { execution_n8n_id: $execution.id } ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000093",
+      "name": "Proposer un lot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "executeOnce": true
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "connections": {
+    "Chaque lundi à 8 h": {
+      "main": [
+        [
+          {
+            "node": "Proposer un lot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancement manuel": {
+      "main": [
+        [
+          {
+            "node": "Proposer un lot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

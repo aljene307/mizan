@@ -18,6 +18,13 @@ Thumbs.db
 # Factures déposées pour le workflow de réception (copies de test)
 data/entrant/
 
+# Relevé de démonstration (dépend de la base) et fichiers d'ordres exportés
+data/demo/
+sorties/
+
 # Caches Python
 __pycache__/
 *.pyc
+
+# Captures d'écran brutes : relues et sélectionnées avant tout commit
+screenshots/

@@ -458,3 +458,146 @@ empreinte, traçabilité de chaque extraction).
   rectificative liée à la décision d'origine.
 - README : rapprochement (règles, mesure, démonstration, limites).
   258 tests SQL, 245 unitaires. Étape validée ; commit.
+
+## 2026-10-08 — Restitution : choix, rôle de lecture et vues
+
+- Proposition présentée, choix de Mohamed : A1 (Grafana), B2 (catalogue de
+  questions), C-a1, C-b1, D1, contrôle des ordres à partir d'une date de
+  mise en service, second relevé de démo (D-068).
+- Scénario de démonstration corrigé : une facture au RIB modifié ne peut
+  pas être validée (`changement_rib` non dérogeable). Chemins actuels et
+  chemin manquant « RIB imprimé écarté » décrits, proposition notée sans
+  la construire (D-069). Sécurité de Grafana (D-070) ; serveur MCP estimé,
+  non construit (D-071).
+- Migration n° 24 : schéma `restitution` (échéancier, paiements, trésorerie
+  prévue, TVA figurant sur les factures, à traiter) et rôle `mizan_lecture`
+  (vues seules, session en lecture seule, délais, 5 connexions). Le schéma
+  `public` n'est plus ouvert à PUBLIC ; `mizan_app` garde son droit
+  explicite. Script `db/init/03-create-lecture-role.sh`, mot de passe dans
+  `.env` (`MIZAN_LECTURE_PASSWORD`).
+- Constats en écrivant les tests : écrire dans une vue non modifiable est
+  refusé avant le contrôle des droits (55000) ; la lecture seule de session
+  peut être levée par le rôle lui-même, ce sont les droits qui protègent
+  (vérifié par une vraie connexion). Sur la vraie base, la trésorerie
+  comptait les factures dont le paiement est déjà au relevé : corrigé, test
+  ajouté.
+- Tests : 285 SQL (nouveau fichier `07_restitution.sql` et contrôles de
+  connexion dans `lancer.sh`), 245 unitaires, 25 d'intégration.
+
+## 2026-10-09 — Ordres de paiement et « sortie sans ordre »
+
+- Rôle de lecture, vues et scénario corrigé validés par Mohamed.
+- Migration n° 25 : lots et ordres de paiement (RIB copié du référentiel),
+  décision du responsable avec revérification (MZ051), contrôle « sortie
+  sans ordre » par déclencheur sur les règlements confirmés, à partir de la
+  mise en service (2026-10-01) ; vues `restitution.ordres_paiement` et
+  `restitution.releves`.
+- Migration n° 26 : le canal porte les lots (objet `lot_paiement`, actions
+  approuver / refuser, péremption) ; générée par remplacements vérifiés des
+  fonctions de la migration n° 22.
+- Workflow « Ordres de paiement » (lundi 8 h ou manuel) ; notification du lot
+  (`notificationLot`) ; scripts `exporter-ordres` et `generer-releve-demo`,
+  en lecture seule par `mizan_lecture`.
+- Constats : le test des codes d'action lisait une migration nommée en dur,
+  il lit désormais la plus récente qui définit `creer_notification` ; une
+  vue renvoyait `0` au lieu de `0.000` (type fixé) ; le retour arrière d'une
+  migration modifiée après son application échouait (vue absente) :
+  `DROP VIEW IF EXISTS`.
+- Tests : 316 SQL (nouveau fichier `08_ordres.sql`), 251 unitaires
+  (nouveau `ordres.test.js`), 25 d'intégration.
+- Démonstration (Mohamed) : lot n° 2 approuvé sur Telegram, export réussi.
+  Deux défauts signalés :
+  1. Instructions qui supposaient le lot n° 1. Le numéro 1 a été pris par un
+     lot créé puis annulé dans la transaction d'un test SQL : une séquence
+     d'identité n'est jamais remise en arrière par un ROLLBACK. L'export
+     affiche désormais les lots disponibles si le numéro est inconnu.
+  2. `generer-releve-demo` : « function parametres_controle_en_vigueur(date)
+     does not exist ». Cause : la vue `ordres_en_cours` appelait
+     `parametre_controle()`, qui s'exécute avec le chemin de recherche du
+     LECTEUR ; pour `mizan_lecture` (restitution seule, public fermé), la
+     fonction interne est introuvable. Les tests SQL ne l'avaient pas vu :
+     `SET ROLE` n'applique pas les réglages de connexion du rôle, et la
+     colonne concernée n'y était pas lue. Correctif : migration n° 27, la vue
+     lit la table des paramètres. Tests ajoutés : aucune vue atteinte depuis
+     la restitution n'appelle de fonction de la base ; chaque vue lue en
+     entier par une vraie connexion (`lancer.sh`) ; scripts exécutés pour de
+     vrai en `mizan_lecture` sur `mizan_test`, puis relevé importé et
+     apparié (test d'intégration, vérifié en échec sans le correctif).
+- Tests : 324 SQL, 251 unitaires, 28 d'intégration.
+
+## 2026-10-09 — Rapprochement manuel d'une ligne rejetée
+
+- Base vérifiée après la démonstration des ordres : relevé de démo importé,
+  3 paiements d'ordres confirmés automatiquement sans signalement,
+  TCL-00346 payée hors ordre et signalée, commissions rangées, ordres du
+  lot n° 2 entièrement exécutés.
+- Migration n° 28 : vue `lignes_a_rapprocher`, fonctions
+  `rapprocher_manuellement`, `signaler_ligne_sans_facture`,
+  `facture_par_numero` ; « à traiter » complété. Migration n° 29 (générée) :
+  objet de notification `ligne_a_rapprocher`, trois actions, péremption,
+  candidates fournies par la base (D-073).
+- Notification `notificationLigneARapprocher` (5 candidates, fournisseur
+  du libellé d'abord) ; consigne de réponse « numéro puis justification » ;
+  le nœud de préparation reçoit aussi `src/rapprochement/appariement.js`.
+- Constats en écrivant les tests : la base refuse deux factures approuvées
+  de même numéro chez un même fournisseur (l'ambiguïté ne vient que de deux
+  fournisseurs) ; un attendu de test erroné corrigé (ordre des candidates) ;
+  la restitution se lit en `mizan_lecture`, pas en `mizan_app`.
+- Tests : 347 SQL (nouveau `09_rapprochement_manuel.sql`), 253 unitaires,
+  28 d'intégration.
+
+## 2026-10-09 — Tableau de bord Grafana
+
+- Base vérifiée après la démonstration du rapprochement manuel : rejet de
+  la proposition de la ligne 66, refus MZ045 pour un numéro inexistant (rien
+  appliqué), rapprochement manuel avec ISS260302 (paiement partiel). Selon
+  la vérité terrain, ce chèque réglait MC2026-00089 (la proposition
+  rejetée) : MC2026-00089 apparaît désormais en retard. Aucun moyen
+  d'annuler un rapprochement confirmé : noté (D-075).
+- Grafana 13.2.3 (port 3000 vérifié libre, publié sur 127.0.0.1), réglages
+  de sécurité de D-070, source unique `mizan_lecture` provisionnée, tableau
+  de bord généré (D-074). Paramètres relevés dans la documentation et le
+  code source officiels.
+- Constats : une écriture par Grafana est arrêtée par la session en lecture
+  seule (25006) avant les droits ; première capture d'écran : montants
+  arrondis, dates avec heure, couleurs de seuil sans objet, trésorerie
+  illisible en graphique (échelles trop différentes) ; corrigés.
+- Tests : 256 unitaires, 33 d'intégration (dont 5 pour Grafana).
+
+## 2026-10-09 — Questions en langage naturel
+
+- Grafana confirmé par Mohamed (connexion, tableau de bord, 401 sans
+  identification). Commandes données désormais compatibles avec Windows
+  PowerShell 5.1. Dossier `screenshots/` ignoré par Git (captures relues et
+  sélectionnées à la clôture de l'étape).
+- Propositions faites, en attente de décision : annulation d'un
+  rapprochement par contre-passation (D-075 : coût, risque de double
+  paiement, déclenchement par `/annuler`) ; reconstruction d'un état de
+  démonstration par script, en rejouant les extractions enregistrées.
+- Questions (D-076) : catalogue de 9 questions, commande `/q`, file en base
+  (migration n° 30), workflow « Questions (langage naturel) » (10 nœuds,
+  credential de lecture). Mesure : 19 / 22 puis 22 / 22 après correction du
+  paramètre « au », 8 / 8 détournements ; mise au point sur le même jeu.
+- Constats : `evenements_entrants` limitait les types d'événement ;
+  apostrophe d'un nom de nœud dans le code généré (test de compilation de
+  tous les nœuds ajouté) ; un fichier d'exemples partagé évite de relancer
+  les tests unitaires depuis les tests d'intégration.
+- Tests : 361 SQL (nouveau `10_questions.sql`), 269 unitaires,
+  36 d'intégration.
+
+## 2026-10-10 — Clôture de la restitution
+
+- Questions vérifiées en base après la démonstration de Mohamed : 3
+  questions répondues en moins d'une minute (factures en retard, état d'une
+  facture, tentative de suppression classée « hors catalogue »).
+- Incident de credentials au réimport (D-079) : tableau des credentials par
+  nœud dans le README et contrôle `npm run verifier-credentials-n8n` (base
+  interne de n8n, versions publiée et brouillon ; test qui rejoue
+  l'incident). Installation actuelle conforme : 12 versions contrôlées.
+- Choix de Mohamed consignés : annulation d'un rapprochement à deux
+  personnes, facture exclue des lots tant que la ligne n'est pas retraitée
+  (inconvénient noté : paiement légitime retardé) (D-077) ; reconstruction
+  de l'état de démonstration par script, sans LLM ni Telegram (D-078).
+- README : section « Restitution » (tableau de bord, ordres de paiement,
+  rapprochement manuel, questions), limites de chaque mesure, imports et
+  credentials, commandes. Captures d'écran relues à part, avant tout commit.

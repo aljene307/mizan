@@ -5,6 +5,7 @@
 //   workflows/notifications-telegram.json  envoi des notifications (D-062, D-064)
 //   workflows/reponses-telegram.json     réception des réponses (D-062, D-064)
 //   workflows/releve-rapprochement.json  import et rapprochement du relevé (D-065)
+//   workflows/ordres-paiement.json       proposition d'un lot d'ordres de paiement (D-068)
 // Le code des nœuds Code est recopié depuis src/ (D-041). Paramètres des nœuds
 // relevés dans n8n 2.41.7. Usage : node scripts/construire-workflows.js
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -384,15 +385,17 @@ const notifications = {
       rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] },
     }),
     postgres('Notifications à préparer', [220, 0], 'SELECT donnees_notifications(\'telegram\') AS donnees;', null, { executeOnce: true }),
-    code(N_PREPARER_NOTIF, [440, 0], ['src/decisions/notifications.js', 'src/montants.js'],
-      `// Contenu et actions, sans rien connaître du canal (D-062, D-065).
-const deps = { formaterMontant, enMillimes };
+    code(N_PREPARER_NOTIF, [440, 0], ['src/decisions/notifications.js', 'src/montants.js', 'src/rapprochement/appariement.js'],
+      `// Contenu et actions, sans rien connaître du canal (D-062, D-065, D-068).
+const deps = { formaterMontant, enMillimes, fournisseurDansLibelle };
 const preparer = {
   facture: (d) => notificationFacture({ candidat: d.candidat, facture: d.facture, fournisseur: d.fournisseur, resultats: d.resultats, regles: d.regles }, deps),
   demande: (d) => notificationDemande({ candidat: d.candidat, demande: d.demande, fournisseur: d.fournisseur, facture: d.facture, methodes: d.methodes }),
   rapprochement: (d) => notificationRapprochement({ candidat: d.candidat, proposition: d.proposition }, deps),
   signalement: (d) => notificationSignalement({ candidat: d.candidat, signalement: d.signalement, facture: d.facture }, deps),
   synthese: (d) => notificationSynthese({ candidat: d.candidat, synthese: d.synthese }),
+  lot_paiement: (d) => notificationLot({ candidat: d.candidat, lot: d.lot }, deps),
+  ligne_a_rapprocher: (d) => notificationLigneARapprocher({ candidat: d.candidat, ligne_a_rapprocher: d.ligne_a_rapprocher }, deps),
 };
 return $input.all().map((i) => {
   const d = i.json.donnees;
@@ -589,7 +592,132 @@ releve.connections = connexions([
   ['Quelque chose à enregistrer ?', 0, 'Enregistrer le rapprochement'],
 ]);
 
+// =============================================================================
+// Ordres de paiement (D-068) : chaque lundi à 8 h (ou à la main), la base
+// propose un lot d'ordres pour les échéances proches, sur le RIB du
+// référentiel (D-058). La notification au responsable part par le workflow
+// « Notifications Telegram » ; l'approbation passe par le canal.
+// =============================================================================
+const ordres = {
+  name: 'Mizan – Ordres de paiement',
+  nodes: [
+    noeud('Chaque lundi à 8 h', 'n8n-nodes-base.scheduleTrigger', 1.2, [0, -80], {
+      rule: { interval: [{ field: 'weeks', weeksInterval: 1, triggerAtDay: [1], triggerAtHour: 8, triggerAtMinute: 0 }] },
+    }),
+    noeud('Lancement manuel', 'n8n-nodes-base.manualTrigger', 1, [0, 80], {}),
+    // Un lot déjà en attente est renvoyé tel quel ; aucun lot sans facture à payer.
+    postgres('Proposer un lot', [220, 0], 'SELECT proposer_lot_paiement($1::jsonb) AS bilan;',
+      '[ { execution_n8n_id: $execution.id } ]', { executeOnce: true }),
+  ],
+  settings: { executionOrder: 'v1' },
+  pinData: {},
+};
+ordres.connections = connexions([
+  ['Chaque lundi à 8 h', 0, 'Proposer un lot'],
+  ['Lancement manuel', 0, 'Proposer un lot'],
+]);
+
+// =============================================================================
+// Questions en langage naturel (D-068, B2). File remplie par « Réponses
+// Telegram » (/q …). Le modèle choisit seulement une question du catalogue ;
+// la requête du catalogue est lue avec le rôle mizan_lecture ; le code
+// rédige la réponse ; la question est conclue (trace en base).
+// =============================================================================
+const CRED_POSTGRES_LECTURE = { postgres: { id: '', name: 'PostgreSQL Mizan (lecture)' } };
+const N_QUESTIONS = 'Questions à traiter';
+const N_PREPARER_Q = 'Préparer l\'interprétation';
+const N_LIRE_Q = 'Lire l\'interprétation';
+const N_DONNEES_Q = 'Lire les données (mizan_lecture)';
+const N_REDIGER_Q = 'Rédiger la réponse';
+const PAUSE_ENTRE_APPELS_MS = 4000; // quota par minute de l'offre gratuite (D-036)
+const questions = {
+  name: 'Mizan – Questions (langage naturel)',
+  nodes: [
+    noeud('Toutes les minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, [0, 0], {
+      rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] },
+    }),
+    // Aucune ligne : l'exécution s'arrête là.
+    postgres(N_QUESTIONS, [220, 0], 'SELECT * FROM prendre_questions(5);', null, { executeOnce: true }),
+    code(N_PREPARER_Q, [440, 0], ['src/questions/catalogue.js', 'src/gemini.js'],
+      `// Le modèle reçoit le catalogue et la question balisée, jamais de données.
+const aujourdhui = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis' }).format(new Date());
+const instructions = instructionsInterpretation();
+const schema = schemaInterpretation();
+return $input.all().map((i) => ({ json: {
+  question_id: i.json.question_id, adresse: i.json.adresse, url: urlGemini(),
+  requete: construireRequeteGemini(instructions, messageQuestion(i.json.texte, aujourdhui), schema),
+} }));`),
+    noeud('Interpréter (Gemini)', 'n8n-nodes-base.httpRequest', 4.5, [660, 0], {
+      method: 'POST',
+      url: '={{ $json.url }}',
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googlePalmApi',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify($json.requete) }}',
+      options: {
+        response: { response: { fullResponse: true, neverError: true } }, timeout: 60000,
+        batching: { batch: { batchSize: 1, batchInterval: PAUSE_ENTRE_APPELS_MS } },
+      },
+    }, { credentials: CRED_GEMINI, onError: 'continueRegularOutput' }),
+    code(N_LIRE_Q, [880, 0], ['src/questions/catalogue.js', 'src/gemini.js'],
+      `// Sortie du modèle validée par le code ; requête fixe du catalogue (ou requête vide).
+const preparees = $("${N_PREPARER_Q}").all();
+return $input.all().map((i, k) => {
+  const p = preparees[i.pairedItem?.item ?? k].json;
+  const lu = lireReponseGemini(i.json.statusCode ?? null, i.json.body ?? null);
+  const interpretation = lu.code === 'ok' ? interpreter(lu.donnees) : { code: 'erreur_interpretation', message: lu.message };
+  return { json: { question_id: p.question_id, adresse: p.adresse, interpretation, ...requeteQuestion(interpretation) } };
+});`),
+    postgresParElement(N_DONNEES_Q, [1100, 0], '={{ $json.sql }}', '$json.valeurs',
+      { credentials: CRED_POSTGRES_LECTURE, onError: 'continueRegularOutput' }),
+    code(N_REDIGER_Q, [1320, 0], ['src/questions/catalogue.js', 'src/montants.js', 'src/canaux/telegram.js'],
+      `// Le code rédige la réponse à partir des lignes lues (une ligne « lignes » par question).
+const lues = $("${N_LIRE_Q}").all();
+const deps = { formaterMontant, enMillimes };
+return $input.all().map((i, k) => {
+  const q = lues[i.pairedItem?.item ?? k].json;
+  const lignes = Array.isArray(i.json.lignes) ? i.json.lignes : null;
+  const reponse = redigerReponse(q.interpretation, lignes, deps);
+  const erreurLecture = lignes ? null : String(i.json.error?.message ?? i.json.error ?? 'lecture impossible').slice(0, 500);
+  return { json: {
+    corps: { chat_id: q.adresse, ...messageReponseTelegram({ lignes: reponse.lignes }) },
+    conclusion: {
+      question_id: q.question_id, question_catalogue: q.interpretation.id ?? null,
+      parametres: q.interpretation.parametres ?? null, code_reponse: reponse.code_reponse,
+      erreur: q.interpretation.message ?? erreurLecture,
+      execution_n8n_id: $execution.id,
+    },
+  } };
+});`),
+    passerelle('Répondre (passerelle)', [1540, 0], 'sendMessage', '$json.corps', 40000, 1000),
+    code('Résultat de l\'envoi', [1760, 0], [],
+      `const redigees = $("${N_REDIGER_Q}").all();
+return $input.all().map((i, k) => {
+  const c = redigees[i.pairedItem?.item ?? k].json.conclusion;
+  const ok = i.json.statusCode === 200 && i.json.body?.ok === true;
+  return { json: { ...c, envoyee: ok, erreur: ok ? c.erreur : String(i.json.body?.description ?? \`HTTP \${i.json.statusCode}\`).slice(0, 500) } };
+});`),
+    postgresParElement('Conclure la question', [1980, 0], 'SELECT conclure_question($1::jsonb) AS statut;', '[ $json ]'),
+  ],
+  settings: REGLAGES_CANAL,
+  pinData: {},
+};
+questions.connections = connexions([
+  ['Toutes les minutes', 0, N_QUESTIONS],
+  [N_QUESTIONS, 0, N_PREPARER_Q],
+  [N_PREPARER_Q, 0, 'Interpréter (Gemini)'],
+  ['Interpréter (Gemini)', 0, N_LIRE_Q],
+  [N_LIRE_Q, 0, N_DONNEES_Q],
+  [N_DONNEES_Q, 0, N_REDIGER_Q],
+  [N_REDIGER_Q, 0, 'Répondre (passerelle)'],
+  ['Répondre (passerelle)', 0, 'Résultat de l\'envoi'],
+  ['Résultat de l\'envoi', 0, 'Conclure la question'],
+]);
+
 ecrire('workflows/releve-rapprochement.json', releve);
+ecrire('workflows/ordres-paiement.json', ordres);
+ecrire('workflows/questions.json', questions);
 ecrire('workflows/notifications-telegram.json', notifications);
 ecrire('workflows/reponses-telegram.json', reponses);
 ecrire('workflows/extraction-llm.json', sousWorkflow);

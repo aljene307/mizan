@@ -82,8 +82,14 @@ test('notifications : le code généré prépare aussi propositions, signalement
       signalement: { id: 5, type: 'sortie_sans_facture', message: 'sortie sans facture', ligne } } },
     { donnees: { candidat: candidat('synthese', 'validateur'), synthese: { releve: { fichier_nom: 'r.csv', date_debut: 'a', date_fin: 'b', lignes: 1 },
       bilan: {}, en_attente: { propositions: 1, signalements: 1 }, factures_en_retard: 0 } } },
+    // Rapprochement manuel : le code généré doit disposer de fournisseurDansLibelle (src/rapprochement/appariement.js).
+    { donnees: { candidat: candidat('ligne_a_rapprocher', 'validateur'), ligne_a_rapprocher: {
+      ligne: { id: 40, date_operation: '2026-04-02', libelle: 'VIR EMIS TRANS-CAP LOGISTIQUE', debit: 200 },
+      candidats: [{ facture_id: 1, numero: 'A-1', raison_sociale: 'Autre', a_payer: 200 },
+        { facture_id: 2, numero: 'T-2', raison_sociale: 'Trans-Cap Logistique', a_payer: 900 }] } } },
   ] });
   assert.deepEqual(sorties.map((s) => [s.notification.objet, s.notification.actions.length, s.adresse]),
-    [['rapprochement', 6, '555'], ['signalement', 1, '555'], ['synthese', 0, '555']]);
+    [['rapprochement', 6, '555'], ['signalement', 1, '555'], ['synthese', 0, '555'], ['ligne_a_rapprocher', 4, '555']]);
+  assert.equal(sorties[3].notification.actions[0].params.facture_id, 2, 'fournisseur reconnu dans le libellé : en premier');
   assert.equal(sorties[0].notification.proposition_id, 4);
 });

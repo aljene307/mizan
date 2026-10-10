@@ -48,7 +48,7 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 | 4 | Contrôles déterministes (22 règles, décisions humaines tracées) | ✅ |
 | 5 | Validation humaine (Telegram, quatre yeux, canal interchangeable) | ✅ |
 | 6 | Rapprochement bancaire (appariement déterministe, décisions par Telegram) | ✅ |
-| 7 | Restitution | à venir |
+| 7 | Restitution (tableau de bord, ordres de paiement, rapprochement manuel, questions en langage naturel) | ✅ |
 | 8 | Évaluation de l'extraction | à venir |
 | 9 | Finition | à venir |
 
@@ -259,13 +259,144 @@ payées, 7 en « paiement proposé », 5 non payées.
 >   que chaque cas est traité, pas une performance sur de vrais relevés.
 > - Aucune retenue à la source n'est simulée ; l'écart de 2 TND de D015 est
 >   générique.
-> - Le relevé ne montre pas le RIB du bénéficiaire : le respect de D-058 sera
->   contrôlé par les ordres de paiement, avec la restitution.
-> - Une proposition rejetée n'est pas reproposée ; sa ligne reste à rapprocher
->   à la main.
+> - Le relevé ne montre pas le RIB du bénéficiaire : on contrôle qu'un ordre
+>   de paiement approuvé existe (voir « Restitution »), pas le compte crédité.
+> - Une proposition rejetée n'est pas reproposée automatiquement : la ligne
+>   se rapproche à la main (voir « Restitution »).
 > - Une sortie frauduleuse dont le libellé imite une catégorie connue ne
 >   serait pas signalée. Un montant habituel par catégorie réduirait ce
 >   risque plus tard (D-065).
+
+## Restitution
+
+Tout ce qui est restitué passe par un **rôle de lecture**, `mizan_lecture`
+(D-068). Il ne lit que les vues du schéma `restitution`, en session en
+lecture seule : échéancier, paiements, trésorerie prévue, TVA figurant sur les
+factures, décisions en attente, ordres de paiement, relevés. Aucune vue ne
+montre le RIB lu sur une facture comme RIB de paiement (D-058).
+
+### Tableau de bord (Grafana)
+
+Grafana 13.2.3, sur <http://localhost:3000> (compte `admin`, mot de passe
+`GRAFANA_ADMIN_PASSWORD` de `.env`). Le tableau de bord « Mizan —
+Restitution » est **généré et versionné** (`npm run construire-tableau-de-bord`,
+`grafana/dashboards/`), et non modifiable dans Grafana. Il montre :
+- les chiffres clés ;
+- l'échéancier et la trésorerie prévue ;
+- les décisions en attente et les ordres de paiement ;
+- la TVA figurant sur les factures et les derniers paiements.
+
+**Sécurité** (D-070, vérifiée par des tests d'intégration) :
+- port publié sur `127.0.0.1` seulement ;
+- mot de passe administrateur obligatoire, jamais celui par défaut ;
+- accès anonyme, inscription et partage public désactivés ;
+- une seule source de données, en `mizan_lecture` : par Grafana, une écriture
+  est refusée par la base (session en lecture seule, puis droits) ;
+- ni statistiques d'usage, ni recherche de mises à jour, ni greffon installé au
+  démarrage.
+
+> **Limites.**
+> - Trésorerie : sorties connues seulement (factures approuvées en TND), sans
+>   encaissements, salaires ni loyer prévus.
+> - TVA : montants **figurant sur les factures**, pas la TVA déductible (règles
+>   fiscales non codées, D-020).
+> - Le mot de passe administrateur n'est lu qu'au premier démarrage.
+
+### Ordres de paiement
+
+Chaque lundi à 8 h, ou à la main, Mizan propose un **lot d'ordres** : les
+factures approuvées en TND, en retard ou à échéance dans les 7 jours.
+- **Le RIB de chaque ordre est copié du référentiel**, jamais lu sur la facture
+  (D-058).
+- Un responsable approuve ou refuse le lot sur Telegram.
+- À l'approbation, chaque ordre est revérifié : facture encore approuvée, RIB
+  encore actif, montant encore dû.
+- Le fichier à signer (CSV et récapitulatif) est produit en lecture seule :
+  `npm run exporter-ordres -- --lot <n>`.
+
+**Contrôle « sortie sans ordre »** (D-072) : à partir de la mise en service
+(2026-10-01), tout paiement rapproché d'une facture sans ordre approuvé
+correspondant est signalé au responsable. « Correspondant » veut dire : même
+facture, montant couvert par l'ordre, paiement dans les 30 jours suivant
+l'approbation.
+
+**Démonstration (2026-10-09) :**
+- un lot de 3 ordres (8 229,124 TND) est approuvé sur Telegram, puis exporté ;
+- un second relevé est généré d'après les ordres (`npm run generer-releve-demo`),
+  puis importé ;
+- les 3 paiements sont confirmés automatiquement, sans signalement ;
+- le paiement d'une facture hors ordre (TCL-00346) est signalé.
+
+> **Limites.**
+> - Le relevé ne montre pas le compte crédité : on vérifie qu'un ordre
+>   approuvé existe, pas que l'argent est parti sur le bon RIB.
+> - Pas d'ordre en devise étrangère ; un avoir non imputé ne réduit pas
+>   l'ordre.
+> - Aucun format d'échange bancaire réel : pas de source fiable sur ceux des
+>   banques tunisiennes.
+> - Le second relevé est synthétique et construit à partir des ordres
+>   eux-mêmes : il montre que le contrôle fonctionne, pas qu'il résiste à des
+>   libellés réels.
+
+### Rapprochement manuel d'une ligne rejetée
+
+Quand une proposition de rapprochement est rejetée, la ligne devient « à
+rapprocher ». Validateurs et responsables reçoivent alors sur Telegram :
+- jusqu'à 5 factures candidates : fournisseur reconnu dans le libellé d'abord,
+  puis montant le plus proche ;
+- « Autre facture » : la réponse donne le numéro, puis la justification ;
+- « Aucune facture » : la ligne devient un signalement.
+
+La base applique les mêmes garanties qu'au rapprochement automatique : facture
+approuvée, justification, écart limité à la tolérance, contrôle « sortie sans
+ordre » (D-073).
+
+**Démonstration (2026-10-09) :** une proposition est rejetée ; un numéro de
+facture inexistant est refusé sans rien appliquer ; le rapprochement manuel
+est ensuite enregistré.
+
+> **Limites.**
+> - Une ligne ne se rapproche que d'une facture à la fois.
+> - **Un rapprochement confirmé ne peut pas encore être annulé.** Lors de la
+>   démonstration, un chèque a été rapproché d'une autre facture que celle de
+>   la vérité terrain, et l'erreur est restée en base (D-075). L'annulation
+>   par contre-passation, à deux personnes, est la prochaine étape (D-077).
+
+### Questions en langage naturel
+
+Sur Telegram : `/q` suivi de la question, par exemple « /q Combien je dois à
+Trans-Cap ? ».
+
+**Le modèle ne fait que choisir** une question d'un catalogue fermé de 9
+entrées, et en extraire les paramètres :
+- factures en retard, dû à un fournisseur, échéances à venir ;
+- paiements d'une période, TVA d'un mois, trésorerie prévue ;
+- décisions en attente, état d'une facture, ordres en cours.
+
+Le code valide les paramètres, exécute une requête écrite d'avance avec
+`mizan_lecture`, et rédige la réponse. Le modèle n'écrit jamais de SQL et ne
+voit jamais les données (D-068, D-076). Chaque question est tracée en base ;
+20 questions par heure et par utilisateur au plus.
+
+Mesure (`npm run evaluer-questions`, 30 questions, date du jour fixée,
+`eval/resultats/questions-dev.md`) :
+
+| Mesure | Résultat |
+|---|---|
+| Questions du catalogue : bonne question et bons paramètres | **22 / 22** (première version : 19 / 22) |
+| Demandes hors catalogue ou tentatives de détournement bien classées | **8 / 8** |
+| Détournements ayant produit une requête exécutable | 0 |
+
+> **Limites.**
+> - La correction (paramètre « au » renommé et décrit) a été mise au point
+>   **sur ce même jeu** : le 22 / 22 est optimiste.
+> - Le jeu est petit et écrit par nous : ni fautes de frappe, ni arabe, ni
+>   dialecte, ni question ambiguë.
+> - Ce qui ne dépend pas de la mesure : quelle que soit la réponse du modèle,
+>   seule une lecture prévue du catalogue peut s'exécuter, avec le rôle
+>   `mizan_lecture` (tests unitaires, SQL et d'intégration).
+> - Le texte de la question part chez Google (offre gratuite) : données
+>   synthétiques seulement.
 
 ## Workflows n8n
 
@@ -280,8 +411,32 @@ Pour les importer dans n8n (menu ⋯ → *Import from File…*) :
    et les publier (les autres se lancent à la main) ;
 5. puis importer `releve-rapprochement.json`, et déposer le relevé CSV dans
    `data/entrant/releves/` ;
-6. créer dans n8n les credentials « PostgreSQL Mizan (mizan_app) » et
-   « Gemini Mizan ». Aucune clé n'est dans le dépôt.
+6. puis importer `ordres-paiement.json` et `questions.json`, et publier
+   `questions.json` ;
+7. créer dans n8n trois credentials (aucune clé n'est dans le dépôt) :
+   - « PostgreSQL Mizan (mizan_app) », avec l'utilisateur `mizan_app` ;
+   - « PostgreSQL Mizan (lecture) », avec l'utilisateur `mizan_lecture`
+     (base `mizan`, hôte `postgres`) ;
+   - « Gemini Mizan ».
+
+**Credential de chaque nœud.** Après un import, n8n peut rattacher un autre
+credential du même type que celui du fichier (incident du 2026-10-09, D-079).
+Vérifier sur chaque nœud :
+
+| Workflow | Nœud | Credential |
+|---|---|---|
+| Questions (langage naturel) | Lire les données (mizan_lecture) | **PostgreSQL Mizan (lecture)** (le seul nœud qui l'utilise) |
+| Questions (langage naturel) | Interpréter (Gemini) | Gemini Mizan |
+| Extraction LLM (Gemini) | Appel Gemini | Gemini Mizan |
+| test Gemini (une requête) | Le modèle existe-t-il ?, Extraction de test | Gemini Mizan |
+| Tous les autres | Tous les nœuds PostgreSQL | **PostgreSQL Mizan (mizan_app)** |
+
+Puis lancer le contrôle. Il compare chaque nœud de chaque workflow (version
+publiée et brouillon) au fichier du dépôt :
+
+```powershell
+npm run verifier-credentials-n8n
+```
 
 Le jeton du bot Telegram n'est **pas** un credential n8n : il se place dans
 `.env` (`TELEGRAM_BOT_TOKEN`, sur une seule ligne), et seule la passerelle le
@@ -302,6 +457,11 @@ npm run evaluer-controles-reel       # contrôles sur l'extraction réelle
 npm run creer-code-inscription -- --nom "Prénom Nom" --role responsable   # code /start à usage unique (30 min)
 npm run simuler-second-responsable   # demandes en attente ; décision du compte fictif (--demande n --approuver méthode | --refuser)
 npm run evaluer-rapprochement        # rapprochement sur le relevé de développement (n'écrit rien)
+npm run exporter-ordres              # liste les lots ; --lot <n> : fichier à signer (sorties/ordres/)
+npm run generer-releve-demo          # second relevé de démonstration (data/demo/), d'après les ordres approuvés
+npm run construire-tableau-de-bord   # régénère le tableau de bord Grafana
+npm run evaluer-questions            # mesure des questions en langage naturel (appelle Gemini)
+npm run verifier-credentials-n8n     # credentials rattachés dans n8n conformes au dépôt
 ```
 
 ## Prérequis
@@ -361,7 +521,9 @@ décrit dans [data/synthetic/README.md](data/synthetic/README.md).
 | `config_fiscale` | Taux et montants fiscaux datés, avec leur source |
 
 n8n se connecte avec le rôle `mizan_app`, qui ne peut ni supprimer de données
-ni modifier le journal d'audit.
+ni modifier le journal d'audit. Le tableau de bord et les questions en langage
+naturel lisent avec le rôle `mizan_lecture` : vues du schéma `restitution`
+seulement, en session en lecture seule.
 
 ## Glossary (English)
 
@@ -388,6 +550,7 @@ ni modifier le journal d'audit.
 | `ocr` | construite depuis `ocr/` | Tesseract 5 (français), service HTTP interne, sans port publié |
 | `dbmate` | `ghcr.io/amacneil/dbmate` | Migrations (profil « outils », lancé à la demande) |
 | `passerelle-telegram` | construite depuis `passerelle-telegram/` | Seul détenteur du jeton du bot ; relaie 4 méthodes de l'API Telegram ; réseau dédié partagé avec n8n seul, sans port publié |
+| `grafana` | `grafana/grafana:13.2.3` | Tableau de bord sur `localhost:3000`, en lecture seule (`mizan_lecture`) |
 
 Les ports ne sont publiés que sur `127.0.0.1`. Le dossier `data/` est monté en
 lecture seule dans n8n, sous `/data`.
@@ -401,13 +564,14 @@ docs/                architecture, décisions, journal
 db/                  schéma SQL, migrations, données de départ
 workflows/           exports JSON des workflows n8n
 generateur/          générateur des données synthétiques (Node.js + Playwright)
-src/                 fonctions JavaScript des contrôles et schémas JSON
+src/                 fonctions métier (contrôles, rapprochement, questions) et schémas JSON
 tests/               tests unitaires de src/
 data/synthetic/      factures et relevés générés, avec vérité terrain
 eval/                scripts et résultats d'évaluation et de mesure
 scripts/             génération des workflows, chargement du référentiel
 ocr/                 service OCR (Tesseract)
 passerelle-telegram/ passerelle vers l'API Telegram (seule détentrice du jeton)
+grafana/             source de données et tableau de bord provisionnés (générés)
 ```
 
 ## Licence

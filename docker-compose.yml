@@ -12,6 +12,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       MIZAN_DB: ${MIZAN_DB}
       MIZAN_APP_PASSWORD: ${MIZAN_APP_PASSWORD}
+      MIZAN_LECTURE_PASSWORD: ${MIZAN_LECTURE_PASSWORD}
       # PostgreSQL 18 a changé son dossier de données par défaut ; on le fixe
       # pour qu'il reste dans le volume (recommandation de la doc n8n).
       PGDATA: /var/lib/postgresql/data
@@ -101,6 +102,44 @@ services:
     networks:
       - canal-telegram
 
+  # Tableau de bord (D-068, A1 ; sécurité D-070). Lecture seule : la seule
+  # source de données est la base Mizan avec le rôle mizan_lecture (vues de
+  # restitution). Port publié sur 127.0.0.1 seulement ; accès anonyme et
+  # inscription désactivés ; aucun envoi de statistiques ni d'installation
+  # de greffon au démarrage. Réglages : documentation officielle de Grafana.
+  grafana:
+    image: docker.io/grafana/grafana:${GRAFANA_VERSION}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # Obligatoire : le conteneur ne démarre pas sans lui (jamais « admin »).
+      # Grafana ne le lit qu'au premier démarrage (volume vide).
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD doit être défini dans .env}
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_ORG_CREATE: "false"
+      GF_PUBLIC_DASHBOARDS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      # Lus par le fichier de provisionnement de la source de données.
+      MIZAN_DB: ${MIZAN_DB}
+      MIZAN_LECTURE_PASSWORD: ${MIZAN_LECTURE_PASSWORD:?MIZAN_LECTURE_PASSWORD doit être défini dans .env}
+      TZ: ${TIMEZONE}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards-mizan:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+
   # Outil de migrations, lancé à la demande (profil « outils ») :
   #   docker compose run --rm dbmate up       applique les migrations en attente
   #   docker compose run --rm dbmate status   liste les migrations appliquées
@@ -122,6 +161,7 @@ services:
 volumes:
   postgres-data:
   n8n-data:
+  grafana-data:
 
 networks:
   # Réseau de la passerelle Telegram : n8n et la passerelle seulement.

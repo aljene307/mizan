@@ -13,6 +13,8 @@ const LIMITE_TEXTE = 4096; // caractères
 const LIMITE_ALERTE_BOUTON = 200; // caractères
 const DONNEE_BOUTON = /^([0-9a-f]{32}):(\d{1,3})$/;
 const COMMANDE_START = /^\/start(?:@\w+)?(?:\s+(\S+))?\s*$/;
+// Question en langage naturel (D-068, B2) : « /q » suivi de la question.
+const COMMANDE_QUESTION = /^\/q(?:@\w+)?\s+([\s\S]+)$/;
 const SYMBOLES_GRAVITE = Object.freeze({ bloquant: '⛔', avertissement: '⚠️', validation: '🔎' });
 
 /** Échappe un texte pour le mode HTML de Telegram. */
@@ -53,7 +55,9 @@ function evenementTelegram(miseAJour) {
     const texte = typeof msg.text === 'string' ? msg.text.trim() : '';
     if (prive && texte) {
       const start = COMMANDE_START.exec(texte);
+      const question = COMMANDE_QUESTION.exec(texte);
       if (start?.[1]) Object.assign(evenement, { type: 'inscription', code: start[1] });
+      else if (question) Object.assign(evenement, { type: 'question', texte: question[1].trim() });
       else if (!texte.startsWith('/')) Object.assign(evenement, { type: 'texte', texte });
     }
     return { evenement, repondre: { chat_id: msg.chat?.id ?? null, callback_query_id: null, prive } };

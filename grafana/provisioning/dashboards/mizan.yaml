@@ -1,0 +1,14 @@
+# Tableaux de bord versionnés dans le dépôt (grafana/dashboards), en lecture
+# seule dans Grafana : toute modification passe par le fichier JSON.
+apiVersion: 1
+
+providers:
+  - name: mizan
+    orgId: 1
+    folder: Mizan
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 60
+    options:
+      path: /var/lib/grafana/dashboards-mizan

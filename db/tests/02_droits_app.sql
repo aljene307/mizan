@@ -92,8 +92,8 @@ SELECT pg_temp.doit_valoir($$
     SELECT string_agg(p.proname, ', ' ORDER BY p.proname) FROM pg_proc p
     WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef
       AND has_function_privilege('mizan_app', p.oid, 'EXECUTE')
-$$, 'creer_notification, enregistrer_rapprochements, enregistrer_releve, marquer_notification, prendre_bail_canal, recevoir_evenement, rendre_bail_canal',
-    'mizan_app n''exécute que les fonctions privilégiées prévues (canal, relevé, rapprochement)');
+$$, 'conclure_question, creer_notification, enregistrer_rapprochements, enregistrer_releve, marquer_notification, prendre_bail_canal, prendre_questions, proposer_lot_paiement, recevoir_evenement, rendre_bail_canal',
+    'mizan_app n''exécute que les fonctions privilégiées prévues (canal, relevé, rapprochement, ordres, questions)');
 SELECT pg_temp.doit_valoir($$SELECT has_schema_privilege('mizan_app', 'public', 'CREATE')::text$$,
     'false', 'mizan_app ne peut rien créer dans le schéma public (search_path sûr)');
 

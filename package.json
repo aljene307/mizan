@@ -22,7 +22,12 @@
     "evaluer-controles-reel": "node eval/evaluer-controles-reel.js",
     "creer-code-inscription": "node scripts/creer-code-inscription.js",
     "simuler-second-responsable": "node scripts/simuler-second-responsable.js",
-    "evaluer-rapprochement": "node eval/evaluer-rapprochement.js"
+    "evaluer-rapprochement": "node eval/evaluer-rapprochement.js",
+    "exporter-ordres": "node scripts/exporter-ordres.js",
+    "generer-releve-demo": "node scripts/generer-releve-demo.js",
+    "construire-tableau-de-bord": "node scripts/construire-tableau-de-bord.js",
+    "evaluer-questions": "node eval/evaluer-questions.js",
+    "verifier-credentials-n8n": "node scripts/verifier-credentials-n8n.js"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",

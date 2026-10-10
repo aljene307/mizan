@@ -1553,6 +1553,361 @@ Notée à la demande de Mohamed le 2026-10-08 ; **rien n'est codé**.
   le tableau de bord et les exports d'audit.
 - **Premier cas d'usage :** les justifications de L78 et L64 (D-066).
 
+### D-068 · Restitution : choix
+Choix de Mohamed le 2026-10-08 : A1, B2, C-a1, C-b1, D1, contrôle des
+ordres à partir d'une date de mise en service, second relevé de démo.
+- **Socle commun :** un schéma `restitution` qui ne contient **que des
+  vues**, et un rôle **`mizan_lecture`** qui n'a que `SELECT` sur ces vues :
+  aucun droit sur les tables, les fonctions ni le schéma `public`, session
+  en lecture seule par défaut, durée de requête limitée. Le tableau de bord
+  et les questions passent tous deux par ce rôle : les droits sont écrits
+  une seule fois, dans la base, et testés. Aucune vue ne montre le RIB lu
+  sur une facture comme RIB de paiement (D-058).
+- **A1 — tableau de bord Grafana**, tableaux et source de données décrits en
+  fichiers dans le dépôt (provisionnement). Sécurité : D-070.
+- **B2 — questions en langage naturel par catalogue fermé :** le modèle
+  choisit une question du catalogue et en extrait les paramètres ; le code
+  valide les paramètres et exécute une requête écrite et testée d'avance,
+  avec `mizan_lecture`. Le modèle n'écrit jamais de SQL, ne voit jamais les
+  données (la réponse est mise en forme par le code), et une question hors
+  catalogue reçoit « je ne sais pas répondre ». Canal : Telegram, personnes
+  inscrites seulement. Mesure : un jeu de questions avec l'intention
+  attendue, tentatives de détournement comprises.
+- **C-a1 — ordres de paiement approuvés par le responsable seul :** un
+  ordre ne déplace pas l'argent, la signature à la banque le fait. Lot
+  proposé par Mizan (factures approuvées, reste à payer, aucun paiement
+  proposé), **RIB actif du référentiel** copié dans l'ordre avec la
+  référence de sa ligne ; table en ajout seul.
+- **C-b1 — sortie en CSV et récapitulatif lisible**, à signer. Aucun format
+  d'échange bancaire réel : pas de source fiable sur ceux des banques
+  tunisiennes.
+- **Contrôle « sortie sans ordre » :** une sortie rapprochée d'une facture
+  sans ordre approuvé correspondant (même facture, montant, fenêtre de
+  dates) est signalée, **seulement pour les opérations postérieures à une
+  date de mise en service** (paramètre) : les paiements du premier relevé
+  sont antérieurs aux ordres. **Limite :** le relevé ne montre pas le RIB du
+  bénéficiaire ; on vérifie qu'un ordre approuvé existe, pas le compte
+  crédité.
+- **D1 — rapprochement manuel d'une ligne rejetée, par Telegram :** jusqu'à
+  5 factures candidates en boutons (approuvées, reste à payer, même
+  fournisseur ou montant voisin), « Autre facture » (réponse avec le
+  numéro) et « Aucune facture » (signalement). Mêmes règles qu'au
+  rapprochement (MZ041, motif d'écart MZ043), validateur ou responsable,
+  par une fonction de la base. Une proposition rejetée n'est toujours pas
+  reproposée automatiquement.
+- **Second relevé de démo :** produit par un script distinct dans
+  `data/demo/`, sans toucher ni aux données synthétiques existantes, ni à
+  leur vérité terrain, ni aux mesures (`evaluer-rapprochement` ne lit que le
+  relevé de développement). Il est daté après la mise en service et prend
+  pour solde initial le solde final du premier relevé. Il contient les
+  paiements des ordres approuvés et **une sortie sans ordre** au libellé
+  plausible.
+- **Contenu :** échéancier (à payer par semaine, en retard, paiement
+  proposé) ; trésorerie prévue simple (dernier solde du relevé moins les
+  échéances à venir, sorties connues seulement, ce qui est écrit à
+  l'écran) ; **« TVA figurant sur les factures approuvées »**, par mois, et
+  non « TVA déductible » : la déductibilité relève des textes officiels,
+  non codés (D-020).
+- **Non construit (pour ne pas en faire plus que nécessaire) :** PDF soigné
+  des ordres, exports Excel, prévision des encaissements, rectification des
+  justifications (D-067), plusieurs tableaux de bord, SQL libre.
+- **Ordre de travail :** rôle de lecture et vues ; ordres de paiement et
+  « sortie sans ordre » ; rapprochement manuel ; tableau de bord ;
+  questions ; démonstration et README.
+
+### D-069 · Facture au RIB modifié : chemin prévu et scénario de démonstration
+Question de Mohamed le 2026-10-08 : le premier scénario de démonstration
+faisait valider une facture au RIB modifié, ce que le modèle interdit.
+- **Chemin exact du modèle actuel** (D-056, D-058) : `changement_rib` est
+  une anomalie **bloquante et non dérogeable**. La notification ne propose
+  pas « Valider » (et la base refuserait : MZ015) ; celle d'un responsable
+  propose « Rejeter », « Demander le changement de RIB » et « Renvoyer aux
+  contrôles » (`src/decisions/notifications.js`). Deux issues :
+  1. **Le fournisseur a vraiment changé de banque :** demande de changement
+     de RIB, approuvée par un **autre** responsable avec une méthode de
+     vérification (rappel au contact connu, attestation bancaire, courrier
+     signé vérifié). Le référentiel est mis à jour, la facture renvoyée aux
+     contrôles, puis payée sur le nouveau RIB **du référentiel**.
+  2. **Le RIB est suspect ou erroné :** la facture est rejetée (par un
+     responsable, si elle est bloquée). Si la dette est réelle, le
+     fournisseur, joint par son contact connu, réémet la facture : un même
+     numéro est admis, car une facture rejetée ne sert pas de référence aux
+     doublons (D-057). La nouvelle facture suit le chemin normal, et le
+     paiement part sur le RIB du référentiel.
+- **Chemin manquant :** « facture authentique, RIB imprimé écarté,
+  paiement sur le RIB du référentiel », **sans réémission**. Il n'existe pas
+  aujourd'hui : la seule correction admise avec un renvoi aux contrôles est
+  le fournisseur (MZ016).
+- **Proposition, sans affaiblir la règle (non construite, À revoir) :** une
+  décision distincte « écarter le RIB imprimé », en ajout seul, qui
+  **ne modifie pas** le référentiel :
+  - quatre yeux : demandée par un utilisateur, approuvée par un **autre**
+    responsable, avec une méthode de vérification d'une liste fermée propre
+    (par exemple « facture et RIB du référentiel confirmés par rappel au
+    contact connu ») et une justification ;
+  - portée étroite : **cette** facture et **ce** RIB exact ; elle tombe si le
+    RIB actif du référentiel change entre-temps ;
+  - au passage suivant, `changement_rib` reste non dérogeable : il voit la
+    décision approuvée et rend un résultat « ok » qui la cite ; l'anomalie
+    du passage précédent reste dans l'historique ;
+  - le RIB écarté est conservé comme **RIB suspect** : toute autre facture
+    qui le porte le signale explicitement.
+  Le paiement d'une facture authentique reste donc possible, mais jamais
+  sur le RIB imprimé, et jamais par une simple validation.
+- **Scénario de démonstration corrigé :**
+  1. une facture au RIB modifié arrive : alerte, pas de bouton « Valider » ;
+  2. le responsable la rejette (« RIB différent du référentiel, facture
+     redemandée au contact connu ») ;
+  3. le lot d'ordres de paiement ne la contient pas ; les autres ordres
+     portent le RIB du référentiel, y compris pour une facture sans RIB
+     imprimé ;
+  4. le second relevé est importé : les paiements des ordres sont
+     rapprochés, la sortie sans ordre est signalée ;
+  5. une question en langage naturel obtient sa réponse, une tentative de
+     détournement est refusée ;
+  6. le tableau de bord résume la situation.
+  Le changement de RIB légitime (quatre yeux, compte fictif) a déjà été
+  montré à l'étape 5 ; il peut être rejoué si besoin.
+
+### D-070 · Grafana : règles de sécurité
+Exigences de Mohamed le 2026-10-08, vérifiées par des tests.
+- **Mot de passe administrateur** pris dans `.env` (`GRAFANA_ADMIN_PASSWORD`),
+  jamais la valeur par défaut : le conteneur refuse de démarrer sans lui.
+- **Port publié sur `127.0.0.1` seulement.**
+- **Source de données provisionnée avec `mizan_lecture` seulement** (mot de
+  passe pris dans `.env`) ; aucune autre source.
+- **Accès anonyme désactivé** explicitement ; inscription désactivée.
+- **Tests :** un test statique (configuration Docker et fichiers de
+  provisionnement) et un test d'exécution : requête anonyme refusée,
+  identifiants par défaut refusés, source de données en `mizan_lecture`,
+  écriture par la source refusée par la base.
+- Noms exacts des réglages relevés dans la documentation officielle de la
+  version installée, au moment de l'écrire.
+
+### D-072 · Ordres de paiement et contrôle « sortie sans ordre » : règles retenues
+Réalisation de C-a1, C-b1 et du contrôle (D-068), 2026-10-09. Migrations
+`20261008160000` (modèle) et `20261008170000` (canal).
+- **Lot proposé par la base** (`proposer_lot_paiement`, appelée par le
+  workflow « Ordres de paiement », chaque lundi à 8 h ou à la main) :
+  factures approuvées en TND, en retard, sans échéance ou à échéance dans
+  `ordres.horizon_jours` (7) ; fournisseur actif avec un RIB actif ; montant
+  = reste à payer − paiement déjà au relevé − ordres approuvés pas encore
+  exécutés. Le RIB est **copié du référentiel** avec la référence de sa
+  ligne (D-058). Un seul lot en attente à la fois : tant qu'il n'est pas
+  décidé, il est renvoyé tel quel.
+- **Approbation par un responsable seul, par le canal**, justifiée. Chaque
+  ordre est **revérifié** à l'approbation (MZ051) : facture encore
+  approuvée, RIB encore actif, montant encore dû. Sinon le lot est à
+  refuser ; le suivant reprend les factures. Ordres en ajout seul, même pour
+  l'administrateur (MZ001).
+- **Ordre en cours :** pendant `ordres.fenetre_jours` (30) après
+  l'approbation, pour le montant pas encore payé depuis ; il n'est pas
+  reproposé pendant ce temps.
+- **Contrôle « sortie sans ordre »** (déclencheur sur chaque règlement
+  confirmé : automatique, par décision, et plus tard manuel) : il faut un
+  ordre approuvé de la même facture, approuvé au plus tard le jour de
+  l'opération, dans la fenêtre, et les règlements depuis l'approbation ne
+  doivent pas dépasser l'ordre (+ tolérance d'écart). Sinon : signalement
+  `sortie_sans_ordre` au responsable, qui cite les ordres de la facture. Le
+  rapprochement reste confirmé (l'argent est parti). **Mise en service :
+  2026-10-01** (date de début du paramètre `ordres.fenetre_jours`) ; les
+  opérations antérieures ne sont pas contrôlées.
+- **Fichier à signer :** `npm run exporter-ordres -- --lot n`, lot approuvé
+  seulement, en lecture seule (`mizan_lecture`) : CSV (« ; », virgule
+  décimale) et récapitulatif, dans `sorties/ordres/` (ignoré par Git).
+- **Relevé de démonstration :** `npm run generer-releve-demo`, en lecture
+  seule, dans `data/demo/` (ignoré par Git) : paiements des ordres à
+  exécuter, une commission par virement, et une sortie sans ordre (la
+  facture non payée la plus lointaine qu'aucun ordre ne couvre).
+- **Règle ajoutée (défaut du 2026-10-09, migration `20261009090000`) :** une
+  vue lue par `mizan_lecture` n'appelle aucune fonction de la base (une
+  fonction s'exécute avec le chemin de recherche et les droits du lecteur) ;
+  vérifié par un test SQL sur les dépendances et par une vraie connexion.
+  Les numéros de lot ne commencent pas forcément à 1 (séquence consommée par
+  des transactions annulées) : l'export liste les lots disponibles.
+- **Limites :** pas d'ordre en devise étrangère ; un avoir non encore imputé
+  ne réduit pas l'ordre ; seules les sorties rapprochées d'une facture sont
+  contrôlées (une sortie rangée dans une catégorie, ou sans facture, relève
+  des autres signalements, D-065) ; le relevé ne montre pas le compte
+  crédité.
+
+### D-073 · Rapprochement manuel d'une ligne rejetée : règles retenues
+Réalisation de D1 (D-068), 2026-10-09. Migrations `20261009100000` (modèle)
+et `20261009110000` (canal).
+- **Ligne à rapprocher** (vue `lignes_a_rapprocher`) : sortie d'argent dont
+  une proposition a été rejetée, sans proposition ouverte ou confirmée, sans
+  signalement ni catégorie. Notifiée aux validateurs et aux responsables ;
+  visible dans `restitution.a_traiter`.
+- **Candidates :** la base fournit jusqu'à 30 factures approuvées en TND qui
+  restent à payer (hors factures déjà rejetées pour cette ligne), par
+  montant le plus proche ; le code en affiche 5 : fournisseur reconnu dans
+  le libellé d'abord (même règle qu'à l'appariement), puis montant le plus
+  proche. Plus « Autre facture » et « Aucune facture ».
+- **« Autre facture » :** la réponse commence par le numéro de la facture,
+  puis la justification. Le numéro est cherché parmi les factures approuvées
+  seulement, sans tenir compte des espaces ni de la casse ; aucune ou
+  plusieurs : refus (MZ045), rien n'est appliqué.
+- **Montants :** opération ≤ montant à payer : paiement exact ou partiel ;
+  au-delà, dans la tolérance (5 TND) : écart, motif « autre » (la
+  justification l'explique) ; plus : refus (MZ046).
+- **Application :** la base crée une proposition « manuelle » puis la
+  confirme par une décision ordinaire (`decisions_rapprochement`) : mêmes
+  contrôles (MZ041, MZ042), même journal, même contrôle « sortie sans
+  ordre ». Validateur ou responsable ; justification obligatoire ; par le
+  canal seulement.
+- **« Aucune facture » :** la ligne devient un signalement « sortie sans
+  facture », ouvert pour le responsable, avec l'auteur et la justification.
+- **Limite :** une ligne ne se rapproche que d'une facture à la fois (pas de
+  paiement groupé ni d'avoir imputé à la main).
+
+### D-074 · Tableau de bord Grafana : réalisation
+Réalisation de A1 et de D-070, 2026-10-09.
+- **Version :** Grafana 13.2.3 (dernière version stable, publiée le
+  2026-09-29 ; étiquette d'image `grafana/grafana:13.2.3` vérifiée), fixée
+  dans `.env` (`GRAFANA_VERSION`).
+- **Port :** 3000, vérifié libre sur la machine de Mohamed, publié sur
+  `127.0.0.1` seulement.
+- **Réglages** (noms relevés dans la documentation officielle) : mot de passe
+  administrateur obligatoire (`GRAFANA_ADMIN_PASSWORD`, lu au premier
+  démarrage seulement) ; accès anonyme, inscription, création
+  d'organisation et partage public désactivés ; ni statistiques d'usage, ni
+  recherche de mises à jour, ni fil d'actualités, ni greffons installés au
+  démarrage. Le conteneur ne reçoit que le mot de passe de `mizan_lecture`.
+- **Source de données provisionnée** (`grafana/provisioning`), unique, non
+  modifiable : `grafana-postgresql-datasource`, `mizan_lecture`. Défense en
+  profondeur constatée : une écriture est refusée par la session en lecture
+  seule (25006) ou par les droits (42501).
+- **Tableau de bord** généré (`npm run construire-tableau-de-bord`), en
+  lecture seule dans Grafana : chiffres clés, échéancier, trésorerie prévue,
+  à traiter, ordres, TVA figurant sur les factures, derniers paiements.
+  Clés de requête relevées dans le code source de Grafana 13.2.3 (`rawSql`,
+  `format`, `rawQuery`, `editorMode: 'code'`).
+- **Tests :** statiques (`tests/grafana.test.js`) et d'intégration
+  (`tests/integration/grafana.test.js`) : port, mot de passe ni par défaut
+  ni d'exemple, anonyme et `admin`/`admin` refusés, source unique en
+  `mizan_lecture`, chaque requête du tableau de bord exécutée par l'API,
+  écritures et lectures hors restitution refusées.
+
+### D-075 · À revoir : annuler un rapprochement confirmé par erreur
+Constat de la démonstration du 2026-10-09 ; **rien n'est codé**.
+- Le chèque n° 9886778 (ligne 66, 1 159,644 TND) règle MC2026-00089 selon
+  la vérité terrain du relevé de développement. La proposition exacte a été
+  rejetée pour le test, puis la ligne a été rapprochée à la main de
+  ISS260302 (paiement partiel). Résultat en base : MC2026-00089 « en
+  retard », ISS260302 « partiellement payée ».
+- Les décisions sont en ajout seul et un rapprochement confirmé ne peut pas
+  être défait : il n'existe aucun chemin pour corriger une erreur de ce
+  genre.
+- **Piste :** une décision « annuler le rapprochement » (responsable,
+  justification), en ajout seul, qui repasse les affectations à « annulé »
+  et rend la ligne de nouveau « à rapprocher » ; elle reste visible au
+  journal à côté de la décision d'origine (même esprit que D-067).
+
+### D-076 · Questions en langage naturel : réalisation
+Réalisation de B2 (D-068), 2026-10-09. Migration `20261009120000`.
+- **Canal :** commande Telegram `/q` suivie de la question, en conversation
+  privée, d'un utilisateur inscrit et actif. Aucune confusion possible avec
+  une justification. Longueur limitée (500 caractères) et 20 questions par
+  heure et par utilisateur (paramètres).
+- **File en base** (`questions`) : la réception ne fait que mettre en file
+  (« question reçue ») ; le workflow « Questions » prend jusqu'à 5 questions
+  par minute, puis conclut chacune. Trace gardée : texte, question du
+  catalogue retenue, paramètres validés, code de réponse ; aucune
+  suppression. Une exécution interrompue est reprise après 10 minutes.
+- **Catalogue** (`src/questions/catalogue.js`, 9 questions) : factures en
+  retard, dû à un fournisseur, échéances à venir, paiements d'une période,
+  TVA figurant sur les factures d'un mois, trésorerie prévue, décisions en
+  attente, état d'une facture, ordres en cours. Chaque entrée : description
+  pour le modèle, paramètres typés, requête fixe sur les vues de
+  restitution (une ligne JSON par question), rédaction de la réponse.
+- **Modèle :** même modèle et mêmes paramètres de génération que
+  l'extraction (`gemini-3.5-flash-lite`), credential n8n existante ; schéma
+  de réponse imposé (identifiant parmi le catalogue ou `hors_catalogue`,
+  paramètres décrits). La question est balisée et déclarée comme donnée
+  (même principe que D-042). Le modèle ne voit ni les données ni la réponse.
+- **Défenses, indépendantes du modèle :** validation stricte des paramètres
+  par le code (refus, jamais de correction) ; requête fixe, valeurs liées,
+  jokers neutralisés ; exécution avec la credential n8n « PostgreSQL Mizan
+  (lecture) » (`mizan_lecture`) : session en lecture seule, vues de
+  restitution seules. Testées en unitaire, en SQL et par une vraie
+  connexion (`tests/integration/questions.test.js`).
+- **Mesure** (`npm run evaluer-questions`, 30 questions, date fixée) :
+  première version 19 / 22 et 8 / 8 ; le paramètre « au » n'était jamais
+  rempli. Renommé (`date_debut`, `date_fin`) et décrit dans le schéma :
+  22 / 22 et 8 / 8, aucun détournement exécutable. **Mise au point sur le
+  même jeu : résultat optimiste.** Jeu petit, sans fautes de frappe, ni
+  arabe, ni dialecte.
+- **Confidentialité :** le texte de la question part chez Google (offre
+  gratuite, D-034) : données synthétiques seulement.
+- **Constat en écrivant le workflow :** une apostrophe dans le nom d'un
+  nœud cassait `$('…')` dans le code généré ; un test compile désormais
+  chaque nœud Code de chaque workflow.
+
+### D-077 · Annulation d'un rapprochement : choix (réalise D-075)
+Choix de Mohamed le 2026-10-10 ; à construire après la clôture de la
+restitution.
+- **Principe retenu :** contre-passation au sens du résultat (proposition
+  et affectations à l'état `annule`, rien d'effacé), déclenchée par la
+  commande Telegram `/annuler L<n>`, justifiée et tracée ; la ligne redevient
+  « à rapprocher », la facture écartée exclue de ses candidates.
+- **Quatre yeux :** demandée par un responsable, approuvée par un autre
+  responsable (même discipline que D-056).
+- **Protection ajoutée par Mohamed :** tant que la ligne n'est pas de nouveau
+  traitée, la facture dont le rapprochement a été annulé est exclue des lots
+  d'ordres de paiement (risque de double paiement si l'annulation était
+  elle-même une erreur). **Inconvénient relevé :** si l'annulation était juste
+  (la facture n'était vraiment pas payée), son paiement est retardé jusqu'au
+  nouveau traitement de la ligne. Atténuation : la facture reste visible
+  dans l'échéancier et dans « à traiter », avec le motif du blocage ; le
+  blocage tombe dès que la ligne est rapprochée d'une facture ou signalée
+  « aucune facture ».
+- **Signalements liés :** restent ouverts, au responsable de les classer.
+
+### D-078 · État de démonstration reproductible : choix
+Choix de Mohamed le 2026-10-10 : option B (script de reconstruction, sans
+appel au LLM). À construire après l'annulation d'un rapprochement.
+- Utilisable par quelqu'un qui clone le dépôt, **sans clé Gemini ni compte
+  Telegram** ; sert aussi à repartir d'une base propre avant l'évaluation
+  finale.
+- Rejoue les extractions enregistrées du lot de développement (version de
+  chaîne D-053), exportées dans un fichier versionné ; ne lit jamais le lot
+  de test ; ne relance aucune mesure publiée.
+
+### D-079 · Credentials n8n : instructions d'import et contrôle
+Incident du 2026-10-09 : après la création de « PostgreSQL Mizan
+(lecture) », n8n l'a rattaché, au réimport, aux nœuds de « Réponses
+Telegram » ; l'exécution a échoué (« function prendre_bail_canal(unknown)
+does not exist » : le rôle de lecture ne voit pas les fonctions). L'erreur
+était sans danger (la base refusait), mais bloquante. Corrigé à la main par
+Mohamed.
+- **Instructions d'import :** le README donne, pour chaque workflow, le
+  credential de chaque nœud ; un seul nœud utilise le credential de lecture.
+- **Contrôle :** `npm run verifier-credentials-n8n` lit la base interne de
+  n8n (lecture seule, jamais la colonne des secrets) et compare, pour chaque
+  workflow du dépôt, version publiée et brouillon, le credential de chaque
+  nœud à celui du fichier du dépôt. Tout écart est listé (code de sortie
+  1). Test unitaire qui rejoue l'incident.
+
+### D-071 · Extension possible : catalogue de questions en serveur MCP
+Estimation demandée par Mohamed le 2026-10-08 ; **rien n'est construit**.
+- **Principe :** un serveur MCP local (transport stdio) exposerait chaque
+  question du catalogue (B2) comme un **outil** : nom, description, schéma
+  JSON des paramètres. Son exécution réutiliserait le même code de
+  validation et les mêmes requêtes, avec `mizan_lecture`. Aucun outil
+  d'écriture.
+- **Travail estimé :** un fichier serveur (environ 100 à 200 lignes) avec le
+  SDK officiel (API à relever dans sa documentation), une configuration
+  cliente d'exemple, des tests (liste des outils égale au catalogue,
+  paramètres invalides refusés, aucune écriture possible). Environ une
+  demi-journée à une journée, si le catalogue est déjà séparé de Telegram.
+- **Différence de confidentialité à écrire :** avec B2 par Telegram, le
+  modèle ne voit jamais les données ; avec MCP, **le modèle du client voit
+  les résultats** des outils. À réserver à un modèle et à un poste de
+  confiance, et à des données synthétiques tant que ce n'est pas évalué.
+- **Condition pour que l'extension reste petite :** écrire le catalogue
+  dans `src/` comme une liste de descripteurs (nom, description, paramètres,
+  requête), indépendante du canal.
+
 ### D-045 · Tests d'intégration sur une base dédiée
 - Les tests qui ont besoin de données validées en base (concurrence,
   référentiel) tournent sur `mizan_test`, recréée par dbmate à chaque

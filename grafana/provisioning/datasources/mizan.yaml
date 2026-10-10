@@ -1,0 +1,22 @@
+# Source de données unique du tableau de bord (D-070) : la base Mizan, avec le
+# rôle mizan_lecture (lecture des vues de restitution seulement, D-068).
+# Le mot de passe vient de l'environnement du conteneur ($$ échappe un « $ »).
+apiVersion: 1
+
+prune: true
+
+datasources:
+  - name: Mizan (lecture)
+    type: grafana-postgresql-datasource
+    uid: mizan-lecture
+    access: proxy
+    url: postgres:5432
+    user: mizan_lecture
+    isDefault: true
+    editable: false
+    jsonData:
+      database: $MIZAN_DB
+      sslmode: disable
+      timescaledb: false
+    secureJsonData:
+      password: $MIZAN_LECTURE_PASSWORD

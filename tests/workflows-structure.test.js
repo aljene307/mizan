@@ -176,3 +176,12 @@ test('workflow principal : la réutilisation ne vise que la version de chaîne e
   assert.match(n.parameters.query, /extraction_valide_existante\(\$1, \$2\)/);
   assert.equal(n.parameters.options.queryReplacement, `={{ [ $json.fichier_sha256, '${VERSION_CHAINE_EXTRACTION}' ] }}`);
 });
+
+test('chaque nœud Code de chaque workflow se compile (défaut du 2026-10-09 : apostrophe d\'un nom de nœud dans $(\'…\'))', async () => {
+  const { readdirSync } = await import('node:fs');
+  for (const fichier of readdirSync('workflows').filter((f) => f.endsWith('.json'))) {
+    for (const n of lire(`workflows/${fichier}`).nodes.filter((x) => x.type === 'n8n-nodes-base.code')) {
+      assert.doesNotThrow(() => new vm.Script(`(async () => {\n${n.parameters.jsCode}\n})`), `${fichier} : ${n.name}`);
+    }
+  }
+});

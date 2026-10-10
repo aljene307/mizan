@@ -1,0 +1,565 @@
+{
+  "uid": "mizan-restitution",
+  "title": "Mizan — Restitution",
+  "tags": [
+    "mizan"
+  ],
+  "editable": false,
+  "timezone": "browser",
+  "refresh": "5m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "À lire",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Données synthétiques.** Paiements toujours sur le RIB du référentiel (D-058). Trésorerie : sorties connues seulement (factures approuvées en TND), sans encaissements ni salaires prévus. TVA : montants **figurant sur les factures** approuvées, **pas la TVA déductible** (règles fiscales non codées, D-020)."
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Reste à payer (TND)",
+      "description": "Factures approuvées en TND, hors paiements déjà au relevé en attente de confirmation.",
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT coalesce(sum(reste_a_payer - paiement_propose), 0) AS \"Reste à payer\" FROM echeancier WHERE devise = 'TND'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: TND",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Factures en retard",
+      "gridPos": {
+        "x": 5,
+        "y": 3,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT count(*) AS \"En retard\" FROM echeancier WHERE en_retard",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Paiements au relevé à confirmer",
+      "gridPos": {
+        "x": 10,
+        "y": 3,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT count(*) AS \"Paiement proposé\" FROM echeancier WHERE etat = 'paiement_propose'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Décisions en attente",
+      "gridPos": {
+        "x": 15,
+        "y": 3,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT count(*) AS \"À traiter\" FROM a_traiter",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Solde du dernier relevé (TND)",
+      "gridPos": {
+        "x": 19,
+        "y": 3,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT solde_final AS \"Solde\" FROM releves WHERE devise = 'TND' ORDER BY date_fin DESC, releve_id DESC LIMIT 1",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: TND",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Échéancier",
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 14,
+        "h": 10
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT numero AS \"Facture\", fournisseur AS \"Fournisseur\", to_char(date_echeance, 'YYYY-MM-DD') AS \"Échéance\",\n       reste_a_payer AS \"Reste à payer\", paiement_propose AS \"Au relevé, à confirmer\",\n       etat AS \"État\", jours_de_retard AS \"Jours de retard\", rib_paiement AS \"RIB de paiement (référentiel)\"\nFROM echeancier ORDER BY en_retard DESC, date_echeance NULLS LAST, numero",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Reste à payer"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Au relevé, à confirmer"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Trésorerie prévue par semaine",
+      "description": "Dernier solde du relevé, moins les échéances des factures approuvées en TND. Ni encaissements, ni salaires, ni loyer prévus.",
+      "gridPos": {
+        "x": 14,
+        "y": 7,
+        "w": 10,
+        "h": 10
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT to_char(semaine, 'YYYY-MM-DD') AS \"Semaine du\", factures AS \"Factures\", sorties_prevues AS \"Sorties prévues\",\n       solde_prevu_fin_semaine AS \"Solde prévu en fin de semaine\"\nFROM tresorerie_prevue ORDER BY semaine",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sorties prévues"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Solde prévu en fin de semaine"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "À traiter",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT type AS \"Type\", objet AS \"Objet\", fournisseur AS \"Fournisseur\", montant AS \"Montant\", detail AS \"Détail\",\n       to_char(depuis, 'YYYY-MM-DD') AS \"Depuis\"\nFROM a_traiter ORDER BY depuis",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Montant"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Ordres de paiement",
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT lot_id AS \"Lot\", statut_lot AS \"Statut du lot\", numero AS \"Facture\", beneficiaire AS \"Bénéficiaire\",\n       montant AS \"Montant\", reste_a_executer AS \"Reste à exécuter\", rib_paiement AS \"RIB (référentiel)\"\nFROM ordres_paiement ORDER BY lot_id DESC, ordre_id",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Montant"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Reste à exécuter"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "type": "barchart",
+      "title": "TVA figurant sur les factures approuvées, par mois (TND)",
+      "description": "Montants imprimés sur les documents approuvés. Ce n'est pas la TVA déductible : la déductibilité relève des textes officiels (D-020, D-068).",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT to_char(mois, 'YYYY-MM') AS \"Mois\",\n       sum(montant_tva) FILTER (WHERE type_document = 'facture') AS \"TVA des factures\",\n       coalesce(sum(montant_tva) FILTER (WHERE type_document = 'avoir'), 0) AS \"TVA des avoirs\"\nFROM tva_factures WHERE devise = 'TND' GROUP BY mois ORDER BY mois",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: TND",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Derniers paiements confirmés",
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "mizan-lecture"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "mizan-lecture"
+          },
+          "rawSql": "SELECT to_char(date_operation, 'YYYY-MM-DD') AS \"Date\", numero AS \"Facture\", fournisseur AS \"Fournisseur\", montant AS \"Montant\",\n       cas AS \"Cas\", methode AS \"Méthode\"\nFROM paiements ORDER BY \"Date\" DESC, numero LIMIT 20",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Montant"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "suffix: TND"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    }
+  ]
+}
