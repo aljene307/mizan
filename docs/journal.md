@@ -859,3 +859,27 @@ empreinte, traçabilité de chaque extraction).
   (42 factures, 12 confirmations automatiques, 13 propositions,
   8 signalements, lot de 3 ordres pour 8 229,124 TND) ; les 12 panneaux de
   Grafana lus par l'API, mêmes chiffres que la capture du tableau de bord.
+
+## 2026-10-10 — Vérifications finales avant publication
+
+- Commit dfae11d poussé (correctif de la première installation, guide de
+  démonstration, captures).
+- Secrets : gitleaks 8.18.4 sur les 19 commits de `main`, aucune fuite ;
+  recherche complète dans l'historique (fragments de l'ancien jeton, clés
+  Google, jetons de bot, URL avec clé, valeurs de `.env`) : seules des
+  valeurs de test fictives et des valeurs publiques (`POSTGRES_USER`,
+  `TIMEZONE`). Auteur et committer : adresse « noreply » sur les 19 commits.
+- Identifiants Telegram : l'adresse réelle, seule en base, n'apparaît nulle
+  part dans l'historique.
+- Tests : 306 unitaires, 428 vérifications SQL, 45 d'intégration,
+  594/594 mutations, nœuds synchronisés.
+- Clone neuf de dfae11d : `.env` créé sans saisie, reconstruction de la
+  démonstration réussie du premier coup (42 factures, 12 confirmations
+  automatiques, 13 à confirmer, 8 signalements, lot de 3 ordres), 12 panneaux
+  Grafana lus sans erreur. Volumes du clone seuls supprimés après contrôle
+  du nom du projet ; pile de Mohamed relancée (42 factures, contrôle n8n
+  conforme).
+- Anciens commits de l'historique réécrit supprimés du disque local (journal
+  des références expiré, `git gc`) : plus aucune trace de l'ancienne adresse.
+- Restent à Mohamed : passage en public, analyse des secrets et protection
+  des envois sur GitHub, description et sujets, relecture du rendu.
