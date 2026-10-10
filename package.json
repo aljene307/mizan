@@ -30,7 +30,9 @@
     "verifier-credentials-n8n": "node scripts/verifier-credentials-n8n.js",
     "sauvegarder-base": "node scripts/sauvegarder-base.js",
     "exporter-extractions-dev": "node scripts/exporter-extractions-dev.js",
-    "reconstruire-base": "node scripts/reconstruire-base.js"
+    "reconstruire-base": "node scripts/reconstruire-base.js",
+    "verifier-avant-evaluation": "node scripts/verifier-avant-evaluation.js",
+    "etat-evaluation": "node scripts/etat-evaluation.js"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.3.0",

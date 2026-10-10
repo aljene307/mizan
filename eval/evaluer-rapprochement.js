@@ -8,8 +8,11 @@
 //   (identifiants seulement, via lots.json ; leur vérité n'est pas ouverte, D-026) ;
 // - « état de la base » : factures que la vérité terrain dit payées, mais qui ne
 //   sont pas approuvées dans la base aujourd'hui (D001, D006, D018).
-// Usage : npm run evaluer-rapprochement
-// Écrit eval/resultats/rapprochement-dev.md et .json.
+// Usage : npm run evaluer-rapprochement                          lot de développement
+//         npm run evaluer-rapprochement -- --lot test --etape-8  lot de test (étape 8 seulement, D-082) :
+//           les lignes qui règlent des factures du lot de DÉVELOPPEMENT sont alors « hors périmètre ».
+// Option : --sortie <dossier> (défaut eval/resultats). Mêmes règles de comptage pour les deux lots.
+// Écrit rapprochement-<lot>.md et .json.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import pg from 'pg';
 import { lireReleveCsv } from '../src/rapprochement/releve.js';
@@ -18,10 +21,20 @@ import { enMillimes } from '../src/montants.js';
 
 const FICHIER = 'data/synthetic/releve/releve-2026-01-01_2026-09-30.csv';
 const attendu = JSON.parse(readFileSync('data/synthetic/releve/appariements-attendus.json', 'utf8'));
+const arg = (nom) => { const i = process.argv.indexOf(nom); return i > -1 ? process.argv[i + 1] : undefined; };
+const lot = arg('--lot') ?? 'dev';
+if (!['dev', 'test'].includes(lot)) throw new Error('--lot dev ou --lot test');
+if (lot === 'test' && !process.argv.includes('--etape-8')) {
+  console.error('Le lot de test est réservé à l\'évaluation de l\'étape 8 (D-026) : ajouter --etape-8 pour l\'utiliser.');
+  process.exit(1);
+}
+const dossier = arg('--sortie') ?? 'eval/resultats';
+const NOM_LOT = { dev: 'développement', test: 'test' };
 const lots = JSON.parse(readFileSync('data/synthetic/lots.json', 'utf8'));
-const dev = new Set(lots.dev.map((d) => d.id));
-const test = new Set(lots.test.map((d) => d.id));
-const verites = lots.dev.map((d) => JSON.parse(readFileSync(`data/synthetic/dev/verite/${d.id}.json`, 'utf8')));
+// Lot mesuré, et l'autre lot (ses factures sont absentes de la base : hors périmètre).
+const mesure = new Set(lots[lot].map((d) => d.id));
+const autre = new Set(lots[lot === 'dev' ? 'test' : 'dev'].map((d) => d.id));
+const verites = lots[lot].map((d) => JSON.parse(readFileSync(`data/synthetic/${lot}/verite/${d.id}.json`, 'utf8')));
 // Doublons (copie et original) : une même facture.
 const classe = (doc) => verites.find((v) => v.id === doc)?.derive_de ?? doc;
 
@@ -35,8 +48,8 @@ const base = (await client.query('SELECT contexte_rapprochement(0) AS c')).rows[
 const noms = new Map((await client.query('SELECT id, fichier_nom FROM factures')).rows.map((x) => [Number(x.id), x.fichier_nom.replace(/\.\w+$/, '')]));
 await client.end();
 
-// Factures du lot de développement seulement (copies d'essai exclues, D-054).
-const factures = base.factures.filter((f) => dev.has(noms.get(Number(f.id))));
+// Factures du lot mesuré seulement (copies d'essai exclues, D-054).
+const factures = base.factures.filter((f) => mesure.has(noms.get(Number(f.id))));
 const docDe = new Map(factures.map((f) => [f.id, noms.get(Number(f.id))]));
 const statutDoc = new Map(factures.map((f) => [docDe.get(f.id), f.statut]));
 const releve = lireReleveCsv(readFileSync(FICHIER, 'utf8'));
@@ -59,7 +72,7 @@ for (const a of attendu.appariements) {
   const s = signalementsDe.get(a.numero_ligne) ?? [];
   const resultat = p ? `proposition ${p.cas}${p.auto ? ' (auto)' : ''}` : (s.length ? s.map((x) => x.type).join(', ') : 'rien');
   const entree = { ligne: a.numero_ligne, type: a.type, mode: a.mode, docs: docsAttendus, avoirs: avoirsAttendus, resultat };
-  if (docsAttendus.every((d) => test.has(d))) { lignesAttendues.push({ ...entree, classement: 'hors_perimetre', juste: s.some((x) => x.type === 'sortie_sans_facture') }); continue; }
+  if (docsAttendus.every((d) => autre.has(d))) { lignesAttendues.push({ ...entree, classement: 'hors_perimetre', juste: s.some((x) => x.type === 'sortie_sans_facture') }); continue; }
   const nonApprouves = docsAttendus.filter((d) => !APPROUVES.has(statutDoc.get(d))
     && !verites.some((v) => (v.derive_de === d || classe(d) === v.id) && APPROUVES.has(statutDoc.get(v.id))));
   if (nonApprouves.length) {
@@ -78,16 +91,16 @@ const sansFacture = attendu.lignes_sans_facture.map((n) => ({
   ligne: n, libelle: lignes[n - 1].libelle, categorie: categorieDe.get(n) ?? null,
   proposition: propositionDe.has(n), signalements: (signalementsDe.get(n) ?? []).map((s) => s.type),
 }));
-const impayees = new Set(attendu.factures_impayees.map((f) => f.document_id).filter((d) => dev.has(d)));
+const impayees = new Set(attendu.factures_impayees.map((f) => f.document_id).filter((d) => mesure.has(d)));
 const propositionsSurImpayees = r.propositions.filter((p) => p.affectations.some((a) => impayees.has(docDe.get(a.facture_id))));
 
 // --- Rapport ---------------------------------------------------------------------------------
 const verite = lignesAttendues.filter((l) => l.classement === 'verite');
 const autos = verite.filter((l) => l.auto);
 const l = [];
-l.push('# Rapprochement bancaire : mesure sur le lot de développement', '');
+l.push(`# Rapprochement bancaire : mesure sur le lot de ${NOM_LOT[lot]}`, '');
 l.push(`Relevé \`${FICHIER}\` (${lignes.length} opérations). Factures : état actuel de la base, telles que les fournit \`contexte_rapprochement\` `
-  + `(${factures.length} factures du lot de développement ; copies d'essai exclues). Aucun écrit en base. Nombres bruts.`, '');
+  + `(${factures.length} factures du lot de ${NOM_LOT[lot]} ; copies d'essai exclues). Aucun écrit en base. Nombres bruts.`, '');
 l.push(`Paramètres : tolérance d'écart ${base.parametres['rapprochement.tolerance_ecart']} TND, fenêtre ${base.parametres['rapprochement.fenetre_jours']} jours.`, '');
 
 l.push('## 1. Lignes qui règlent des factures (vérité terrain)', '');
@@ -112,7 +125,9 @@ const etat = lignesAttendues.filter((x) => x.classement === 'etat_base');
 l.push(`**État de la base** (payées selon la vérité terrain, non approuvées aujourd'hui) : ${etat.length} ligne(s) ; signalement « payée sans être approuvée » levé : ${etat.filter((x) => x.juste).length}.`, '');
 for (const x of etat) l.push(`- ligne ${x.ligne} : ${x.statuts.join(', ')} → ${x.resultat}`);
 const hors = lignesAttendues.filter((x) => x.classement === 'hors_perimetre');
-l.push('', `**Hors périmètre** (factures du lot de test, absentes de la base) : ${hors.length} ligne(s) ; signalées « sortie sans facture » : ${hors.filter((x) => x.juste).length}. Évaluées à l'étape 8.`, '');
+l.push('', lot === 'dev'
+  ? `**Hors périmètre** (factures du lot de test, absentes de la base) : ${hors.length} ligne(s) ; signalées « sortie sans facture » : ${hors.filter((x) => x.juste).length}. Évaluées à l'étape 8.`
+  : `**Hors périmètre** (factures du lot de développement, absentes de la base d'évaluation) : ${hors.length} ligne(s) ; signalées « sortie sans facture » : ${hors.filter((x) => x.juste).length}. Mesurées sur le lot de développement.`, '');
 
 l.push('## 3. Lignes sans facture (loyer, salaires, frais, encaissements…)', '');
 const rangees = sansFacture.filter((x) => x.categorie);
@@ -124,7 +139,7 @@ for (const x of rangees) parCategorie[x.categorie] = (parCategorie[x.categorie] 
 l.push(`Par catégorie : ${Object.entries(parCategorie).map(([c, nb]) => `${c} ${nb}`).join(', ')}.`, '');
 
 l.push('## 4. Factures impayées (vérité terrain)', '');
-l.push(`${impayees.size} factures du lot de développement ne sont pas payées dans le relevé ; propositions qui leur affectent un paiement à tort : **${propositionsSurImpayees.length}**.`, '');
+l.push(`${impayees.size} factures du lot de ${NOM_LOT[lot]} ne sont pas payées dans le relevé ; propositions qui leur affectent un paiement à tort : **${propositionsSurImpayees.length}**.`, '');
 
 l.push('## 5. Volume de notifications pour cet import', '');
 const aConfirmer = r.propositions.filter((p) => !p.auto).length;
@@ -134,11 +149,17 @@ l.push(`1 synthèse ; ${aConfirmer} proposition(s) à confirmer ; ${r.signalemen
 l.push('## 6. Limites', '');
 l.push('- Un seul relevé synthétique, généré avec des libellés réguliers : un vrai relevé aura des libellés plus variés.');
 l.push('- Aucune retenue à la source n\'est simulée (D-065, C1) : l\'écart de 2 TND (D015) est un écart générique.');
-l.push('- Le relevé ne montre pas le RIB du bénéficiaire : D-058 sera contrôlé par les ordres de paiement (étape 7).');
-l.push('- Une proposition rejetée n\'est pas reproposée ; sa ligne reste à rapprocher à la main (tableau de bord, étape 7).');
+if (lot === 'dev') {
+  l.push('- Le relevé ne montre pas le RIB du bénéficiaire : D-058 sera contrôlé par les ordres de paiement (étape 7).');
+  l.push('- Une proposition rejetée n\'est pas reproposée ; sa ligne reste à rapprocher à la main (tableau de bord, étape 7).');
+} else {
+  l.push('- Le relevé ne montre pas le RIB du bénéficiaire : on vérifie qu\'un ordre de paiement approuvé existe (D-072), pas le compte crédité.');
+  l.push('- Base d\'évaluation sans décision humaine (D-082) : seules les factures « conformes » sont approuvées ; les paiements des autres sont classés « état de la base ».');
+  l.push('- Échantillon très petit : quelques lignes du relevé seulement règlent des factures du lot de test.');
+}
 
-mkdirSync('eval/resultats', { recursive: true });
+mkdirSync(dossier, { recursive: true });
 const texte = `${l.join('\n')}\n`;
-writeFileSync('eval/resultats/rapprochement-dev.md', texte);
-writeFileSync('eval/resultats/rapprochement-dev.json', `${JSON.stringify({ lignesAttendues, sansFacture, propositions: r.propositions, signalements: r.signalements }, null, 2)}\n`);
+writeFileSync(`${dossier}/rapprochement-${lot}.md`, texte);
+writeFileSync(`${dossier}/rapprochement-${lot}.json`, `${JSON.stringify({ lignesAttendues, sansFacture, propositions: r.propositions, signalements: r.signalements }, null, 2)}\n`);
 console.log(texte);

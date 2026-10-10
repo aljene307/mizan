@@ -1,7 +1,8 @@
 // Éléments partagés par les mesures des contrôles sur la vérité terrain
 // (eval/evaluer-controles.js, eval/mutations-controles.js) : contextes des
 // règles construits depuis data/synthetic, configuration lue en base.
-// Lot de développement seulement (le lot de test est réservé à l'étape 8, D-026).
+// Lot de développement par défaut ; le lot de test n'est lu que sur demande
+// explicite (lireVerites('test')), à l'étape 8 seulement (D-026, D-082).
 import { existsSync, readFileSync } from 'node:fs';
 import pg from 'pg';
 import { normaliserNumero } from '../src/controles/regles.js';
@@ -54,7 +55,12 @@ export const referentiel = referentielJson.map((f, i) => ({
   id: i + 1, raison_sociale: f.raison_sociale, matricule_fiscal: f.matricule_fiscal, actif: true,
   ribs: [{ rib: f.rib, valide_du: '2026-01-01', valide_au: null }],
 }));
-export const verites = lots.dev.map((d) => JSON.parse(readFileSync(`data/synthetic/dev/verite/${d.id}.json`, 'utf8')));
+/** Vérité terrain d'un lot (« test » : étape 8 seulement, appelé par un script qui l'exige). */
+export function lireVerites(lot) {
+  if (!['dev', 'test'].includes(lot)) throw new Error(`lot inconnu : ${lot}`);
+  return lots[lot].map((d) => JSON.parse(readFileSync(`data/synthetic/${lot}/verite/${d.id}.json`, 'utf8')));
+}
+export const verites = lireVerites('dev');
 // Ordre de réception : celui des identifiants (comme le dépôt des fichiers par nom).
 const idNum = (v) => Number(v.id.replace(/\D/g, ''));
 
@@ -70,8 +76,11 @@ function facture(v) {
   };
 }
 
-/** Contexte des règles pour un document de la vérité terrain (comme contexte_controles()). */
-export function contexte(v, conf) {
+/**
+ * Contexte des règles pour un document de la vérité terrain (comme contexte_controles()).
+ * @param {object[]} [lot] documents du même lot (autres factures) : lot de développement par défaut.
+ */
+export function contexte(v, conf, lot = verites) {
   const f = facture(v);
   return {
     aujourd_hui: DATE_REFERENCE,
@@ -79,7 +88,7 @@ export function contexte(v, conf) {
     lignes: v.extraction.lignes.map((l, i) => ({ numero_ligne: i + 1, ...l })),
     extraction: null,
     referentiel,
-    autres_factures: verites.filter((o) => o.id !== v.id).map(facture),
+    autres_factures: lot.filter((o) => o.id !== v.id).map(facture),
     config_fiscale: configA(conf.config, f.date_facture),
     parametres: conf.parametres,
     regles: conf.regles,

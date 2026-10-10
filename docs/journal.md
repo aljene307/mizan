@@ -687,3 +687,21 @@ empreinte, traçabilité de chaque extraction).
   Pas d'essai séparé du script de reconstruction : sa première utilisation
   réelle sera l'évaluation finale. Base de comparaison `mizan_reconstruite`
   supprimée (`mizan_restauree` l'avait déjà été par Mohamed).
+
+## 2026-10-10 — Préparation de l'évaluation finale
+
+- Commit 27bcef0 poussé. Plan de l'évaluation validé par Mohamed, avec la
+  répétition générale sur le lot de développement ; Ollama reporté (D-084).
+- A1 : scripts de mesure paramétrés par lot et dossier de sortie ; rapports
+  du lot de développement identiques octet pour octet entre l'ancienne et la
+  nouvelle version ; lot de test refusé sans `--etape-8`.
+- A2 : `verifier-avant-evaluation`. Constat en l'écrivant : n8n n'enregistre
+  pas les paramètres égaux à leur valeur par défaut (comparaison tolérante
+  sur ce seul point) et garde l'identifiant du sous-workflow choisi à
+  l'import (vérifié à part : il désigne bien « Extraction LLM »). Le code
+  des workflows évalués chargé dans n8n est identique au dépôt.
+- A3 : `etat-evaluation` (statuts, ordre de réception, contrôles).
+- Rapprochement ajouté au protocole (D-082) : mesure par le script, comme
+  pour le lot de développement, sans import ; factures du lot de
+  développement « hors périmètre ».
+- Tests : 285 unitaires.

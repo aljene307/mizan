@@ -2090,10 +2090,71 @@ scripts et dans la base le 2026-10-10) :
    l'échantillon ; comparaison avec le lot de développement présentée comme
    telle (lot de développement : mise au point ; lot de test : évaluation).
 
+**Compléments du 2026-10-10 (validés par Mohamed, avant toute ouverture) :**
+- **Préparation :** documents restés dans `data/entrant/` archivés dans
+  `data/archive/` (ignoré par Git) ; relevé de démonstration aussi, seul le
+  relevé synthétique reste dans `data/entrant/releves/`. Workflows publiés
+  dépubliés. Vérification automatique `npm run verifier-avant-evaluation`
+  (configuration D-053, code commité, **code des workflows évalués chargé
+  dans n8n identique au dépôt**, bon sous-workflow, aucun workflow publié,
+  credentials, base vierge, migrations, `data/entrant/` vide). Suivi :
+  `npm run etat-evaluation` (statuts, ordre de réception, contrôles).
+- **Rapprochement bancaire mesuré sur le lot de test.** Le relevé règle des
+  factures des deux lots. Protocole identique au lot de développement : la
+  mesure ne passe pas par l'import du relevé ; le script
+  (`evaluer-rapprochement --lot test --etape-8`) lit les factures telles que
+  la base les fournit après les contrôles, applique l'appariement de `src/`
+  en mémoire, n'écrit rien, et compare à la vérité terrain du relevé. Les
+  lignes qui règlent des factures du lot de **développement** sont classées
+  « hors périmètre » (symétrique de la mesure du lot de développement). Base
+  d'évaluation sans décision humaine : seules les factures « conformes »
+  sont approuvées ; les paiements des autres sont classés « état de la
+  base », comme D001, D006 et D018 dans le lot de développement. Échantillon
+  très petit : à présenter en nombres bruts.
+- **Scripts de mesure adaptés avant l'ouverture** (`--lot`, `--sortie`) et
+  vérifiés : sur la même base, l'ancienne et la nouvelle version produisent
+  des rapports identiques octet pour octet pour le lot de développement
+  (précision, contrôles, rapprochement). Lot de test refusé sans
+  `--etape-8` (test).
+- **Répétition générale sur le lot de développement** (accordée) : mêmes
+  étapes dans une base reconstruite à l'état « évaluation », documents du
+  lot de développement déposés, extraction réelle (41 appels), contrôles,
+  sauvegarde, mesures écrites dans `eval/resultats/repetition-<date>/` (les
+  résultats publiés ne sont pas touchés). Elle vérifie la chaîne et donne
+  une mesure de stabilité (nouvelle extraction comparée aux résultats
+  D-053). Puis nouvelle reconstruction à l'état « évaluation » avant le lot
+  de test.
+- **En cas d'échec en cours de route :** avant la mesure (étape 12 de la
+  procédure), une panne d'infrastructure se répare et l'évaluation reprend
+  depuis la reconstruction de la base, car rien n'a été appris de la vérité
+  terrain ; quota épuisé : reprise le lendemain sans rien changer (D-040) ;
+  erreur du modèle sur un document : c'est un résultat, sans relance
+  sélective ; défaut d'un script de mesure : correction sans changer les
+  règles de comptage, nouveau calcul depuis la sauvegarde de l'état évalué,
+  signalé dans le rapport. Tout incident est consigné au journal.
+
 **Ordre de dépôt :** avec ce protocole, l'ordre d'arrivée ne change rien aux
 résultats mesurés (D-081, corrigé) ; il ne décide que de la facture bloquée
 dans chaque paire de doublons. **Confirmé par Mohamed le 2026-10-10 :
 ordre des noms, identique au lot de développement.**
+
+### D-084 · Extension possible après l'évaluation : comparaison avec un modèle local (Ollama)
+Décision de Mohamed le 2026-10-10 : **pas maintenant** ; à envisager après
+l'évaluation finale, **sur le lot de développement seulement, à titre
+indicatif** (ce lot a servi à la mise au point).
+- **Machine :** Intel Core i7-1255U (10 cœurs), Iris Xe intégrée, 15,7 Go de
+  mémoire : le modèle tournerait sur le processeur seul, à côté de Docker.
+- **Estimations, à confirmer en chronométrant 2 documents :** modèle de
+  7 à 8 milliards de paramètres compressé (environ 4,7 Go à télécharger),
+  5 à 6 Go de mémoire, 3 à 7 minutes par document ; 2 à 5 heures pour les
+  41 textes du lot de développement (textes déjà lus et conservés : pas
+  d'OCR). Aucun quota Gemini.
+- **Travail :** un adaptateur dans les scripts de mesure, avec le prompt v1,
+  le même schéma, les mêmes corrections par le code et la même règle de
+  comparaison (D-050) : environ une demi-journée.
+- **À attendre :** sur le processeur seul, un modèle de cette taille fera
+  probablement nettement moins bien que Gemini ; l'intérêt serait de le
+  mesurer (précision, durée, confidentialité), pas de remplacer Gemini.
 
 ### D-071 · Extension possible : catalogue de questions en serveur MCP
 Estimation demandée par Mohamed le 2026-10-08 ; **rien n'est construit**.

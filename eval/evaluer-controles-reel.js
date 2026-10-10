@@ -4,15 +4,27 @@
 // Pour chaque alerte sur une facture sans piège et chaque piège manqué, le
 // rapport donne les éléments de cause : la même règle appliquée aux valeurs
 // imprimées (vérité terrain) et les écarts entre l'extraction et la vérité.
-// Usage : npm run evaluer-controles-reel
-// Lecture seule (mizan_app). Copies d'essai exclues (D-054) ; lot de test
-// non lu (D-026). Écrit eval/resultats/controles-reel-dev.md et .json.
+// Usage : npm run evaluer-controles-reel                                 lot de développement
+//         npm run evaluer-controles-reel -- --lot test --etape-8         lot de test (étape 8 seulement, D-082)
+// Option : --sortie <dossier> (défaut eval/resultats ; la répétition générale écrit ailleurs).
+// Lecture seule (mizan_app). Copies d'essai exclues (D-054). Mêmes règles de
+// comptage pour les deux lots (D-082). Écrit controles-reel-<lot>.md et .json.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import pg from 'pg';
 import { controlerFacture } from '../src/controles/regles.js';
 import { comparerExtraction } from '../src/comparaison.js';
-import { deps, alerte, lireConfiguration, verites, contexte, ATTENDU, REGLES_DOUBLON } from './controles-commun.js';
+import { deps, alerte, lireConfiguration, lireVerites, contexte, ATTENDU, REGLES_DOUBLON } from './controles-commun.js';
 import { estCopieEssai } from './mesure-commun.js';
+
+const arg = (nom) => { const i = process.argv.indexOf(nom); return i > -1 ? process.argv[i + 1] : undefined; };
+const lot = arg('--lot') ?? 'dev';
+if (!['dev', 'test'].includes(lot)) throw new Error('--lot dev ou --lot test');
+if (lot === 'test' && !process.argv.includes('--etape-8')) {
+  console.error('Le lot de test est réservé à l\'évaluation de l\'étape 8 (D-026) : ajouter --etape-8 pour l\'utiliser.');
+  process.exit(1);
+}
+const dossier = arg('--sortie') ?? 'eval/resultats';
+const verites = lireVerites(lot);
 
 async function lireBase() {
   if (existsSync('.env')) process.loadEnvFile('.env');
@@ -40,7 +52,7 @@ const conf = await lireConfiguration();
 const base = await lireBase();
 const documents = verites.map((v) => {
   const b = base.get(v.id);
-  const imprime = controlerFacture(contexte(v, conf), deps).resultats.filter(alerte).map((x) => x.regle);
+  const imprime = controlerFacture(contexte(v, conf, verites), deps).resultats.filter(alerte).map((x) => x.regle);
   const comparaison = b?.extraction ? comparerExtraction(b.extraction.donnees, v.extraction) : null;
   const ecarts = comparaison ? [
     ...comparaison.entete.filter((c) => !c.normalise).map((c) => `${c.chemin} : lu ${JSON.stringify(c.extrait)}, imprimé ${JSON.stringify(c.attendu)}`),
@@ -106,7 +118,7 @@ const cause = (d, regles) => {
 
 // --- Rapport ----------------------------------------------------------------------------------
 const l = [];
-l.push('# Contrôles : mesure sur l\'extraction réelle (lot de développement)', '');
+l.push(`# Contrôles : mesure sur l'extraction réelle (lot de ${lot === 'dev' ? 'développement' : 'test'})`, '');
 l.push(`Résultats enregistrés par le workflow « Contrôles » (dernier passage de chaque facture), extraction en version de chaîne `
   + `${[...new Set(documents.map((d) => d.version ?? 'antérieure'))].join(', ')} (D-059). Copies d'essai exclues (D-054). Nombres bruts.`, '');
 l.push(`Factures du lot : ${documents.length} ; contrôlées : ${documents.filter((d) => d.controlee).length}.`, '');
@@ -169,12 +181,14 @@ for (const d of documents.filter((x) => x.pieges.length || x.doublon_de)) {
 l.push('', '## 5. Résultats « info » (non comptés comme alertes)', '');
 const infos = documents.flatMap((d) => d.infos.map((i) => `${d.id} : ${i.regle} — ${i.message}`));
 l.push(infos.length ? infos.map((x) => `- ${x}`).join('\n') : 'Aucun.', '');
-l.push('', 'Note (D-060) : les passages du 2026-10-06 ont été faits avant le correctif du contexte (historique du fournisseur). '
-  + 'Rejouées sur le contexte corrigé, les règles ne changent aucune alerte ni aucun statut ; seule D005 reçoit un résultat « info » '
-  + '(`matricule_suffixe` : « /A/M/000 » différent des factures précédentes, lues « /A/M/008 » par l\'OCR sur D001 et D004).');
+if (lot === 'dev') {
+  l.push('', 'Note (D-060) : les passages du 2026-10-06 ont été faits avant le correctif du contexte (historique du fournisseur). '
+    + 'Rejouées sur le contexte corrigé, les règles ne changent aucune alerte ni aucun statut ; seule D005 reçoit un résultat « info » '
+    + '(`matricule_suffixe` : « /A/M/000 » différent des factures précédentes, lues « /A/M/008 » par l\'OCR sur D001 et D004).');
+}
 
-mkdirSync('eval/resultats', { recursive: true });
+mkdirSync(dossier, { recursive: true });
 const texte = `${l.join('\n')}\n`;
-writeFileSync('eval/resultats/controles-reel-dev.md', texte);
-writeFileSync('eval/resultats/controles-reel-dev.json', `${JSON.stringify({ pieges: Object.fromEntries(Object.entries(pieges).map(([k, p]) => [k, { ...p, manques: p.manques.map((d) => d.id) }])), documents }, null, 2)}\n`);
+writeFileSync(`${dossier}/controles-reel-${lot}.md`, texte);
+writeFileSync(`${dossier}/controles-reel-${lot}.json`, `${JSON.stringify({ pieges: Object.fromEntries(Object.entries(pieges).map(([k, p]) => [k, { ...p, manques: p.manques.map((d) => d.id) }])), documents }, null, 2)}\n`);
 console.log(texte);

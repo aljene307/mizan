@@ -1,6 +1,7 @@
 // Rapport de précision de l'extraction (règle de comparaison D-050).
 // Usage : node eval/evaluer.js --lot dev
 //         node eval/evaluer.js --lot test --etape-8   (lot de test : étape 8 seulement, D-026)
+// Option : --sortie <dossier> (défaut eval/resultats ; la répétition générale écrit ailleurs).
 // Lit la dernière extraction de chaque facture du lot dans la base « mizan »
 // (rôle mizan_app, lecture seule), la compare à la vérité terrain et écrit
 // eval/resultats/precision-<lot>.md et .json.
@@ -195,7 +196,8 @@ const extractions = await lireExtractions();
 const resultat = evaluer(lotJson, extractions, 'corrigee');
 const brut = evaluer(lotJson, extractions, 'brute');
 const texte = rapport(resultat, brut);
-mkdirSync('eval/resultats', { recursive: true });
-writeFileSync(`eval/resultats/precision-${lot}.md`, texte);
-writeFileSync(`eval/resultats/precision-${lot}.json`, `${JSON.stringify({ corrige: { ...resultat, modeles: [...resultat.modeles], versions: [...resultat.versions], versionsChaine: [...resultat.versionsChaine] }, brut: { ...brut, modeles: [...brut.modeles], versions: [...brut.versions], versionsChaine: [...brut.versionsChaine], ecarts: brut.ecarts } }, null, 2)}\n`);
+const dossier = arg('--sortie') ?? 'eval/resultats';
+mkdirSync(dossier, { recursive: true });
+writeFileSync(`${dossier}/precision-${lot}.md`, texte);
+writeFileSync(`${dossier}/precision-${lot}.json`, `${JSON.stringify({ corrige: { ...resultat, modeles: [...resultat.modeles], versions: [...resultat.versions], versionsChaine: [...resultat.versionsChaine] }, brut: { ...brut, modeles: [...brut.modeles], versions: [...brut.versions], versionsChaine: [...brut.versionsChaine], ecarts: brut.ecarts } }, null, 2)}\n`);
 console.log(texte);

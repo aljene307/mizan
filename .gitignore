@@ -31,3 +31,6 @@ screenshots/
 
 # Sauvegardes de la base (données personnelles : jamais commitées)
 sauvegardes/
+
+# Archives locales (documents retirés de data/entrant avant une évaluation)
+data/archive/
