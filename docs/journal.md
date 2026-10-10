@@ -753,3 +753,35 @@ empreinte, traçabilité de chaque extraction).
   d'entités classés « info ».
 - Tests : 286 unitaires, SQL passés, 44 d'intégration, 594/594 mutations.
 - À faire avant l'évaluation : réimporter « Contrôles ».
+
+## 2026-10-10 — Évaluation finale sur le lot de test
+
+- **Déroulé (fait par Mohamed, D-082) :**
+  - base reconstruite à l'état « évaluation » (17 h 59, la base de la
+    répétition sauvegardée d'abord) ;
+  - n8n vérifié identique au dépôt ;
+  - test Gemini ;
+  - 18 documents déposés ;
+  - une seule exécution de « Réception et extraction » : 17 appels, tous
+    en une tentative ; D043 réutilise l'extraction de D013 ;
+  - un seul passage des contrôles ;
+  - sauvegarde `mizan-2026-10-10-1807.dump` ;
+  - trois mesures `--lot test --etape-8`.
+- **Vérifié dans la base et dans l'historique de n8n :**
+  - ordre de réception conforme ;
+  - aucune relance, aucune erreur, aucune réservation interrompue ;
+  - un passage de contrôle par facture, règle des entités en version 2 ;
+  - sauvegarde relue.
+
+  Aucun incident. Aucune suppression par erreur.
+- **Résultats :**
+  - extraction 271/272 champs d'en-tête (sortie brute 266/272),
+    14/17 documents entièrement exacts ;
+  - pièges 9/9 ;
+  - 1 fausse alerte sur 9 (D026, quantité mal lue par l'OCR) ;
+  - statuts 17/18 ;
+  - rapprochement 3/3, 0 confirmation automatique fausse ;
+  - injection suivie 0/2 ;
+  - D-085 sans effet : aucune entité HTML dans les réponses.
+- **Rapport :** `eval/resultats/evaluation-test-2026-10-10.md`. Rien n'a été
+  changé dans le prompt, le schéma, les corrections ou les règles.

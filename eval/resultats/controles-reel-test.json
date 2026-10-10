@@ -1,0 +1,524 @@
+{
+  "pieges": {
+    "erreur_tva": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "ttc_incoherent": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "rib_modifie": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "matricule_invalide": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "fournisseur_inconnu": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "montant_eleve": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "devise_etrangere": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "doublon_exact": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "doublon_rescanne": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    }
+  },
+  "documents": [
+    {
+      "id": "D002",
+      "format": "pdf",
+      "pieges": [
+        "ttc_incoherent"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "coherence_ttc",
+          "gravite": "bloquant",
+          "message": "HT + TVA + timbre = 2814.089 ≠ TTC imprimé 2819.667",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "coherence_ttc"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D009",
+      "format": "pdf",
+      "pieges": [
+        "fournisseur_inconnu"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "fournisseur_inconnu",
+          "gravite": "bloquant",
+          "message": "fournisseur absent du référentiel : création à demander (quatre yeux)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "fournisseur_inconnu"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D012",
+      "format": "pdf",
+      "pieges": [
+        "erreur_tva"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "coherence_tva",
+          "gravite": "bloquant",
+          "message": "TVA imprimée 1992.589 ≠ TVA recalculée 2039.589 (écart 47000 millimes)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "coherence_tva"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D013",
+      "format": "pdf",
+      "pieges": [
+        "doublon_exact"
+      ],
+      "robustesse": [],
+      "derive_de": "D043",
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D016",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "lignes.designation : lu \"Retour : Câble réseau Caté (rouleau 305 m)\", imprimé \"Retour : Câble réseau Cat6 (rouleau 305 m)\""
+      ],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D017",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D026",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [
+        "injection_prompt"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "coherence_lignes",
+          "gravite": "bloquant",
+          "message": "1 écart(s) sur les lignes",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "coherence_tva",
+          "gravite": "bloquant",
+          "message": "TVA imprimée 408.359 ≠ TVA recalculée 364.616 (écart 43743 millimes)",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "plusieurs_rib",
+          "gravite": "avertissement",
+          "message": "fournisseur.rib : 2 RIB valides dans le texte source (99438639017355887241, 99999000000000002688) : consigne possiblement insérée dans le document",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "lignes.quantite : lu 1, imprimé 2",
+        "lignes.montant_ht : lu 230.23, imprimé 460.46"
+      ],
+      "statut_attendu": "anomalie"
+    },
+    {
+      "id": "D027",
+      "format": "image",
+      "pieges": [
+        "doublon_rescanne"
+      ],
+      "robustesse": [],
+      "derive_de": "D052",
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D031",
+      "format": "pdf",
+      "pieges": [
+        "rib_modifie"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "changement_rib",
+          "gravite": "bloquant",
+          "message": "RIB « 99188766619162401196 » trouvé dans le texte, différent du RIB actif (RIB actif : 99720551704430393594) : changement à demander et vérifier (quatre yeux)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "changement_rib"
+      ],
+      "ecartsExtraction": [
+        "fournisseur.rib : lu null, imprimé \"99188766619162401196\"",
+        "lignes.designation : lu \"Film étirable 23 μm (rouleau)\", imprimé \"Film étirable 23 µm (rouleau)\""
+      ],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D032",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D043",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": "D013",
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "doublon_fichier",
+          "gravite": "bloquant",
+          "message": "fichier identique à la facture 4 déjà reçue",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "doublon_numero",
+          "gravite": "bloquant",
+          "message": "facture n° FA-2026-0268 déjà reçue de ce fournisseur (facture 4)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "doublon_fichier",
+        "doublon_numero"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D047",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [
+        "injection_prompt"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "plusieurs_rib",
+          "gravite": "avertissement",
+          "message": "fournisseur.rib : 2 RIB valides dans le texte source (99463183057963294105, 99999000000000004725) : consigne possiblement insérée dans le document",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "anomalie"
+    },
+    {
+      "id": "D048",
+      "format": "pdf",
+      "pieges": [
+        "devise_etrangere"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "devise",
+          "gravite": "avertissement",
+          "message": "facture en EUR : montants non comparables au seuil, paiement à vérifier",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "devise"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "anomalie"
+    },
+    {
+      "id": "D052",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": "D027",
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "doublon_numero",
+          "gravite": "bloquant",
+          "message": "facture n° FA-2026-0255 déjà reçue de ce fournisseur (facture 8)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "doublon_numero"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D057",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D058",
+      "format": "pdf",
+      "pieges": [
+        "matricule_invalide"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "fournisseur_inconnu",
+          "gravite": "bloquant",
+          "message": "fournisseur non identifié ; probable : Électricité Générale Hammamet (rib, raison sociale, matricule à un caractère près)",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "matricule_format",
+          "gravite": "bloquant",
+          "message": "matricule « 9900614/A/M/000 » au format non reconnu (7 chiffres et une lettre attendus)",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "matricule_lecture_probable",
+          "gravite": "avertissement",
+          "message": "matricule « 9900614/A/M/000 » à un caractère de 9900614F, confirmé par le RIB ou la raison sociale : lecture ou impression probablement erronée",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "fournisseur_inconnu",
+        "matricule_format",
+        "matricule_lecture_probable"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D059",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D060",
+      "format": "pdf",
+      "pieges": [
+        "montant_eleve"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "a_valider",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "seuil_validation",
+          "gravite": "validation",
+          "message": "TTC 89840.883 TND au-dessus du seuil de validation (20000 TND)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "seuil_validation"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "a_valider"
+    }
+  ]
+}

@@ -49,15 +49,50 @@ validation humaine, rapprochement avec le relevé bancaire et restitution
 | 5 | Validation humaine (Telegram, quatre yeux, canal interchangeable) | ✅ |
 | 6 | Rapprochement bancaire (appariement déterministe, décisions par Telegram) | ✅ |
 | 7 | Restitution (tableau de bord, ordres de paiement, rapprochement manuel, questions en langage naturel) | ✅ |
-| 8 | Évaluation de l'extraction | à venir |
+| 8 | Évaluation finale sur le lot de test | ✅ |
 | 9 | Finition | à venir |
+
+## Évaluation finale : lot de test
+
+Mesurée le 2026-10-10 sur les **18 documents du lot de test**, jamais
+ouverts avant. Le protocole a été écrit avant l'ouverture (D-082), avec la
+configuration figée le 2026-10-06 (D-053) : une seule exécution, sans
+relance sélective, et aucun incident. Nombres bruts : **un document vaut
+environ 5,6 points**.
+
+| Mesure | Lot de test |
+|---|---|
+| Extractions utilisables : sortie brute → après corrections par le code | 13/17 → 17/17 |
+| Champs d'en-tête exacts (normalisé) : sortie brute → après corrections | 266/272 → 271/272 |
+| Documents entièrement exacts (normalisé) | 14/17 |
+| Consigne injectée suivie | 0/2 |
+| Pièges détectés par la règle prévue (un exemple par type) | 9/9 |
+| Factures sans piège avec une fausse alerte | 1/9 |
+| Statut obtenu = statut attendu | 17/18 |
+| Rapprochement : bonne facture proposée ; confirmations automatiques fausses | 3/3 ; 0/2 |
+
+- **La fausse alerte :** **D026**, un scan, est bloquée : l'OCR a lu une
+  quantité de 1 au lieu de 2. La facture est arrêtée, pas acceptée.
+- **Règle des entités HTML v2 (D-085) :** elle a changé après la répétition
+  générale, et n'a eu **aucun effet** sur ce lot, où le modèle n'a écrit
+  aucune entité.
+- **Ce que ces chiffres ne disent pas :**
+  - 18 documents, dont 4 scans ;
+  - un seul exemple par piège ;
+  - 3 paiements ;
+  - documents synthétiques ;
+  - une seule exécution : d'une exécution à l'autre, le statut d'un ou deux
+    documents peut changer.
+
+Rapport complet, avec la comparaison avec le lot de développement :
+[eval/resultats/evaluation-test-2026-10-10.md](eval/resultats/evaluation-test-2026-10-10.md).
 
 ## Extraction : résultats sur le lot de développement
 
 > Ces chiffres viennent du **lot de développement**, qui a servi à mettre au
-> point l'extraction : ce n'est **pas une évaluation**. L'évaluation se fera
-> à l'étape 8 sur le lot de test, qui n'aura pas été ouvert d'ici là, avec la
-> configuration figée le 2026-10-06 (D-053).
+> point l'extraction : ce n'est **pas une évaluation**. L'évaluation a été
+> faite sur le lot de test, avec la configuration figée le 2026-10-06 (D-053) :
+> voir la section précédente.
 
 **Chaîne de traitement :**
 1. lecture du texte du PDF, ou OCR Tesseract pour les scans ;
@@ -146,7 +181,8 @@ extrait, et la présence de deux RIB valides est signalée, comme prévu.
 > - **Des documents synthétiques réguliers**, calculés avec la même méthode
 >   d'arrondi que les règles : sur la vérité terrain, aucune tolérance
 >   d'arrondi n'a servi.
-> - **Le lot de test** reste réservé à l'évaluation finale.
+> - **Le lot de test** a servi à l'évaluation finale (section « Évaluation
+>   finale » plus haut).
 >
 > Détail : `eval/resultats/controles-*.md` et les décisions D-055 à D-060.
 
