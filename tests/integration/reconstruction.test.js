@@ -37,6 +37,14 @@ test('base de travail : refus si des workflows Mizan sont publiés, sinon confir
     /refus : des workflows Mizan sont publiés|confirmation absente ou différente/);
 });
 
+test('première installation : base créée sans schéma (db/init), reconstruction possible (clone propre, 2026-10-10)', async () => {
+  spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'sh', '-c', `dropdb -U "$POSTGRES_USER" --if-exists --force ${BASE} && createdb -U "$POSTGRES_USER" ${BASE}`]);
+  const bilan = await reconstruire({ base: BASE, etat: 'evaluation', confirmer: BASE, saisir: sansSaisie });
+  if (bilan.sauvegarde) sauvegardes.push(bilan.sauvegarde);
+  assert.equal(bilan.resume.factures, 0);
+  assert.equal(bilan.resume.utilisateurs_conserves, 0);
+});
+
 test('état « démonstration » : 42 factures rejouées, chiffres de la mesure du rapprochement, lot de test jamais en base', async () => {
   const bilan = await reconstruire({ base: BASE, etat: 'demonstration', confirmer: BASE, saisir: sansSaisie });
   const scenario = JSON.parse(readFileSync('demo/scenario.json', 'utf8'));

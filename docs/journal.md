@@ -831,3 +831,31 @@ empreinte, traçabilité de chaque extraction).
   workflow d'erreur s'exécute). Scripts adaptés : publication exigée par
   `verifier-credentials-n8n`, tolérée par `reconstruire-base` et
   `verifier-avant-evaluation`. Contrôle : conforme, 15 versions de workflow.
+
+## 2026-10-10 — Captures, guide de démonstration, test sur un clone propre
+
+- Captures prises par Mohamed sur la base de démonstration, relues :
+  aucune donnée réelle (pas de nom ni d'identifiant Telegram, RIB et
+  matricules fictifs, aucune métadonnée dans les fichiers), renommées dans
+  `screenshots/`.
+- Guide `docs/demonstration.md` : déroulé minuté sur les étapes capturées.
+- Captures publiées (validées par Mohamed) dans `docs/captures/` : tableau de
+  bord en mode kiosque, notification de la facture au RIB modifié et détail
+  de « Réception et extraction » dans le README ; workflow « Contrôles » dans
+  `docs/architecture.md` ; fournisseur non identifié, validation justifiée,
+  lot d'ordres, question et demande hors catalogue dans
+  `docs/fonctionnement.md`. Non publiées : canevas illisible, terminal
+  (chemin Windows), captures redondantes.
+- Démonstration sans clé testée sur un clone neuf de GitHub, en suivant le
+  README (pile de Mohamed arrêtée le temps du test, puis relancée intacte) :
+  `.env` créé sans saisie, pile démarrée, images OCR et passerelle
+  construites depuis zéro (6 minutes), dépendances installées.
+- **Défaut trouvé :** à la première installation, la base `mizan` existe
+  sans schéma ; `reconstruire-base` lisait les utilisateurs à conserver et
+  échouait (« relation utilisateurs does not exist »). Corrigé (rien à
+  conserver si la base n'a pas de schéma) ; test d'intégration ajouté, qui
+  échoue sans la correction.
+- Après correction : base de démonstration reconstruite sur le clone
+  (42 factures, 12 confirmations automatiques, 13 propositions,
+  8 signalements, lot de 3 ordres pour 8 229,124 TND) ; les 12 panneaux de
+  Grafana lus par l'API, mêmes chiffres que la capture du tableau de bord.

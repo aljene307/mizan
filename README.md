@@ -30,9 +30,13 @@ Tout ce qui décide est du code déterministe et testé, ou une personne qui
 justifie sa décision. L'orchestration repose sur [n8n](https://n8n.io)
 auto-hébergé.
 
-<!-- Captures à insérer ici après validation (dossier docs/captures/, jamais screenshots/) :
-     1. docs/captures/tableau-de-bord.png : tableau de bord Grafana de la base de démonstration
-     2. docs/captures/notification-telegram.png : notification Telegram d'une facture bloquée (noms et identifiants masqués) -->
+![Tableau de bord Grafana sur la base de démonstration : reste à payer, retards, décisions en attente, échéancier, ordres de paiement](docs/captures/tableau-de-bord.png)
+
+*Tableau de bord Grafana (base de démonstration, données synthétiques).*
+
+<img src="docs/captures/notification-telegram.png" alt="Notification Telegram : facture bloquée, RIB différent du référentiel, sans bouton Valider" width="480">
+
+*Facture au RIB modifié : bloquée, payable seulement sur le RIB du référentiel, et sans bouton « Valider » (règle non dérogeable).*
 
 ```mermaid
 flowchart LR
@@ -49,6 +53,10 @@ flowchart LR
   DB --> G["Grafana<br/>lecture seule"]
   DB --> Q["Questions /q<br/>catalogue fermé"]
 ```
+
+![Workflow n8n « Réception et extraction » : lecture du PDF ou OCR, sous-workflow d'extraction, contrôle du référentiel, branches d'échec](docs/captures/n8n-reception-extraction.png)
+
+*Détail du workflow n8n « Réception et extraction » : PDF ou OCR, sous-workflow d'extraction par le modèle, RIB du référentiel, et une branche pour chaque échec.*
 
 **Garde-fous :**
 - **Paiement :** un ordre de paiement porte toujours sur le RIB du
@@ -180,6 +188,8 @@ Extraction réelle, Telegram, imports et commandes :
 - [Fonctionnement détaillé](docs/fonctionnement.md) : extraction, contrôles,
   validation par Telegram, rapprochement, ordres de paiement, tableau de bord,
   questions, avec les mesures et les limites de chaque partie.
+- [Démonstration en 3 minutes](docs/demonstration.md) : déroulé minuté, sur
+  la base de démonstration.
 - [Architecture](docs/architecture.md) : conteneurs, réseaux, rôles de la
   base.
 - [Décisions](docs/decisions.md) : 86 décisions numérotées, avec leurs

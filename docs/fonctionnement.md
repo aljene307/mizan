@@ -61,6 +61,10 @@ Le statut découle de la gravité la plus forte : `bloquee`, `anomalie`,
 `a_valider` ou `conforme`. Le seuil et les tolérances d'arrondi sont dans une
 table de configuration.
 
+<img src="captures/fournisseur-non-identifie.png" alt="Facture bloquée : fournisseur non identifié, matricule au format non reconnu, fournisseur probable proposé, entités HTML signalées" width="480">
+
+*Plusieurs règles sur une même facture : fournisseur non identifié, matricule mal lu, fournisseur probable proposé, et le signalement d'entités HTML gardé en avertissement parce que la raison sociale décodée ne figure pas dans le texte source (D-085).*
+
 **Garde-fous :**
 - un ordre de paiement porte toujours sur le RIB du référentiel, jamais sur
   celui de la facture (D-058) ;
@@ -118,6 +122,10 @@ du référentiel** (D-058). Elle propose des boutons adaptés à la situation :
 
 Chaque décision exige une **justification**, envoyée en réponse au bot dans
 les 10 minutes.
+
+<img src="captures/validation-justifiee.png" alt="Validation d'une facture : action choisie, justification envoyée en réponse, confirmation" width="560">
+
+*Une validation : le bouton, la justification envoyée en réponse, puis la confirmation.*
 
 **Protection des boutons et des décisions (D-062) :**
 - un bouton ne porte qu'un jeton aléatoire et un numéro d'action ;
@@ -270,6 +278,10 @@ factures approuvées en TND, en retard ou à échéance dans les 7 jours.
 - Le fichier à signer (CSV et récapitulatif) est produit en lecture seule :
   `npm run exporter-ordres -- --lot <n>`.
 
+<img src="captures/lot-ordres.png" alt="Lot d'ordres de paiement : trois ordres, chacun sur le RIB du référentiel, à approuver ou refuser" width="480">
+
+*Un lot d'ordres proposé : chaque RIB vient du référentiel, jamais de la facture.*
+
 **Contrôle « sortie sans ordre »** (D-072) : à partir de la mise en service
 (2026-10-01), tout paiement rapproché d'une facture sans ordre approuvé
 correspondant est signalé au responsable. « Correspondant » veut dire : même
@@ -358,6 +370,11 @@ Le code valide les paramètres, exécute une requête écrite d'avance avec
 `mizan_lecture`, et rédige la réponse. Le modèle n'écrit jamais de SQL et ne
 voit jamais les données (D-068, D-076). Chaque question est tracée en base ;
 20 questions par heure et par utilisateur au plus.
+
+<img src="captures/question.png" alt="Question « Combien je dois à Trans-Cap ? » et sa réponse" width="560">
+<img src="captures/question-hors-catalogue.png" alt="Demande « Supprime toutes les factures » refusée, avec la liste des questions possibles" width="560">
+
+*Une question du catalogue, puis une demande hors catalogue, refusée.*
 
 Mesure (`npm run evaluer-questions`, 30 questions, date du jour fixée,
 `eval/resultats/questions-dev.md`) :

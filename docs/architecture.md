@@ -56,6 +56,10 @@ réelles avec `mizan_lecture`, et par les tests d'intégration.
 | Erreurs | publié ; exécuté par n8n quand un autre workflow publié échoue | Enregistre l'erreur (masquée) et prévient les responsables, au plus une fois par heure et par workflow |
 | Test d'erreur | publié le temps d'un test | Échoue chaque minute sans rien lire ni écrire, pour vérifier « Erreurs » |
 
+![Workflow n8n « Contrôles » : réserver une facture, lire son contexte, exécuter toutes les règles, enregistrer le passage](captures/n8n-controles.png)
+
+*Le workflow « Contrôles » : une facture réservée à la fois, les 22 règles exécutées par du code testé (`src/controles/regles.js`), un passage enregistré, puis la facture suivante.*
+
 Les workflows sont générés depuis `src/` par `scripts/construire-workflows.js`
 (le code des nœuds Code est copié des modules testés) ; voir
 [installation.md](installation.md) pour les importer.

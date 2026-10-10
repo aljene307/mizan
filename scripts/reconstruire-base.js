@@ -77,15 +77,24 @@ async function baseExiste(base) {
   return avec(process.env.POSTGRES_DB, 'admin', async (c) => (await c.query('SELECT 1 FROM pg_database WHERE datname = $1', [base])).rowCount === 1);
 }
 
-/** Ce qui est conservé : utilisateurs réels, leurs adresses actives, le curseur de lecture du canal. */
+/**
+ * Ce qui est conservé : utilisateurs réels, leurs adresses actives, le curseur de lecture du canal.
+ * Base créée mais sans schéma (première installation : db/init crée la base, les migrations
+ * ne sont pas encore appliquées) : rien à conserver (défaut trouvé sur un clone propre, 2026-10-10).
+ */
 export async function lireAConserver(base) {
   return avec(base, 'admin', async (c) => {
-    const { rows: utilisateurs } = await c.query(`SELECT u.nom, u.role, u.actif,
-        coalesce(jsonb_agg(jsonb_build_object('canal', a.canal, 'adresse', a.adresse)) FILTER (WHERE a.id IS NOT NULL), '[]') AS adresses
-      FROM utilisateurs u LEFT JOIN adresses_canal a ON a.utilisateur_id = u.id AND a.active
-      WHERE NOT u.fictif GROUP BY u.id ORDER BY u.id`);
-    const { rows: curseurs } = await c.query('SELECT canal, curseur FROM etats_canal');
-    return { utilisateurs, curseurs };
+    try {
+      const { rows: utilisateurs } = await c.query(`SELECT u.nom, u.role, u.actif,
+          coalesce(jsonb_agg(jsonb_build_object('canal', a.canal, 'adresse', a.adresse)) FILTER (WHERE a.id IS NOT NULL), '[]') AS adresses
+        FROM utilisateurs u LEFT JOIN adresses_canal a ON a.utilisateur_id = u.id AND a.active
+        WHERE NOT u.fictif GROUP BY u.id ORDER BY u.id`);
+      const { rows: curseurs } = await c.query('SELECT canal, curseur FROM etats_canal');
+      return { utilisateurs, curseurs };
+    } catch (e) {
+      if (e.code === '42P01') return { utilisateurs: [], curseurs: [] };   // base sans schéma
+      throw e;
+    }
   });
 }
 
