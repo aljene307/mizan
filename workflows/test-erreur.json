@@ -1,0 +1,55 @@
+{
+  "name": "Mizan – Test d'erreur",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000109",
+      "name": "Toutes les minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nthrow new Error('Erreur de test volontaire (D-086) : aucune donnée lue ni écrite');\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000110",
+      "name": "Échouer volontairement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "connections": {
+    "Toutes les minutes": {
+      "main": [
+        [
+          {
+            "node": "Échouer volontairement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

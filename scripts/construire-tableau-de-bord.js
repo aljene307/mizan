@@ -37,17 +37,20 @@ export function tableauDeBord() {
       '**Données synthétiques.** Paiements toujours sur le RIB du référentiel (D-058). '
       + 'Trésorerie : sorties connues seulement (factures approuvées en TND), sans encaissements ni salaires prévus. '
       + 'TVA : montants **figurant sur les factures** approuvées, **pas la TVA déductible** (règles fiscales non codées, D-020).' } }),
-    panneau('stat', 'Reste à payer (TND)', [0, 3, 5, 4], `
+    panneau('stat', 'Reste à payer (TND)', [0, 3, 4, 4], `
 SELECT coalesce(sum(reste_a_payer - paiement_propose), 0) AS "Reste à payer" FROM echeancier WHERE devise = 'TND'`, { unites: TND, options: STAT,
       description: 'Factures approuvées en TND, hors paiements déjà au relevé en attente de confirmation.' }),
-    panneau('stat', 'Factures en retard', [5, 3, 5, 4], `
+    panneau('stat', 'Factures en retard', [4, 3, 4, 4], `
 SELECT count(*) AS "En retard" FROM echeancier WHERE en_retard`, { options: STAT }),
-    panneau('stat', 'Paiements au relevé à confirmer', [10, 3, 5, 4], `
+    panneau('stat', 'Paiements au relevé à confirmer', [8, 3, 4, 4], `
 SELECT count(*) AS "Paiement proposé" FROM echeancier WHERE etat = 'paiement_propose'`, { options: STAT }),
-    panneau('stat', 'Décisions en attente', [15, 3, 4, 4], `
+    panneau('stat', 'Décisions en attente', [12, 3, 4, 4], `
 SELECT count(*) AS "À traiter" FROM a_traiter`, { options: STAT }),
-    panneau('stat', 'Solde du dernier relevé (TND)', [19, 3, 5, 4], `
+    panneau('stat', 'Solde du dernier relevé (TND)', [16, 3, 4, 4], `
 SELECT solde_final AS "Solde" FROM releves WHERE devise = 'TND' ORDER BY date_fin DESC, releve_id DESC LIMIT 1`, { unites: TND, options: STAT }),
+    panneau('stat', 'Erreurs de workflow (24 h)', [20, 3, 4, 4], `
+SELECT count(*) AS "Erreurs" FROM erreurs_workflow WHERE survenue_le > now() - interval '24 hours'`, { options: STAT,
+      description: 'Erreurs des exécutions automatiques de n8n (D-086). Détail technique en base, table erreurs_workflow.' }),
     panneau('table', 'Échéancier', [0, 7, 14, 10], `
 SELECT numero AS "Facture", fournisseur AS "Fournisseur", to_char(date_echeance, 'YYYY-MM-DD') AS "Échéance",
        reste_a_payer AS "Reste à payer", paiement_propose AS "Au relevé, à confirmer",

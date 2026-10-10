@@ -44,7 +44,8 @@ npm run reconstruire-base -- --etat evaluation      # schéma, référentiel, ut
 
 **Avant d'effacer, le script :**
 - refuse de tourner si un workflow Mizan est publié dans n8n (le dépublier
-  d'abord, le republier après) ;
+  d'abord, le republier après), sauf « Mizan – Erreurs », qui reste publié :
+  il n'agit que si un autre workflow publié échoue (D-086) ;
 - affiche ce qu'il va faire, puis demande de taper le nom de la base ;
 - sauvegarde la base actuelle dans `sauvegardes/` et relit la sauvegarde (ce
   dossier est ignoré par Git : il contient des données personnelles).
@@ -125,7 +126,12 @@ Pour les importer dans n8n (menu ⋯ → *Import from File…*) :
    `data/entrant/releves/` ;
 6. puis importer `ordres-paiement.json` et `questions.json`, et publier
    `questions.json` ;
-7. créer dans n8n trois credentials (aucune clé n'est dans le dépôt) :
+7. puis importer `erreurs.json` et **publier** « Mizan – Erreurs », sans
+   jamais le lancer à la main : n8n 2.41.7 n'exécute que la version publiée
+   d'un workflow d'erreur, et ne le propose comme *Error workflow* que s'il
+   est publié ; importer aussi `test-erreur.json` (non publié, sauf pendant
+   un test d'erreur) ;
+8. créer dans n8n trois credentials (aucune clé n'est dans le dépôt) :
    - « PostgreSQL Mizan (mizan_app) », avec l'utilisateur `mizan_app` ;
    - « PostgreSQL Mizan (lecture) », avec l'utilisateur `mizan_lecture`
      (base `mizan`, hôte `postgres`) ;
@@ -143,8 +149,19 @@ Vérifier sur chaque nœud :
 | test Gemini (une requête) | Le modèle existe-t-il ?, Extraction de test | Gemini Mizan |
 | Tous les autres | Tous les nœuds PostgreSQL | **PostgreSQL Mizan (mizan_app)** |
 
+**Réglages de chaque workflow publié (D-086).** n8n ne reprend pas les
+réglages du fichier à l'import (constat du 2026-10-10). Sur chaque workflow
+publié (Notifications Telegram, Réponses Telegram, Questions, et Ordres de
+paiement s'il est publié), menu ⋯ → *Settings* :
+- **Error workflow** : « Mizan – Erreurs » ;
+- **Save successful production executions** : *Do not save* ;
+- **Timeout Workflow** : activé, 120 secondes.
+
+Sur « Mizan – Erreurs », **Error workflow** reste vide : il ne doit jamais se
+déclencher lui-même.
+
 Puis lancer le contrôle. Il compare chaque nœud de chaque workflow (version
-publiée et brouillon) au fichier du dépôt :
+publiée et brouillon) au fichier du dépôt, ainsi que ces réglages :
 
 ```powershell
 npm run verifier-credentials-n8n
@@ -174,7 +191,7 @@ npm run exporter-ordres              # liste les lots ; --lot <n> : fichier à s
 npm run generer-releve-demo          # second relevé de démonstration (data/demo/), d'après les ordres approuvés
 npm run construire-tableau-de-bord   # régénère le tableau de bord Grafana
 npm run evaluer-questions            # mesure des questions en langage naturel (appelle Gemini)
-npm run verifier-credentials-n8n     # credentials rattachés dans n8n conformes au dépôt
+npm run verifier-credentials-n8n     # credentials et réglages des workflows dans n8n conformes au dépôt
 ```
 
 ## Architecture

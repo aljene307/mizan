@@ -6,6 +6,9 @@
 //   workflows/reponses-telegram.json     réception des réponses (D-062, D-064)
 //   workflows/releve-rapprochement.json  import et rapprochement du relevé (D-065)
 //   workflows/ordres-paiement.json       proposition d'un lot d'ordres de paiement (D-068)
+//   workflows/questions.json             questions en langage naturel (D-068, D-076)
+//   workflows/erreurs.json               erreurs des workflows publiés (D-086)
+//   workflows/test-erreur.json           erreur volontaire, pour vérifier « Erreurs » (D-086)
 // Le code des nœuds Code est recopié depuis src/ (D-041). Paramètres des nœuds
 // relevés dans n8n 2.41.7. Usage : node scripts/construire-workflows.js
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -717,6 +720,66 @@ questions.connections = connexions([
   ['Résultat de l\'envoi', 0, 'Conclure la question'],
 ]);
 
+// =============================================================================
+// Erreurs des workflows (D-086) : Error Trigger, déclenché par n8n quand une
+// exécution AUTOMATIQUE d'un workflow qui le désigne (réglage « Error
+// workflow ») échoue. Enregistre l'erreur (masquée, tronquée), puis prévient
+// les responsables : message court, au plus un par workflow et par intervalle.
+// Ne peut pas se déclencher lui-même : aucun « Error workflow » dans ses
+// réglages, et aucun nœud ne fait échouer l'exécution (tests).
+// =============================================================================
+const N_RESUMER = 'Résumer l\'erreur';
+const erreurs = {
+  name: 'Mizan – Erreurs',
+  nodes: [
+    noeud('Erreur reçue', 'n8n-nodes-base.errorTrigger', 1, [0, 0], {}),
+    code(N_RESUMER, [220, 0], ['src/erreurs.js'],
+      `// Message technique masqué (mêmes formes que masquer_secrets() en base) et tronqué.
+return [{ json: resumerErreur($input.first().json) }];`, { onError: 'continueRegularOutput' }),
+    postgres('Enregistrer l\'erreur', [440, 0], 'SELECT signaler_erreur_workflow($1::jsonb) AS r;', '[ $json ]',
+      { onError: 'continueRegularOutput' }),
+    code('Messages aux responsables', [660, 0], ['src/erreurs.js'],
+      `// Rien à envoyer si l'erreur n'a pas été enregistrée, ou si un message est déjà
+// parti pour ce workflow dans l'intervalle : l'exécution s'arrête là.
+const r = $input.first().json.r;
+if (!r || r.notifier !== true) return [];
+const resume = $(${JSON.stringify(N_RESUMER)}).first().json;
+return r.destinataires.map((adresse) => ({ json: { corps: { chat_id: adresse, text: messageErreur(r, resume) } } }));`,
+      { onError: 'continueRegularOutput' }),
+    passerelle('Envoyer (passerelle)', [880, 0], 'sendMessage', '$json.corps', 20000, 1000),
+  ],
+  // Pas de réglage « errorWorkflow » : une erreur ici ne relance jamais ce workflow.
+  // Publié (n8n 2.41.7 n'exécute que la version publiée d'un workflow d'erreur), jamais lancé à la main.
+  settings: { executionOrder: 'v1' },
+  pinData: {},
+};
+erreurs.nodes.at(-1).onError = 'continueRegularOutput';
+erreurs.connections = connexions([
+  ['Erreur reçue', 0, N_RESUMER],
+  [N_RESUMER, 0, 'Enregistrer l\'erreur'],
+  ['Enregistrer l\'erreur', 0, 'Messages aux responsables'],
+  ['Messages aux responsables', 0, 'Envoyer (passerelle)'],
+]);
+
+// Erreur de test (D-086) : publié quelques minutes, il échoue chaque minute sans
+// rien lire ni écrire ; la première erreur est envoyée, les suivantes seulement
+// enregistrées. À dépublier ensuite.
+const testErreur = {
+  name: 'Mizan – Test d\'erreur',
+  nodes: [
+    noeud('Toutes les minutes', 'n8n-nodes-base.scheduleTrigger', 1.2, [0, 0], {
+      rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] },
+    }),
+    code('Échouer volontairement', [220, 0], [],
+      'throw new Error(\'Erreur de test volontaire (D-086) : aucune donnée lue ni écrite\');'),
+  ],
+  settings: { executionOrder: 'v1' },
+  pinData: {},
+};
+testErreur.connections = connexions([['Toutes les minutes', 0, 'Échouer volontairement']]);
+
+ecrire('workflows/erreurs.json', erreurs);
+ecrire('workflows/test-erreur.json', testErreur);
 ecrire('workflows/releve-rapprochement.json', releve);
 ecrire('workflows/ordres-paiement.json', ordres);
 ecrire('workflows/questions.json', questions);

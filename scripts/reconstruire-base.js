@@ -7,7 +7,8 @@
 //   npm run reconstruire-base -- --etat evaluation      schéma, référentiel, utilisateurs ; aucune facture
 // Options : --base <nom> (défaut : MIZAN_DB) ; --confirmer <nom> (tests seulement :
 // remplace la saisie, doit nommer exactement la base visée).
-// Protections : refus si un workflow Mizan est publié dans n8n (base de
+// Protections : refus si un workflow Mizan est publié dans n8n, sauf « Mizan –
+// Erreurs » (D-086) (base de
 // travail) ; plan affiché ; confirmation par le nom de la base ; sauvegarde
 // relue avant d'effacer (sans option pour l'éviter, D-078 c1) ; lot de test
 // jamais lu (lecture protégée) ; inscriptions Telegram réelles conservées.
@@ -51,13 +52,20 @@ async function avec(base, utilisateur, travail) {
 
 // --- Vérifications préalables ---------------------------------------------------------------
 
-/** Workflows Mizan publiés dans n8n (base interne de n8n, lecture seule). */
+// « Mizan – Erreurs » (D-086) reste publié : n8n n'exécute que la version publiée
+// d'un workflow d'erreur. Il n'écrit que si un AUTRE workflow publié échoue ; or
+// ceux-là doivent être dépubliés : il ne peut donc rien écrire pendant l'opération.
+export const PUBLIE_AUTORISE = 'Mizan – Erreurs';
+/** Workflows publiés qui empêchent une reconstruction ou une évaluation. */
+export const publiesBloquants = (noms) => noms.filter((n) => n !== PUBLIE_AUTORISE);
+
+/** Workflows Mizan publiés dans n8n (base interne de n8n, lecture seule), sauf « Mizan – Erreurs ». */
 export async function workflowsPublies() {
   return avec(process.env.POSTGRES_DB, 'admin', async (c) => {
     try {
       const { rows } = await c.query(`SELECT name FROM workflow_entity
         WHERE active AND NOT "isArchived" AND name LIKE 'Mizan%' ORDER BY name`);
-      return rows.map((r) => r.name);
+      return publiesBloquants(rows.map((r) => r.name));
     } catch (e) {
       if (e.code === '42P01') return [];   // n8n jamais démarré : aucune table, aucun workflow
       throw e;

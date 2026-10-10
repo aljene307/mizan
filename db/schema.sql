@@ -1573,6 +1573,22 @@ $$;
 
 
 --
+-- Name: masquer_secrets(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.masquer_secrets(p text) RETURNS text
+    LANGUAGE sql IMMUTABLE
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+    SELECT regexp_replace(regexp_replace(regexp_replace(regexp_replace(coalesce(p, ''),
+        '[0-9]+:[A-Za-z0-9_-]{30,}', '***', 'g'),                       -- jeton de bot Telegram
+        'AIza[0-9A-Za-z_-]{20,}', '***', 'g'),                          -- clé d'API Google
+        '(//[^\s:/@]+:)[^\s@/]+@', '\1***@', 'g'),                       -- mot de passe dans une URL
+        '([?&](key|token|password|api_key|apikey)=)[^&\s]+', '\1***', 'gi'); -- secret en paramètre d'URL
+$$;
+
+
+--
 -- Name: montant_a_ordonner(bigint, bigint); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2160,6 +2176,45 @@ $$;
 
 
 --
+-- Name: signaler_erreur_workflow(jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.signaler_erreur_workflow(p jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+    v_nom      TEXT := left(coalesce(nullif(btrim(p ->> 'workflow_nom'), ''), 'workflow inconnu'), 200);
+    v_notifier BOOLEAN;
+    v_id       BIGINT;
+    v_le       TIMESTAMPTZ;
+    v_minutes  INTEGER := parametre_controle('erreurs.intervalle_notification')::INTEGER;
+BEGIN
+    -- Deux erreurs simultanées du même workflow : une seule décide d'envoyer.
+    PERFORM pg_advisory_xact_lock(hashtext('erreurs_workflow:' || v_nom));
+    v_notifier := NOT EXISTS (
+        SELECT 1 FROM erreurs_workflow
+        WHERE workflow_nom = v_nom AND notifiee
+          AND survenue_le > now() - make_interval(mins => v_minutes));
+    INSERT INTO erreurs_workflow (workflow_id, workflow_nom, noeud, execution_n8n_id, mode, message, notifiee)
+    VALUES (left(p ->> 'workflow_id', 100), v_nom, left(p ->> 'noeud', 200), left(p ->> 'execution_n8n_id', 100),
+            left(p ->> 'mode', 50), left(masquer_secrets(coalesce(nullif(p ->> 'message', ''), 'erreur sans message')), 500),
+            v_notifier)
+    RETURNING id, survenue_le INTO v_id, v_le;
+    RETURN jsonb_build_object(
+        'erreur_id', v_id,
+        'notifier', v_notifier,
+        'survenue_le', v_le,
+        'intervalle_minutes', v_minutes,
+        'destinataires', CASE WHEN v_notifier THEN coalesce((
+            SELECT jsonb_agg(a.adresse ORDER BY u.id)
+            FROM utilisateurs u JOIN adresses_canal a ON a.utilisateur_id = u.id AND a.active AND a.canal = 'telegram'
+            WHERE u.role = 'responsable' AND u.actif AND NOT u.fictif), '[]'::jsonb) ELSE '[]'::jsonb END);
+END;
+$$;
+
+
+--
 -- Name: signaler_ligne_sans_facture(bigint, bigint, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2631,6 +2686,39 @@ CREATE TABLE public.demandes_referentiel (
 
 ALTER TABLE public.demandes_referentiel ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.demandes_referentiel_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: erreurs_workflow; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.erreurs_workflow (
+    id bigint NOT NULL,
+    survenue_le timestamp with time zone DEFAULT now() NOT NULL,
+    workflow_id text,
+    workflow_nom text NOT NULL,
+    noeud text,
+    execution_n8n_id text,
+    mode text,
+    message text NOT NULL,
+    notifiee boolean NOT NULL,
+    CONSTRAINT erreurs_workflow_message_ck CHECK ((char_length(message) <= 500)),
+    CONSTRAINT erreurs_workflow_nom_ck CHECK ((btrim(workflow_nom) <> ''::text))
+);
+
+
+--
+-- Name: erreurs_workflow_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.erreurs_workflow ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.erreurs_workflow_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -3635,6 +3723,19 @@ COMMENT ON VIEW restitution.echeancier IS 'Factures approuvées restant à payer
 
 
 --
+-- Name: erreurs_workflow; Type: VIEW; Schema: restitution; Owner: -
+--
+
+CREATE VIEW restitution.erreurs_workflow AS
+ SELECT id AS erreur_id,
+    survenue_le,
+    workflow_nom,
+    noeud,
+    notifiee
+   FROM public.erreurs_workflow;
+
+
+--
 -- Name: ordres_paiement; Type: VIEW; Schema: restitution; Owner: -
 --
 
@@ -3954,6 +4055,14 @@ ALTER TABLE ONLY public.demandes_referentiel
 
 
 --
+-- Name: erreurs_workflow erreurs_workflow_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.erreurs_workflow
+    ADD CONSTRAINT erreurs_workflow_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: etats_canal etats_canal_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4251,6 +4360,13 @@ CREATE INDEX decisions_humaines_facture_ix ON public.decisions_humaines USING bt
 --
 
 CREATE INDEX demandes_annulation_proposition_ix ON public.demandes_annulation USING btree (proposition_id);
+
+
+--
+-- Name: erreurs_workflow_ix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX erreurs_workflow_ix ON public.erreurs_workflow USING btree (workflow_nom, survenue_le);
 
 
 --
@@ -4713,6 +4829,20 @@ CREATE TRIGGER demandes_referentiel_pas_de_vidage BEFORE TRUNCATE ON public.dema
 --
 
 CREATE TRIGGER demandes_referentiel_verification BEFORE INSERT ON public.demandes_referentiel FOR EACH ROW EXECUTE FUNCTION public.demandes_referentiel_verifier();
+
+
+--
+-- Name: erreurs_workflow erreurs_workflow_pas_de_modification; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER erreurs_workflow_pas_de_modification BEFORE DELETE OR UPDATE ON public.erreurs_workflow FOR EACH ROW EXECUTE FUNCTION public.refuser_modification();
+
+
+--
+-- Name: erreurs_workflow erreurs_workflow_pas_de_vidage; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER erreurs_workflow_pas_de_vidage BEFORE TRUNCATE ON public.erreurs_workflow FOR EACH STATEMENT EXECUTE FUNCTION public.refuser_modification();
 
 
 --
@@ -5320,4 +5450,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261010110000'),
     ('20261010120000'),
     ('20261010130000'),
-    ('20261010140000');
+    ('20261010140000'),
+    ('20261010150000');

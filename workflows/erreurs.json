@@ -1,0 +1,151 @@
+{
+  "name": "Mizan – Erreurs",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "5e1f0000-0000-4000-8000-000000000104",
+      "name": "Erreur reçue",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/erreurs.js\n// Erreurs des workflows n8n (D-086) : résumé de la donnée de l'Error Trigger,\n// masquage des secrets, message court pour les responsables. Le message\n// Telegram reste générique (workflow, nœud, heure, numéro d'erreur) : le\n// message technique, masqué et tronqué, ne va qu'en base (erreurs_workflow).\n// Mêmes formes masquées que masquer_secrets() en base, avec le même masque\n// que la passerelle Telegram (« *** ») ; n8n ne détient pas le jeton du bot,\n// d'où un masquage par forme et non par valeur.\n// Aucun import (recopié dans un nœud Code, D-041).\n\nconst MASQUE = '***';\nconst LONGUEUR_MESSAGE = 500; // caractères gardés en base\nconst FUSEAU = 'Africa/Tunis';\nconst FORMES_SECRETES = [\n  [/[0-9]+:[A-Za-z0-9_-]{30,}/g, MASQUE], // jeton de bot Telegram (forme vérifiée par la passerelle)\n  [/AIza[0-9A-Za-z_-]{20,}/g, MASQUE], // clé d'API Google\n  [/(\\/\\/[^\\s:/@]+:)[^\\s@/]+@/g, `$1${MASQUE}@`], // mot de passe dans une URL\n  [/([?&](?:key|token|password|api_key|apikey)=)[^&\\s]+/gi, `$1${MASQUE}`], // secret en paramètre d'URL\n];\n\n/** Retire les secrets d'un texte (masquage avant toute troncature). */\nfunction masquerSecrets(texte) {\n  return FORMES_SECRETES.reduce((t, [forme, remplacement]) => t.replace(forme, remplacement), String(texte ?? ''));\n}\n\n/**\n * Résumé d'une erreur reçue par l'Error Trigger de n8n : erreur d'exécution\n * ({ execution, workflow }) ou erreur au démarrage d'un déclencheur\n * ({ trigger, workflow }). Le message est masqué puis tronqué.\n */\nfunction resumerErreur(donnee) {\n  const execution = donnee?.execution ?? {};\n  const erreur = execution.error ?? donnee?.trigger?.error ?? {};\n  const message = masquerSecrets(erreur.message ?? erreur.description ?? 'erreur sans message').slice(0, LONGUEUR_MESSAGE);\n  return {\n    workflow_id: donnee?.workflow?.id == null ? null : String(donnee.workflow.id),\n    workflow_nom: String(donnee?.workflow?.name ?? 'workflow inconnu'),\n    noeud: execution.lastNodeExecuted ?? erreur.node?.name ?? null,\n    execution_n8n_id: execution.id == null ? null : String(execution.id),\n    mode: execution.mode ?? donnee?.trigger?.mode ?? null,\n    message,\n  };\n}\n\n/** Heure lisible, à l'heure de Tunis : « 2026-10-10 21:04 ». */\nfunction heureLocale(date) {\n  const p = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', {\n    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',\n  }).formatToParts(new Date(date)).map((x) => [x.type, x.value]));\n  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;\n}\n\n/** Message court et générique, en texte brut : jamais le message technique. */\nfunction messageErreur({ erreur_id: erreurId, survenue_le: survenueLe, intervalle_minutes: minutes }, { workflow_nom: workflow, noeud }) {\n  return [\n    `Mizan : erreur n° ${erreurId}`,\n    `Workflow : ${workflow}`,\n    `Nœud : ${noeud ?? 'inconnu'}`,\n    `Heure : ${heureLocale(survenueLe)}`,\n    `Détail enregistré en base (erreurs_workflow). Les erreurs suivantes de ce workflow ne sont pas renvoyées pendant ${minutes} minutes.`,\n  ].join('\\n');\n}\n// >>>\n\n// Message technique masqué (mêmes formes que masquer_secrets() en base) et tronqué.\nreturn [{ json: resumerErreur($input.first().json) }];\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000105",
+      "name": "Résumer l'erreur",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT signaler_erreur_workflow($1::jsonb) AS r;",
+        "options": {
+          "queryReplacement": "={{ [ $json ] }}"
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000106",
+      "name": "Enregistrer l'erreur",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "PostgreSQL Mizan (mizan_app)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// <<< src/erreurs.js\n// Erreurs des workflows n8n (D-086) : résumé de la donnée de l'Error Trigger,\n// masquage des secrets, message court pour les responsables. Le message\n// Telegram reste générique (workflow, nœud, heure, numéro d'erreur) : le\n// message technique, masqué et tronqué, ne va qu'en base (erreurs_workflow).\n// Mêmes formes masquées que masquer_secrets() en base, avec le même masque\n// que la passerelle Telegram (« *** ») ; n8n ne détient pas le jeton du bot,\n// d'où un masquage par forme et non par valeur.\n// Aucun import (recopié dans un nœud Code, D-041).\n\nconst MASQUE = '***';\nconst LONGUEUR_MESSAGE = 500; // caractères gardés en base\nconst FUSEAU = 'Africa/Tunis';\nconst FORMES_SECRETES = [\n  [/[0-9]+:[A-Za-z0-9_-]{30,}/g, MASQUE], // jeton de bot Telegram (forme vérifiée par la passerelle)\n  [/AIza[0-9A-Za-z_-]{20,}/g, MASQUE], // clé d'API Google\n  [/(\\/\\/[^\\s:/@]+:)[^\\s@/]+@/g, `$1${MASQUE}@`], // mot de passe dans une URL\n  [/([?&](?:key|token|password|api_key|apikey)=)[^&\\s]+/gi, `$1${MASQUE}`], // secret en paramètre d'URL\n];\n\n/** Retire les secrets d'un texte (masquage avant toute troncature). */\nfunction masquerSecrets(texte) {\n  return FORMES_SECRETES.reduce((t, [forme, remplacement]) => t.replace(forme, remplacement), String(texte ?? ''));\n}\n\n/**\n * Résumé d'une erreur reçue par l'Error Trigger de n8n : erreur d'exécution\n * ({ execution, workflow }) ou erreur au démarrage d'un déclencheur\n * ({ trigger, workflow }). Le message est masqué puis tronqué.\n */\nfunction resumerErreur(donnee) {\n  const execution = donnee?.execution ?? {};\n  const erreur = execution.error ?? donnee?.trigger?.error ?? {};\n  const message = masquerSecrets(erreur.message ?? erreur.description ?? 'erreur sans message').slice(0, LONGUEUR_MESSAGE);\n  return {\n    workflow_id: donnee?.workflow?.id == null ? null : String(donnee.workflow.id),\n    workflow_nom: String(donnee?.workflow?.name ?? 'workflow inconnu'),\n    noeud: execution.lastNodeExecuted ?? erreur.node?.name ?? null,\n    execution_n8n_id: execution.id == null ? null : String(execution.id),\n    mode: execution.mode ?? donnee?.trigger?.mode ?? null,\n    message,\n  };\n}\n\n/** Heure lisible, à l'heure de Tunis : « 2026-10-10 21:04 ». */\nfunction heureLocale(date) {\n  const p = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', {\n    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',\n  }).formatToParts(new Date(date)).map((x) => [x.type, x.value]));\n  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;\n}\n\n/** Message court et générique, en texte brut : jamais le message technique. */\nfunction messageErreur({ erreur_id: erreurId, survenue_le: survenueLe, intervalle_minutes: minutes }, { workflow_nom: workflow, noeud }) {\n  return [\n    `Mizan : erreur n° ${erreurId}`,\n    `Workflow : ${workflow}`,\n    `Nœud : ${noeud ?? 'inconnu'}`,\n    `Heure : ${heureLocale(survenueLe)}`,\n    `Détail enregistré en base (erreurs_workflow). Les erreurs suivantes de ce workflow ne sont pas renvoyées pendant ${minutes} minutes.`,\n  ].join('\\n');\n}\n// >>>\n\n// Rien à envoyer si l'erreur n'a pas été enregistrée, ou si un message est déjà\n// parti pour ce workflow dans l'intervalle : l'exécution s'arrête là.\nconst r = $input.first().json.r;\nif (!r || r.notifier !== true) return [];\nconst resume = $(\"Résumer l'erreur\").first().json;\nreturn r.destinataires.map((adresse) => ({ json: { corps: { chat_id: adresse, text: messageErreur(r, resume) } } }));\n"
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000107",
+      "name": "Messages aux responsables",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://passerelle-telegram:8885/telegram/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corps) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "5e1f0000-0000-4000-8000-000000000108",
+      "name": "Envoyer (passerelle)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "connections": {
+    "Erreur reçue": {
+      "main": [
+        [
+          {
+            "node": "Résumer l'erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Résumer l'erreur": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer l'erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enregistrer l'erreur": {
+      "main": [
+        [
+          {
+            "node": "Messages aux responsables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messages aux responsables": {
+      "main": [
+        [
+          {
+            "node": "Envoyer (passerelle)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { tableauDeBord, SOURCE } from '../scripts/construire-tableau-de-bord.js';
 
 const fichier = JSON.parse(readFileSync('grafana/dashboards/mizan-restitution.json', 'utf8'));
-const VUES = ['a_traiter', 'echeancier', 'ordres_paiement', 'paiements', 'releves', 'tresorerie_prevue', 'tva_factures'];
+const VUES = ['a_traiter', 'echeancier', 'erreurs_workflow', 'ordres_paiement', 'paiements', 'releves', 'tresorerie_prevue', 'tva_factures'];
 
 test('le tableau de bord du dépôt est celui du générateur (aucune modification à la main)', () => {
   assert.deepEqual(fichier, JSON.parse(JSON.stringify(tableauDeBord())));

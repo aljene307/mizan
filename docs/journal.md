@@ -808,3 +808,26 @@ empreinte, traçabilité de chaque extraction).
 - `node scripts/creer-env.js` : `.env` créé avec des secrets aléatoires, clé
   Gemini et jeton Telegram vides (3 tests). À vérifier sur un clone propre
   en fin de finition.
+
+## 2026-10-10 — Erreurs des workflows (D-086)
+
+- Workflow « Mizan – Erreurs » (Error Trigger) : erreur enregistrée en ajout
+  seul (`erreurs_workflow`, migration `20261010150000`), message technique
+  masqué deux fois (workflow, base) et tronqué ; message court aux
+  responsables, au plus un par workflow et par heure ; jamais de boucle
+  (aucun « Error workflow » sur lui-même, nœuds qui ne font pas échouer
+  l'exécution). Workflow « Mizan – Test d'erreur » pour l'essai. Chiffre clé
+  « Erreurs de workflow (24 h) » dans Grafana.
+- Constat : n8n n'avait pas repris les réglages des fichiers à l'import
+  (exécutions réussies enregistrées, environ 50 par heure et par workflow
+  publié ; pas de délai de 120 s). `verifier-credentials-n8n` contrôle
+  désormais aussi les réglages (10 écarts relevés avant correction).
+- Tests : 304 unitaires, 428 vérifications SQL, 44 d'intégration,
+  594/594 mutations.
+- Essai réussi par Mohamed : erreurs n° 12 (message envoyé) et n° 13
+  (enregistrée seulement), un seul message reçu, compteur Grafana à jour.
+- Correction de Mohamed : « Mizan – Erreurs » doit être publié dans n8n
+  2.41.7 (confirmé dans le code de n8n : seule la version publiée d'un
+  workflow d'erreur s'exécute). Scripts adaptés : publication exigée par
+  `verifier-credentials-n8n`, tolérée par `reconstruire-base` et
+  `verifier-avant-evaluation`. Contrôle : conforme, 15 versions de workflow.

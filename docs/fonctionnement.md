@@ -138,7 +138,8 @@ les 10 minutes.
   **passerelle interne**, seule détentrice du jeton du bot, joignable
   seulement par n8n sur un réseau Docker dédié (D-064) ;
 - une interrogation longue par minute, sous bail exclusif ; les exécutions
-  réussies ne sont pas enregistrées dans la base de n8n.
+  réussies ne sont pas enregistrées dans la base de n8n (réglages à faire dans
+  n8n après l'import, contrôlés par `npm run verifier-credentials-n8n`, D-086).
 
 **Démonstration (lot de développement, 2026-10-08), 16 notifications
 reçues :**
@@ -377,6 +378,36 @@ Mesure (`npm run evaluer-questions`, 30 questions, date du jour fixée,
 >   `mizan_lecture` (tests unitaires, SQL et d'intégration).
 > - Le texte de la question part chez Google (offre gratuite) : données
 >   synthétiques seulement.
+
+## Erreurs des workflows
+
+Le workflow « Mizan – Erreurs » (D-086), **publié**, est déclenché par n8n
+quand une exécution **automatique** d'un autre workflow publié échoue : Notifications
+Telegram, Réponses Telegram, Questions, Ordres de paiement s'il est publié.
+- **Enregistrement :** chaque erreur est inscrite dans `erreurs_workflow`, en
+  ajout seul : workflow, nœud, numéro d'exécution, message technique. Le
+  message est **masqué** (jeton de bot, clé Google, mot de passe d'URL, secret
+  en paramètre, remplacés par « *** », comme le fait la passerelle) par le
+  workflow puis de nouveau par la base, et tronqué à 500 caractères.
+- **Message aux responsables :** court et générique (numéro d'erreur,
+  workflow, nœud, heure), jamais le message technique ; **au plus un par
+  workflow et par heure** (paramètre `erreurs.intervalle_notification`), les
+  erreurs suivantes sont seulement enregistrées.
+- **Jamais de boucle :** « Mizan – Erreurs » ne désigne aucun workflow
+  d'erreur, et aucun de ses nœuds ne fait échouer l'exécution (tests, et
+  contrôle par `npm run verifier-credentials-n8n`). n8n ajoute sa propre
+  protection : une exécution d'un workflow d'erreur (mode « error ») ne
+  déclenche jamais de workflow d'erreur.
+- **Tableau de bord :** nombre d'erreurs des dernières 24 heures, sans le
+  message technique.
+
+> **Limites.**
+> - Les lancements manuels (Réception, Contrôles, Relevé) ne déclenchent pas
+>   le workflow d'erreurs : l'erreur s'affiche dans l'éditeur de n8n.
+> - Si la base est indisponible, l'erreur n'est ni enregistrée ni envoyée :
+>   elle reste dans l'historique des exécutions de n8n.
+> - Le réglage « Error workflow » se fait à la main après chaque import :
+>   l'identifiant d'un workflow change à l'import.
 
 ## Glossary (English)
 

@@ -53,6 +53,8 @@ réelles avec `mizan_lecture`, et par les tests d'intégration.
 | Ordres de paiement | à la main (chaque lundi à 8 h s'il est publié) | Propose un lot d'ordres de paiement |
 | Questions (langage naturel) | publié | `/q` : choix d'une question du catalogue, réponse en lecture seule |
 | test Gemini (une requête) | à la main | Vérifie la clé et le modèle |
+| Erreurs | publié ; exécuté par n8n quand un autre workflow publié échoue | Enregistre l'erreur (masquée) et prévient les responsables, au plus une fois par heure et par workflow |
+| Test d'erreur | publié le temps d'un test | Échoue chaque minute sans rien lire ni écrire, pour vérifier « Erreurs » |
 
 Les workflows sont générés depuis `src/` par `scripts/construire-workflows.js`
 (le code des nœuds Code est copié des modules testés) ; voir

@@ -60,3 +60,11 @@ test('le compte de l\'entreprise rejoué est celui du workflow du relevé', asyn
   const code = wf.nodes.find((n) => n.name === 'Préparer l\'import').parameters.jsCode;
   assert.ok(code.includes(JSON.stringify(COMPTE_ENTREPRISE)), 'même banque, même RIB, même devise');
 });
+
+test('seul « Mizan – Erreurs » peut rester publié pendant une reconstruction ou une évaluation (D-086)', async () => {
+  const { publiesBloquants, PUBLIE_AUTORISE } = await import('../scripts/reconstruire-base.js');
+  assert.equal(PUBLIE_AUTORISE, 'Mizan – Erreurs');
+  assert.deepEqual(publiesBloquants(['Mizan – Erreurs']), []);
+  assert.deepEqual(publiesBloquants(['Mizan – Erreurs', 'Mizan – Réponses Telegram', 'Mizan – Erreurs (copie)']),
+    ['Mizan – Réponses Telegram', 'Mizan – Erreurs (copie)']);
+});

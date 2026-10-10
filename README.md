@@ -106,8 +106,8 @@ Rapport complet, avec la comparaison avec le lot de développement :
 [eval/resultats/evaluation-test-2026-10-10.md](eval/resultats/evaluation-test-2026-10-10.md).
 
 **Tests :**
-- 289 tests unitaires ;
-- 410 vérifications SQL (schéma et droits) ;
+- 304 tests unitaires ;
+- 428 vérifications SQL (schéma et droits) ;
 - 44 tests d'intégration ;
 - 594/594 cas de tests par mutation des contrôles.
 
@@ -182,7 +182,7 @@ Extraction réelle, Telegram, imports et commandes :
   questions, avec les mesures et les limites de chaque partie.
 - [Architecture](docs/architecture.md) : conteneurs, réseaux, rôles de la
   base.
-- [Décisions](docs/decisions.md) : 85 décisions numérotées, avec leurs
+- [Décisions](docs/decisions.md) : 86 décisions numérotées, avec leurs
   raisons ; [journal](docs/journal.md) du projet.
 - [Données synthétiques](data/synthetic/README.md) : 60 factures fictives,
   vérité terrain, relevé bancaire.
@@ -205,6 +205,10 @@ Extraction réelle, Telegram, imports et commandes :
   déjà réservées une à une par la base (`FOR UPDATE SKIP LOCKED`, avec reprise
   d'une réservation abandonnée) : plusieurs workers pourraient les traiter
   sans se gêner.
+- **Erreurs des workflows automatiques** enregistrées (message technique masqué)
+  et signalées aux responsables par un message court, au plus une fois par
+  heure et par workflow ([D-086](docs/decisions.md)). Les lancements manuels
+  affichent leur erreur dans l'éditeur de n8n.
 - **Un seul utilisateur réel :** le second responsable (quatre yeux) est un
   compte fictif, piloté par un script.
 - **Pas encore faits :** relance des factures en attente, rectification d'une

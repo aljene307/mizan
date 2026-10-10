@@ -6,6 +6,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import pg from 'pg';
 import { VERSION_CHAINE_EXTRACTION } from '../src/extractionWorkflow.js';
+import { publiesBloquants } from './reconstruire-base.js';
 
 export const VERSION_ATTENDUE = 'D-053';
 // Empreinte du prompt v1 figée par D-053 (début et fin, comme dans la décision).
@@ -98,9 +99,9 @@ async function principal() {
     return principalN8n && sous.length === 1 && principalN8n.id === sous[0].id ? null
       : `appelle « ${principalN8n?.id ?? 'rien'} », sous-workflow « ${sous.map((s) => s.id).join(', ') || 'absent'} »`;
   });
-  await verifier('Aucun workflow Mizan publié dans n8n', async () => {
-    const publies = await requete(process.env.POSTGRES_DB, `SELECT name FROM workflow_entity WHERE active AND NOT "isArchived" AND name LIKE 'Mizan%'`);
-    return publies.length ? `publiés : ${publies.map((p) => p.name).join(', ')}` : null;
+  await verifier('Aucun workflow Mizan publié dans n8n, sauf « Mizan – Erreurs » (D-086)', async () => {
+    const publies = publiesBloquants((await requete(process.env.POSTGRES_DB, `SELECT name FROM workflow_entity WHERE active AND NOT "isArchived" AND name LIKE 'Mizan%'`)).map((p) => p.name));
+    return publies.length ? `publiés : ${publies.join(', ')}` : null;
   });
   await verifier('Credentials rattachés dans n8n conformes au dépôt', () => {
     const r = spawnSync(process.execPath, ['scripts/verifier-credentials-n8n.js'], { encoding: 'utf8' });

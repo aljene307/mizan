@@ -2214,6 +2214,66 @@ Choix de Mohamed le 2026-10-10 (variante « v2b » avec une condition),
 - **Tests :** unitaires (dont la règle v2), SQL, d'intégration et par
   mutation relancés, tous passés.
 
+### D-086 · Erreurs des workflows : « Mizan – Erreurs » et réglages contrôlés
+Choix de Mohamed le 2026-10-10 (finition) : construire plutôt que documenter
+comme limite ; le queue mode est documenté comme limite (une instance, la
+réservation `FOR UPDATE SKIP LOCKED` permettrait plusieurs workers).
+- **Déclenchement :** un Error Trigger de n8n, déclenché quand une exécution
+  **automatique** d'un workflow qui le désigne échoue. Les lancements
+  manuels ne le déclenchent pas (comportement de n8n) : leur erreur
+  s'affiche dans l'éditeur.
+- **Enregistrement :** table `erreurs_workflow`, en ajout seul, écrite par la
+  seule fonction `signaler_erreur_workflow()` (`mizan_app`) ; message
+  technique **masqué deux fois** (workflow : `src/erreurs.js` ; base :
+  `masquer_secrets()`, mêmes formes), puis tronqué à 500 caractères. Le
+  masque est celui de la passerelle (« *** ») ; n8n ne détient pas le jeton
+  du bot, d'où un masquage par **forme** (jeton de bot, clé Google, mot de
+  passe d'URL, secret en paramètre d'URL), et non par valeur.
+- **Message (condition de Mohamed) :** court et générique (numéro d'erreur,
+  workflow, nœud, heure de Tunis), jamais le message technique ; aux
+  responsables réels, actifs et inscrits ; **au plus un par workflow et par
+  intervalle** (paramètre `erreurs.intervalle_notification`, 60 minutes),
+  décidé par la base sous verrou ; les erreurs suivantes sont seulement
+  enregistrées.
+- **Jamais de boucle (condition de Mohamed) :** « Mizan – Erreurs » ne
+  désigne aucun workflow d'erreur ; chacun de ses nœuds continue en cas
+  d'erreur et l'envoi ne lève jamais d'erreur. Vérifié par des tests sur le
+  fichier généré, et dans n8n par `npm run verifier-credentials-n8n`.
+- **Publication (correction de Mohamed, essai du 2026-10-10) :** dans n8n
+  2.41.7, « Mizan – Erreurs » doit être **publié** : il n'est proposé comme
+  *Error workflow* que s'il l'est, et n8n n'exécute que sa version publiée
+  (lu dans le code de n8n, `loadErrorWorkflowData` : sinon, une ligne de
+  journal et rien d'autre). Publié, il ne peut toujours pas se déclencher
+  lui-même. En plus de nos protections, le code de n8n
+  (`execute-error-workflow.js`) ne lance aucun workflow d'erreur pour une
+  exécution en mode « error », ni par le réglage (même s'il désignait
+  « Mizan – Erreurs » lui-même), ni par son propre Error Trigger.
+  `verifier-credentials-n8n` exige qu'il soit publié ;
+  `reconstruire-base` et `verifier-avant-evaluation` le tolèrent publié,
+  seul de tous les workflows : il n'écrit que si un autre workflow publié
+  échoue, et ceux-là doivent être dépubliés. **Il n'est donc pas à dépublier
+  avant une reconstruction.**
+- **Essai réussi (Mohamed, 2026-10-10) :** « Test d'erreur » publié quelques
+  minutes ; erreurs n° 12 (message envoyé) et n° 13 (enregistrée seulement) ;
+  un seul message Telegram reçu ; compteur Grafana à jour ; deux exécutions
+  de « Mizan – Erreurs » en mode « error », réussies.
+- **Constat du 2026-10-10 :** n8n ne reprend pas les réglages du fichier à
+  l'import. Les trois workflows publiés tournaient sans les réglages du
+  dépôt (exécutions réussies enregistrées, environ 50 par heure et par
+  workflow ; pas de délai de 120 s). Les réglages se font donc à la main
+  après l'import (Error workflow, exécutions réussies non gardées, délai
+  120 s), et `npm run verifier-credentials-n8n` les contrôle : chaque
+  workflow publié désigne « Mizan – Erreurs » ; ses réglages d'exécution
+  sont ceux du fichier (valeur par défaut de n8n si le réglage est absent).
+- **Restitution :** vue `restitution.erreurs_workflow` sans le message
+  technique ; un chiffre clé « Erreurs de workflow (24 h) » dans Grafana.
+- **Essai :** workflow « Mizan – Test d'erreur », publié le temps d'un
+  test : il échoue chaque minute sans rien lire ni écrire ; la première
+  erreur est envoyée, les suivantes seulement enregistrées.
+- **Limites :** base indisponible → erreur ni enregistrée ni envoyée (elle
+  reste dans l'historique de n8n) ; réglage « Error workflow » à refaire
+  après chaque import (l'identifiant change).
+
 ### D-084 · Extension possible après l'évaluation : comparaison avec un modèle local (Ollama)
 Décision de Mohamed le 2026-10-10 : **pas maintenant** ; à envisager après
 l'évaluation finale, **sur le lot de développement seulement, à titre
