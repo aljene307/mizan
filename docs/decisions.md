@@ -1288,6 +1288,8 @@ Notée à la demande de Mohamed le 2026-10-06 ; **rien n'est modifié**.
   `signalements_extraction`, et une mesure avant/après sur le lot de
   développement. Ce changement ne touche pas l'extraction : il n'exige donc
   pas une nouvelle version de chaîne (D-059).
+- **Réalisée le 2026-10-10 par D-085** (avec une condition sur la raison
+  sociale du fournisseur).
 
 ### D-062 · Validation humaine par un canal interchangeable (Telegram d'abord)
 Choix de Mohamed le 2026-10-08 : A1, B1, C1, D1, E1 ; relances reportées.
@@ -2132,11 +2134,85 @@ scripts et dans la base le 2026-10-10) :
   sélective ; défaut d'un script de mesure : correction sans changer les
   règles de comptage, nouveau calcul depuis la sauvegarde de l'état évalué,
   signalé dans le rapport. Tout incident est consigné au journal.
+- **Précision du 2026-10-10 (incident de la répétition générale, avant
+  ouverture du lot de test) : exécution interrompue.** Pendant la
+  répétition, la première exécution manuelle de « Réception et extraction »
+  a été arrêtée (statut n8n « canceled ») 2 secondes après avoir réservé
+  D001 ; l'appel au modèle (sous-workflow) a abouti, mais son résultat n'a
+  jamais été enregistré ; une seconde exécution a traité les 41 autres
+  documents ; D001 est restée « en extraction ». Règle, par ordre de
+  priorité :
+  1. **Interruption sans résultat enregistré** (exécution arrêtée, conteneur
+     redémarré, aucune extraction en base pour la facture) : ce n'est ni un
+     résultat du modèle ni une relance sélective, puisqu'aucun résultat n'a
+     été enregistré ni vu. La facture est reprise par le **mécanisme normal
+     de reprise** (réservation reprenable après 15 minutes) : on relance le
+     workflow, sans rien changer et sans reconstruire la base. L'incident
+     est consigné ; l'appel perdu compte dans le quota.
+  2. **Résultat enregistré avec un code du modèle** (`reponse_illisible`,
+     extraction invalide au schéma) : c'est un **résultat**, jamais relancé.
+  3. **Résultat enregistré avec un code d'infrastructure** (`erreur_lecture`
+     de l'OCR ou du fichier, `erreur_fournisseur` : modèle indisponible,
+     délai dépassé, erreur HTTP autre que 429 ; `erreur_ecriture`) : panne
+     d'infrastructure ; l'évaluation reprend depuis la reconstruction de la
+     base, avec tous les documents, après réparation.
+  4. **Quota journalier épuisé** : reprise le lendemain sans rien changer
+     (D-040) ; la facture en cours est remise « reçue » par le workflow.
+  **Conduite :** pendant l'évaluation, une seule exécution à la fois, sans
+  l'arrêter à la main ; `npm run etat-evaluation` affiche toute réservation
+  interrompue et l'heure à partir de laquelle elle est reprenable.
 
 **Ordre de dépôt :** avec ce protocole, l'ordre d'arrivée ne change rien aux
 résultats mesurés (D-081, corrigé) ; il ne décide que de la facture bloquée
 dans chaque paire de doublons. **Confirmé par Mohamed le 2026-10-10 :
 ordre des noms, identique au lot de développement.**
+
+### D-085 · Règle `signalements_extraction` version 2 : entités HTML bien formées en « info » (réalise D-061)
+Choix de Mohamed le 2026-10-10 (variante « v2b » avec une condition),
+**dernier changement avant l'ouverture du lot de test**.
+- **Changée après la répétition générale**, à partir du **lot de
+  développement uniquement** : la répétition a montré 4 fausses alertes
+  (publié : 2), toutes dues aux entités HTML que le modèle écrit sur 2 à
+  3 documents par exécution. Le lot de test n'a été ni ouvert ni lu.
+- **Règle v2 :** un signalement d'entités HTML passe en **« info »** (sans
+  effet sur le statut) seulement si les entités sont **bien formées**
+  (`&nom;`, `&#123;`, `&#x1F;`) et s'il porte sur :
+  - un champ descriptif : adresse du fournisseur, raison sociale ou adresse
+    du client ;
+  - la **raison sociale du fournisseur**, à condition que la valeur décodée
+    figure dans le **texte source** de l'extraction (comparaison normalisée,
+    comme D-050). Sinon, elle reste en avertissement : la valeur lue
+    pourrait être fausse.
+
+  Restent en **avertissement** : entités malformées, identifiants, numéro,
+  montants, désignations des lignes, tout autre signalement, et toute
+  extraction sans texte source. Un seul signalement non « info » suffit.
+  Le signalement « plusieurs RIB » garde son traitement (D-053).
+- **Réalisation :**
+  - la migration `20261010140000_contexte_texte_source` ajoute
+    `texte_source` au contexte des contrôles ;
+  - la règle porte `version_regle = '2'` (les autres règles restent en 1) ;
+  - `normaliserTexte` est transmis aux règles (workflow « Contrôles »,
+    scripts de mesure et de reconstruction) ;
+  - le workflow « Contrôles » est à **réimporter** avant l'évaluation.
+- **Mesure avant/après**, sans appel au modèle (`eval/mesurer-regle-entites.js`,
+  résultats dans `eval/resultats/regle-entites-v2/`) :
+  - **extractions publiées** (2026-10-06) : aucun changement ; 2 fausses
+    alertes (D005, D018 : entités sur des champs utilisés) ;
+  - **répétition générale** : fausses alertes 4 → 2. D021 et D024 passent
+    d'« anomalie » à « conforme ». D003 reste en avertissement :
+    - la raison sociale décodée « Médina Connect Télém » ne figure pas
+      dans le texte source (« … Télécom ») ;
+    - la condition sur le texte source attrape donc une vraie erreur de
+      lecture ;
+    - sans cette condition, la répétition serait passée à 1 fausse alerte.
+
+  Pièges détectés : inchangés (la règle ne sert à aucun piège).
+- **Visibilité :** le rapport `evaluer-controles-reel` affiche le nombre
+  de signalements d'entités classés « info » par la v2. Sur le lot de test,
+  ce nombre est publié avec les résultats.
+- **Tests :** unitaires (dont la règle v2), SQL, d'intégration et par
+  mutation relancés, tous passés.
 
 ### D-084 · Extension possible après l'évaluation : comparaison avec un modèle local (Ollama)
 Décision de Mohamed le 2026-10-10 : **pas maintenant** ; à envisager après

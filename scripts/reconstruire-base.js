@@ -25,6 +25,7 @@ import { controlerFacture } from '../src/controles/regles.js';
 import { enMillimes, diviserArrondi, montantTva } from '../src/montants.js';
 import { formeCourteMatricule, normaliserMatricule } from '../src/matricule.js';
 import { ribValide } from '../src/rib.js';
+import { normaliserTexte } from '../src/comparaison.js';
 import { lireReleveCsv } from '../src/rapprochement/releve.js';
 import { rapprocher } from '../src/rapprochement/appariement.js';
 
@@ -34,7 +35,7 @@ const EXECUTION = 'reconstruction';
 // Compte de l'entreprise (fictif), identique à celui du workflow du relevé (vérifié par un test).
 export const COMPTE_ENTREPRISE = Object.freeze({ banque: 'Banque Démo 99', rib_compte: '99330228027133819365', devise: 'TND' });
 export const RELEVE_DEV = 'data/synthetic/releve/releve-2026-01-01_2026-09-30.csv';
-const DEPS_CONTROLES = { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide };
+const DEPS_CONTROLES = { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide, normaliserTexte };
 
 const client = (base, utilisateur = 'admin') => new pg.Client({
   host: 'localhost', port: 5432, database: base,

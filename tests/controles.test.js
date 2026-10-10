@@ -7,8 +7,9 @@ import { controlerFacture, statutSelonGravite, REGLES, distanceEdition, enMillio
 import { enMillimes, diviserArrondi, montantTva } from '../src/montants.js';
 import { formeCourteMatricule, normaliserMatricule } from '../src/matricule.js';
 import { ribValide } from '../src/rib.js';
+import { normaliserTexte } from '../src/comparaison.js';
 
-const deps = { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide };
+const deps = { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide, normaliserTexte };
 
 // Catalogue des règles, lu dans la migration (source de vérité en base).
 const migration = readFileSync('db/migrations/20261006110000_controles_modele.sql', 'utf8');
@@ -79,7 +80,8 @@ test('facture saine : toutes les règles exécutées, aucune alerte, fournisseur
   assert.deepEqual(alertes(r), []);
   assert.equal(r.fournisseur_id, 1);
   assert.equal(r.statut, 'conforme');
-  assert.ok(r.resultats.every((x) => x.version_regle === '1' && typeof x.message === 'string'));
+  // Version par règle : signalements_extraction passe en 2 (D-085), les autres restent en 1.
+  assert.ok(r.resultats.every((x) => x.version_regle === (x.regle === 'signalements_extraction' ? '2' : '1') && typeof x.message === 'string'));
 });
 
 test('toutes les règles s\'exécutent : plusieurs anomalies sont toutes rapportées', () => {
@@ -195,6 +197,30 @@ test('signalements : plusieurs RIB → plusieurs_rib ; les autres → signalemen
     'fournisseur.rib : 2 RIB valides dans le texte source (a, b)', '/numero : entité HTML dans la réponse du modèle'] } });
   assert.equal(r.regle('plusieurs_rib').gravite, 'avertissement');
   assert.deepEqual(r.regle('signalements_extraction').detail.signalements, ['/numero : entité HTML dans la réponse du modèle']);
+});
+
+test('signalements d\'entités, règle v2 (D-085) : « info » seulement si bien formée, champ descriptif, raison sociale présente dans le texte', () => {
+  const ent = (chemin, valeur) => `${chemin} : entité HTML dans la réponse du modèle (« ${valeur} »)`;
+  const avec = (signalements, texte = 'FACTURE Papeterie Ennour Bureautique 9979067J') => controler({
+    extraction: { ...contexte().extraction, signalements_code: signalements, texte_source: texte } }).regle('signalements_extraction');
+  const descriptifs = [ent('/fournisseur/adresse', 'Avenue de l\'Environnement, 9000 B&#233;ja'),
+    ent('/client/raison_sociale', 'Soci&eacute;t&eacute; D&eacute;mo Mizan SARL')];
+  let r = avec(descriptifs);
+  assert.deepEqual([r.resultat, r.gravite, r.version_regle], ['anomalie', 'info', '2'], 'bien formées, champs descriptifs');
+  assert.equal(controler({ extraction: { ...contexte().extraction, signalements_code: descriptifs } }).statut, 'conforme', 'une « info » ne change pas le statut');
+  r = avec([ent('/fournisseur/raison_sociale', 'Papeterie Ennour Bureauti&#113;ue')]);
+  assert.equal(r.gravite, 'info', 'raison sociale décodée présente dans le texte source (comparaison normalisée)');
+  r = avec([ent('/fournisseur/raison_sociale', 'Papeterie Ennour Bureauti&#113;ue')], 'FACTURE Papeterie Ennour Burotique');
+  assert.equal(r.gravite, 'avertissement', 'raison sociale absente du texte source : avertissement');
+  assert.equal(avec([ent('/fournisseur/raison_sociale', 'x&#113;')], null).gravite, 'avertissement', 'sans texte source : avertissement');
+  r = avec([ent('/fournisseur/adresse', 'Avenue de l\'Environnement, 9000 B&#2333ja')]);
+  assert.equal(r.gravite, 'avertissement', 'entité malformée (sans « ; ») : avertissement, même sur un champ descriptif');
+  for (const chemin of ['/numero', '/fournisseur/matricule_fiscal', '/fournisseur/rib', '/lignes/0/designation']) {
+    assert.equal(avec([ent(chemin, 'A&#66;C')]).gravite, 'avertissement', `${chemin} : avertissement`);
+  }
+  r = avec([...descriptifs, ent('/numero', 'F&#45;1')]);
+  assert.deepEqual([r.gravite, r.detail.avertissements.length, r.detail.info.length], ['avertissement', 1, 2], 'un seul champ décisif suffit');
+  assert.equal(avec(['/numero : entité HTML dans la réponse du modèle']).gravite, 'avertissement', 'signalement au format inattendu : avertissement');
 });
 
 // --- Doublons -------------------------------------------------------------------------------

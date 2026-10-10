@@ -705,3 +705,51 @@ empreinte, traçabilité de chaque extraction).
   pour le lot de développement, sans import ; factures du lot de
   développement « hors périmètre ».
 - Tests : 285 unitaires.
+
+## 2026-10-10 — Répétition générale (lot de développement)
+
+- Étapes 1 à 8 faites par Mohamed. Étape 9 : 41 factures extraites, D001
+  restée « en extraction ». Diagnostic : la première exécution manuelle de
+  « Réception et extraction » (n° 1239) a été arrêtée (« canceled »)
+  2 secondes après avoir réservé D001 ; le sous-workflow (n° 1240) a bien
+  appelé le modèle, mais le résultat n'a pas été enregistré ; l'exécution
+  n° 1241, lancée 25 secondes plus tard, a traité les 41 autres documents.
+- Protocole D-082 précisé avant l'évaluation : interruption sans résultat
+  enregistré → reprise par le mécanisme normal après 15 minutes, sans
+  reconstruction ; résultat du modèle → jamais relancé ; erreur
+  d'infrastructure enregistrée → reprise depuis la reconstruction.
+  `etat-evaluation` affiche les réservations interrompues et l'heure de
+  reprise.
+- Doublon « Mizan – test Gemini (une requête) » dans n8n : la version
+  PwXPSPrakYYiGdSR (2026-10-05 21:34) est identique au dépôt ; la version
+  xix8xDVKN1yJUABK (21:09, corps de requête différent) est à supprimer.
+- Répétition terminée par Mohamed : D001 reprise par la relance (règle 1),
+  42 factures extraites et contrôlées, sauvegarde de l'état évalué
+  (`sauvegardes/mizan-2026-10-10-1410.dump`), trois mesures dans
+  `eval/resultats/repetition-2026-10-10/`. Règles ajoutées à D-082 validées.
+- Comparaison (`repetition-2026-10-10/comparaison.md`) : stabilité 36/41
+  documents et 1 209/1 216 champs identiques entre deux exécutions ;
+  extraction 649/656 (publié 646/656) ; pièges 9/9 ; fausses alertes 4
+  (publié 2), toutes dues aux entités HTML que le modèle écrit sur 2 à
+  3 documents par exécution, pas toujours les mêmes ; rapprochement 21/21,
+  0 confirmation automatique fausse (moins de lignes mesurées : aucune
+  décision humaine dans la base d'évaluation). Aucun écart dû aux outils.
+
+## 2026-10-10 — Règle des entités HTML, version 2 (D-085)
+
+- Choix de Mohamed : variante « v2b » de D-061, avec une condition sur la
+  raison sociale du fournisseur (valeur décodée présente dans le texte
+  source). Dernier changement avant l'ouverture du lot de test, décidé
+  après la répétition, sur le lot de développement seulement.
+- Migration `20261010140000_contexte_texte_source` (texte source dans le
+  contexte des contrôles), règle `signalements_extraction` en version 2,
+  `normaliserTexte` transmis aux règles, workflows régénérés.
+- Mesure sans appel au modèle (`eval/resultats/regle-entites-v2/`) :
+  extractions publiées inchangées (2 fausses alertes) ; répétition 4 → 2
+  fausses alertes (D021 et D024 deviennent conformes). La condition garde
+  D003 en avertissement : sa raison sociale lue est fausse (« Télém » au lieu
+  de « Télécom »).
+- Le rapport `evaluer-controles-reel` affiche le nombre de signalements
+  d'entités classés « info ».
+- Tests : 286 unitaires, SQL passés, 44 d'intégration, 594/594 mutations.
+- À faire avant l'évaluation : réimporter « Contrôles ».

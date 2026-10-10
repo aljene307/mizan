@@ -9,8 +9,9 @@ import { normaliserNumero } from '../src/controles/regles.js';
 import { enMillimes, diviserArrondi, montantTva } from '../src/montants.js';
 import { formeCourteMatricule, normaliserMatricule } from '../src/matricule.js';
 import { ribValide } from '../src/rib.js';
+import { normaliserTexte } from '../src/comparaison.js';
 
-export const deps = { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide };
+export const deps = { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide, normaliserTexte };
 // Date de référence fixe, pour un rapport reproductible (règle « dates »).
 export const DATE_REFERENCE = '2026-10-06';
 // Piège → règle prévue pour le détecter, et statut attendu.

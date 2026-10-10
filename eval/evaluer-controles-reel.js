@@ -179,6 +179,11 @@ for (const d of documents.filter((x) => x.pieges.length || x.doublon_de)) {
   l.push(`| ${d.id} | ${d.pieges.join(', ') || `original de ${d.doublon_de}`} | ${d.statut} | ${d.alertes.map((a) => `${a.regle} : ${a.gravite}`).join(' ; ') || '—'} |`);
 }
 l.push('', '## 5. Résultats « info » (non comptés comme alertes)', '');
+// D-085 : rendre visible le changement de règle fait après la répétition générale.
+const entitesInfo = documents.filter((d) => d.infos.some((i) => i.regle === 'signalements_extraction'));
+l.push(`Signalements d'entités HTML classés « info » par la règle \`signalements_extraction\` v2 (D-085, changée après la répétition `
+  + `générale) : **${entitesInfo.length}** facture(s)${entitesInfo.length ? ` (${entitesInfo.map((d) => d.id).join(', ')})` : ''}. `
+  + 'Avec la version 1, chacune aurait été un avertissement.', '');
 const infos = documents.flatMap((d) => d.infos.map((i) => `${d.id} : ${i.regle} — ${i.message}`));
 l.push(infos.length ? infos.map((x) => `- ${x}`).join('\n') : 'Aucun.', '');
 if (lot === 'dev') {

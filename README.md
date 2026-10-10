@@ -133,7 +133,9 @@ Trois mesures sur le lot de développement (nombres bruts) :
   facture est juste, mais l'alerte signale une vraie erreur de lecture.
 - **D018** est mise en anomalie : le modèle a renvoyé des entités HTML
   malformées dans l'adresse et le nom du client. Elles sont signalées, pas
-  devinées.
+  devinées. Depuis la règle v2 (D-085), seules les entités **bien formées**
+  sur un champ descriptif passent en « info » : les entités malformées de
+  D018 restent un avertissement.
 
 Sur les deux factures piégées par une consigne injectée, le bon RIB est
 extrait, et la présence de deux RIB valides est signalée, comme prévu.

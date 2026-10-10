@@ -1,0 +1,1551 @@
+{
+  "lignesAttendues": [
+    {
+      "ligne": 3,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D026"
+      ],
+      "avoirs": [],
+      "resultat": "sortie_sans_facture",
+      "classement": "hors_perimetre",
+      "juste": true
+    },
+    {
+      "ligne": 8,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D033"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D033"
+      ]
+    },
+    {
+      "ligne": 21,
+      "type": "ecart",
+      "mode": "virement",
+      "docs": [
+        "D015"
+      ],
+      "avoirs": [],
+      "resultat": "proposition ecart",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "ecart",
+      "obtenu": [
+        "D015"
+      ]
+    },
+    {
+      "ligne": 22,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D052"
+      ],
+      "avoirs": [],
+      "resultat": "sortie_sans_facture",
+      "classement": "hors_perimetre",
+      "juste": true
+    },
+    {
+      "ligne": 23,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D047"
+      ],
+      "avoirs": [],
+      "resultat": "sortie_sans_facture",
+      "classement": "hors_perimetre",
+      "juste": true
+    },
+    {
+      "ligne": 25,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D001"
+      ],
+      "avoirs": [],
+      "resultat": "payee_non_approuvee",
+      "classement": "etat_base",
+      "statuts": [
+        "D001 : anomalie"
+      ],
+      "juste": true
+    },
+    {
+      "ligne": 26,
+      "type": "exact",
+      "mode": "cheque",
+      "docs": [
+        "D023"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D023"
+      ]
+    },
+    {
+      "ligne": 28,
+      "type": "exact",
+      "mode": "cheque",
+      "docs": [
+        "D025"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D025"
+      ]
+    },
+    {
+      "ligne": 30,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D014"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D014"
+      ]
+    },
+    {
+      "ligne": 32,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D021"
+      ],
+      "avoirs": [],
+      "resultat": "payee_non_approuvee",
+      "classement": "etat_base",
+      "statuts": [
+        "D021 : anomalie"
+      ],
+      "juste": true
+    },
+    {
+      "ligne": 35,
+      "type": "groupe",
+      "mode": "virement",
+      "docs": [
+        "D020",
+        "D005"
+      ],
+      "avoirs": [],
+      "resultat": "proposition ecart",
+      "classement": "etat_base",
+      "statuts": [
+        "D005 : bloquee"
+      ],
+      "juste": false
+    },
+    {
+      "ligne": 36,
+      "type": "net_avoir",
+      "mode": "virement",
+      "docs": [
+        "D017"
+      ],
+      "avoirs": [
+        "D016"
+      ],
+      "resultat": "sortie_sans_facture",
+      "classement": "hors_perimetre",
+      "juste": true
+    },
+    {
+      "ligne": 38,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D056"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D056"
+      ]
+    },
+    {
+      "ligne": 42,
+      "type": "exact",
+      "mode": "cheque",
+      "docs": [
+        "D018"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D018"
+      ]
+    },
+    {
+      "ligne": 44,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D032"
+      ],
+      "avoirs": [],
+      "resultat": "sortie_sans_facture",
+      "classement": "hors_perimetre",
+      "juste": true
+    },
+    {
+      "ligne": 47,
+      "type": "net_avoir",
+      "mode": "virement",
+      "docs": [
+        "D040"
+      ],
+      "avoirs": [
+        "D034"
+      ],
+      "resultat": "proposition net_avoir",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "net_avoir",
+      "obtenu": [
+        "D040",
+        "avoir D034"
+      ]
+    },
+    {
+      "ligne": 49,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D028"
+      ],
+      "avoirs": [],
+      "resultat": "payee_non_approuvee",
+      "classement": "etat_base",
+      "statuts": [
+        "D028 : a_valider"
+      ],
+      "juste": true
+    },
+    {
+      "ligne": 51,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D042"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D042"
+      ]
+    },
+    {
+      "ligne": 52,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D039"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D039"
+      ]
+    },
+    {
+      "ligne": 55,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D006"
+      ],
+      "avoirs": [],
+      "resultat": "payee_non_approuvee",
+      "classement": "etat_base",
+      "statuts": [
+        "D006 : anomalie"
+      ],
+      "juste": true
+    },
+    {
+      "ligne": 61,
+      "type": "exact",
+      "mode": "cheque",
+      "docs": [
+        "D007"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D007"
+      ]
+    },
+    {
+      "ligne": 64,
+      "type": "partiel",
+      "mode": "virement",
+      "docs": [
+        "D024"
+      ],
+      "avoirs": [],
+      "resultat": "payee_non_approuvee",
+      "classement": "etat_base",
+      "statuts": [
+        "D024 : anomalie"
+      ],
+      "juste": true
+    },
+    {
+      "ligne": 66,
+      "type": "exact",
+      "mode": "cheque",
+      "docs": [
+        "D022"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D022"
+      ]
+    },
+    {
+      "ligne": 67,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D004"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D004"
+      ]
+    },
+    {
+      "ligne": 69,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D038"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D038"
+      ]
+    },
+    {
+      "ligne": 73,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D041"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D041"
+      ]
+    },
+    {
+      "ligne": 75,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D044"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D044"
+      ]
+    },
+    {
+      "ligne": 78,
+      "type": "partiel",
+      "mode": "virement",
+      "docs": [
+        "D024"
+      ],
+      "avoirs": [],
+      "resultat": "payee_non_approuvee",
+      "classement": "etat_base",
+      "statuts": [
+        "D024 : anomalie"
+      ],
+      "juste": true
+    },
+    {
+      "ligne": 80,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D019"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D019"
+      ]
+    },
+    {
+      "ligne": 84,
+      "type": "exact",
+      "mode": "cheque",
+      "docs": [
+        "D053"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact",
+      "classement": "verite",
+      "juste": true,
+      "auto": false,
+      "cas": "exact",
+      "obtenu": [
+        "D053"
+      ]
+    },
+    {
+      "ligne": 90,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D029"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D029"
+      ]
+    },
+    {
+      "ligne": 96,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D049"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D049"
+      ]
+    },
+    {
+      "ligne": 100,
+      "type": "exact",
+      "mode": "virement",
+      "docs": [
+        "D046"
+      ],
+      "avoirs": [],
+      "resultat": "proposition exact (auto)",
+      "classement": "verite",
+      "juste": true,
+      "auto": true,
+      "cas": "exact",
+      "obtenu": [
+        "D046"
+      ]
+    }
+  ],
+  "sansFacture": [
+    {
+      "ligne": 1,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 2,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 4,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 5,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 6,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 7,
+      "libelle": "VIREMENT SALAIRES JANVIER",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 9,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 10,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 11,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 12,
+      "libelle": "VIR RECU CLIENT EPICERIE FINE NOUR",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 13,
+      "libelle": "VIR RECU CLIENT EPICERIE FINE NOUR",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 14,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 15,
+      "libelle": "VIREMENT SALAIRES FÉVRIER",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 16,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 17,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 18,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 19,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 20,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 24,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 27,
+      "libelle": "VIREMENT SALAIRES MARS",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 29,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 31,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 33,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 34,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 37,
+      "libelle": "VIR RECU CLIENT ALPHA DISTRIBUTION",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 39,
+      "libelle": "VIR RECU CLIENT EPICERIE FINE NOUR",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 40,
+      "libelle": "VIREMENT SALAIRES AVRIL",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 41,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 43,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 45,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 46,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 48,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 50,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 53,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 54,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 56,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 57,
+      "libelle": "VIREMENT SALAIRES MAI",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 58,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 59,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 60,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 62,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 63,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 65,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 68,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 70,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 71,
+      "libelle": "VIREMENT SALAIRES JUIN",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 72,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 74,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 76,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 77,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 79,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 81,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 82,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 83,
+      "libelle": "VIR RECU CLIENT ALPHA DISTRIBUTION",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 85,
+      "libelle": "VIR RECU CLIENT HOTEL DEMO SOUSSE",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 86,
+      "libelle": "VIREMENT SALAIRES JUILLET",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 87,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 88,
+      "libelle": "VIR RECU CLIENT ALPHA DISTRIBUTION",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 89,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 91,
+      "libelle": "VIR RECU CLIENT ALPHA DISTRIBUTION",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 92,
+      "libelle": "VIR RECU CLIENT ALPHA DISTRIBUTION",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 93,
+      "libelle": "VIREMENT SALAIRES AOÛT",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 94,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 95,
+      "libelle": "PRLV LOYER LOCAUX",
+      "categorie": "loyer",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 97,
+      "libelle": "VIR RECU CLIENT GROSSISTE CAP BON",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 98,
+      "libelle": "VIR RECU CLIENT ALPHA DISTRIBUTION",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 99,
+      "libelle": "VIR RECU CLIENT ALPHA DISTRIBUTION",
+      "categorie": "encaissement_client",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 101,
+      "libelle": "COMMISSION SUR VIREMENT",
+      "categorie": "commission_virement",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 102,
+      "libelle": "VIREMENT SALAIRES SEPTEMBRE",
+      "categorie": "salaires",
+      "proposition": false,
+      "signalements": []
+    },
+    {
+      "ligne": 103,
+      "libelle": "FRAIS TENUE DE COMPTE",
+      "categorie": "frais_tenue",
+      "proposition": false,
+      "signalements": []
+    }
+  ],
+  "propositions": [
+    {
+      "ligne_releve_id": 8,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro 2026/143 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 23,
+          "montant": 3182.287,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 21,
+      "cas": "ecart",
+      "auto": false,
+      "score": 0.8,
+      "raisons": [
+        "numéro ISS260268 dans le libellé",
+        "écart de -2 TND"
+      ],
+      "ecart": -2,
+      "affectations": [
+        {
+          "facture_id": 11,
+          "montant": 6462.081,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 26,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.7,
+      "raisons": [
+        "chèque : ni fournisseur ni numéro dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 17,
+          "montant": 530.907,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 28,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.7,
+      "raisons": [
+        "chèque : ni fournisseur ni numéro dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 19,
+          "montant": 1554.164,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 30,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.8,
+      "raisons": [
+        "fournisseur reconnu dans le libellé (ELECTRICITE GENERALE H)",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 10,
+          "montant": 3169.708,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 35,
+      "cas": "ecart",
+      "auto": false,
+      "score": 0.5,
+      "raisons": [
+        "numéro 2026/155 dans le libellé",
+        "montant supérieur au reste à payer de 3518.676 TND"
+      ],
+      "ecart": 3518.676,
+      "affectations": [
+        {
+          "facture_id": 14,
+          "montant": 3187.487,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 38,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro TCL-00329 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 25,
+          "montant": 1981.98,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 42,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.7,
+      "raisons": [
+        "chèque : ni fournisseur ni numéro dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 12,
+          "montant": 3927.607,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 47,
+      "cas": "net_avoir",
+      "auto": false,
+      "score": 0.9,
+      "raisons": [
+        "numéro FA-2026-0263 dans le libellé",
+        "avoir AV-2026-003 déduit"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 30,
+          "montant": 355.025,
+          "role": "reglement"
+        },
+        {
+          "facture_id": 24,
+          "montant": 70.805,
+          "role": "imputation_avoir"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 51,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.8,
+      "raisons": [
+        "fournisseur reconnu dans le libellé (MEDINA CONNECT TELECOM)",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 32,
+          "montant": 572.164,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 52,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.8,
+      "raisons": [
+        "fournisseur reconnu dans le libellé (MEJERDA AGRO-FOURNITUR)",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 29,
+          "montant": 5332.111,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 61,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.7,
+      "raisons": [
+        "chèque : ni fournisseur ni numéro dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 6,
+          "montant": 2755.6,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 66,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.7,
+      "raisons": [
+        "chèque : ni fournisseur ni numéro dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 16,
+          "montant": 1159.644,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 67,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro 2026/159 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 3,
+          "montant": 2586.227,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 69,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro F20260188 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 28,
+          "montant": 3073.77,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 73,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro OGS-26-058 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 31,
+          "montant": 5398.876,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 75,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro MC2026-00090 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 33,
+          "montant": 2048.455,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 80,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro FACT-2026-243 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 13,
+          "montant": 8566.763,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 84,
+      "cas": "exact",
+      "auto": false,
+      "score": 0.7,
+      "raisons": [
+        "chèque : ni fournisseur ni numéro dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 39,
+          "montant": 3858.409,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 90,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro 2026/170 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 21,
+          "montant": 3635.855,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 96,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro FA-2026-0266 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 36,
+          "montant": 1260.163,
+          "role": "reglement"
+        }
+      ]
+    },
+    {
+      "ligne_releve_id": 100,
+      "cas": "exact",
+      "auto": true,
+      "score": 1,
+      "raisons": [
+        "numéro MAF00149 dans le libellé",
+        "montant égal au reste à payer"
+      ],
+      "ecart": 0,
+      "affectations": [
+        {
+          "facture_id": 35,
+          "montant": 1873.703,
+          "role": "reglement"
+        }
+      ]
+    }
+  ],
+  "signalements": [
+    {
+      "type": "sortie_sans_facture",
+      "ligne_releve_id": 3,
+      "facture_id": null,
+      "message": "sortie de 2558.619 TND sans facture approuvée correspondante (« VIR EMIS YASMINE SERVICES NETTO FACT 2026/131 »)",
+      "detail": {
+        "montant": 2558.619
+      }
+    },
+    {
+      "type": "sortie_sans_facture",
+      "ligne_releve_id": 22,
+      "facture_id": null,
+      "message": "sortie de 131.055 TND sans facture approuvée correspondante (« VIR EMIS PAPETERIE ENNOUR BUREA FACT FA-2026-0255 »)",
+      "detail": {
+        "montant": 131.055
+      }
+    },
+    {
+      "type": "sortie_sans_facture",
+      "ligne_releve_id": 23,
+      "facture_id": null,
+      "message": "sortie de 974.646 TND sans facture approuvée correspondante (« VIR MEDINA CONNECT TELECOM REF MC2026-00073 »)",
+      "detail": {
+        "montant": 974.646
+      }
+    },
+    {
+      "type": "payee_non_approuvee",
+      "ligne_releve_id": 25,
+      "facture_id": 1,
+      "message": "paiement de la facture n° 2026/153, au statut « anomalie »",
+      "detail": {
+        "statut": "anomalie",
+        "montant_ligne": 3380.136,
+        "montant_ttc": 3380.136
+      }
+    },
+    {
+      "type": "payee_non_approuvee",
+      "ligne_releve_id": 32,
+      "facture_id": 15,
+      "message": "paiement de la facture n° MAF00134, au statut « anomalie »",
+      "detail": {
+        "statut": "anomalie",
+        "montant_ligne": 4043.563,
+        "montant_ttc": 4043.563
+      }
+    },
+    {
+      "type": "payee_non_approuvee",
+      "ligne_releve_id": 35,
+      "facture_id": 4,
+      "message": "paiement de la facture n° 2026/137, au statut « bloquee »",
+      "detail": {
+        "statut": "bloquee",
+        "montant_ligne": 6706.163,
+        "montant_ttc": 3518.676
+      }
+    },
+    {
+      "type": "sortie_sans_facture",
+      "ligne_releve_id": 36,
+      "facture_id": null,
+      "message": "sortie de 12788.644 TND sans facture approuvée correspondante (« VIR EMIS INFOSAHEL SYSTEMES FACT ISS260280 DED AV AV-2026-001 »)",
+      "detail": {
+        "montant": 12788.644
+      }
+    },
+    {
+      "type": "sortie_sans_facture",
+      "ligne_releve_id": 44,
+      "facture_id": null,
+      "message": "sortie de 448.214 TND sans facture approuvée correspondante (« VIR PAPETERIE ENNOUR BUREA REF FA-2026-0256 »)",
+      "detail": {
+        "montant": 448.214
+      }
+    },
+    {
+      "type": "payee_non_approuvee",
+      "ligne_releve_id": 49,
+      "facture_id": 20,
+      "message": "paiement de la facture n° ABM-0017, au statut « a_valider »",
+      "detail": {
+        "statut": "a_valider",
+        "montant_ligne": 95370.289,
+        "montant_ttc": 95370.289
+      }
+    },
+    {
+      "type": "payee_non_approuvee",
+      "ligne_releve_id": 55,
+      "facture_id": 5,
+      "message": "montant égal à la facture n° OGS-26-051, au statut « anomalie »",
+      "detail": {
+        "statut": "anomalie",
+        "montant_ligne": 3975.755,
+        "par": "montant"
+      }
+    },
+    {
+      "type": "payee_non_approuvee",
+      "ligne_releve_id": 64,
+      "facture_id": 18,
+      "message": "paiement de la facture n° 1S5260287, au statut « anomalie »",
+      "detail": {
+        "statut": "anomalie",
+        "montant_ligne": 3211,
+        "montant_ttc": 8027.02
+      }
+    },
+    {
+      "type": "payee_non_approuvee",
+      "ligne_releve_id": 78,
+      "facture_id": 18,
+      "message": "paiement de la facture n° 1S5260287, au statut « anomalie »",
+      "detail": {
+        "statut": "anomalie",
+        "montant_ligne": 4816.02,
+        "montant_ttc": 8027.02
+      }
+    }
+  ]
+}

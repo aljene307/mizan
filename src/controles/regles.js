@@ -16,6 +16,13 @@ const STATUTS_HORS_DOUBLONS = new Set(['rejetee', 'erreur_extraction', 'recue', 
 
 // Signalements de l'extraction traités par une règle dédiée.
 const SIGNALEMENT_PLUSIEURS_RIB = /RIB valides dans le texte source/;
+// Signalement d'entité HTML écrit par src/correctionsCode.js : chemin, valeur brute.
+const ENTITE_SIGNALEE = /^(\/\S+) : entité HTML dans la réponse du modèle \(« ([\s\S]*) »\)$/;
+// Bien formée : chaque « & » ouvre une entité complète (nommée ou numérique, terminée par « ; »).
+const ENTITES_BIEN_FORMEES = /^(?:[^&]|&(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);)*$/i;
+// Champs seulement descriptifs : aucun contrôle décisif ne les utilise (D-061, D-085).
+// Les désignations des lignes restent en avertissement (D-061 les range parmi les champs utilisés).
+const CHAMPS_DESCRIPTIFS = /^\/(?:fournisseur\/adresse|client\/raison_sociale|client\/adresse)$/;
 
 // Arrondi des montants : au millime en TND (3 décimales, ISO 4217) ; au
 // centime pour une devise à 2 décimales (EUR, USD), soit 10 millimes.
@@ -23,8 +30,10 @@ const UNITE_ARRONDI_MILLIMES = (devise) => (devise === 'TND' ? 1 : 10);
 
 // --- Outils ---------------------------------------------------------------------
 
+// Règles qui ont changé depuis la version 1 du catalogue (les autres restent en 1).
+const VERSIONS_PARTICULIERES = Object.freeze({ signalements_extraction: '2' });   // D-085
 const resultat = (regle, res, gravite, message, detail = {}) => ({
-  regle, version_regle: VERSION_REGLES, resultat: res, gravite, message, detail,
+  regle, version_regle: VERSIONS_PARTICULIERES[regle] ?? VERSION_REGLES, resultat: res, gravite, message, detail,
 });
 const ok = (regle, message, detail) => resultat(regle, 'ok', 'info', message, detail);
 const nonApplicable = (regle, message, detail) => resultat(regle, 'non_applicable', 'info', message, detail);
@@ -402,12 +411,30 @@ const REGLES = {
       : resultat('avoir_origine', 'anomalie', 'avertissement', `facture d'origine n° ${origine} introuvable chez ce fournisseur`, { numero: origine });
   },
 
-  signalements_extraction(ctx) {
+  // Version 2 (D-085, après la répétition générale, lot de développement
+  // seulement) : un signalement d'entité HTML passe en « info » s'il est bien
+  // formé (donc décodé exactement) et ne touche qu'un champ descriptif ; pour la
+  // raison sociale du fournisseur, en plus, la valeur décodée doit figurer dans
+  // le texte source (comparaison normalisée, D-050). Tout le reste (entité
+  // malformée, identifiant, montant, date, autre signalement) reste un avertissement.
+  signalements_extraction(ctx, deps) {
     if (!ctx.extraction) return nonApplicable('signalements_extraction', 'aucune extraction');
     const s = (ctx.extraction.signalements_code ?? []).filter((x) => !SIGNALEMENT_PLUSIEURS_RIB.test(x));
-    return s.length
-      ? resultat('signalements_extraction', 'anomalie', 'avertissement', s.join(' ; '), { signalements: s })
-      : ok('signalements_extraction', 'aucun signalement');
+    if (!s.length) return ok('signalements_extraction', 'aucun signalement');
+    const source = deps.normaliserTexte(ctx.extraction.texte_source ?? '');
+    const raison = ctx.facture.raison_sociale_lue ?? '';
+    const enInfo = (x) => {
+      const e = ENTITE_SIGNALEE.exec(x);
+      if (!e || !ENTITES_BIEN_FORMEES.test(e[2])) return false;
+      if (e[1] === '/fournisseur/raison_sociale') return Boolean(raison) && source.includes(deps.normaliserTexte(raison));
+      return CHAMPS_DESCRIPTIFS.test(e[1]);
+    };
+    const avertissements = s.filter((x) => !enInfo(x));
+    return avertissements.length
+      ? resultat('signalements_extraction', 'anomalie', 'avertissement', avertissements.join(' ; '),
+        { signalements: s, avertissements, info: s.filter(enInfo) })
+      : resultat('signalements_extraction', 'anomalie', 'info',
+        `entités HTML bien formées, décodées, sur des champs descriptifs seulement : ${s.join(' ; ')}`, { signalements: s, info: s });
   },
 
   seuil_validation(ctx, deps) {

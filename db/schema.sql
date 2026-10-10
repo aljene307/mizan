@@ -201,6 +201,9 @@ BEGIN
                'methode_lecture', s.methode_lecture, 'alertes_source', s.alertes_source,
                'verifications_source', s.verifications_source, 'signalements_code', s.signalements_code,
                'propositions', s.propositions,
+               -- Texte source : la règle signalements_extraction (v2, D-085) y cherche la
+               -- raison sociale décodée avant de ramener un signalement d'entité à « info ».
+               'texte_source', s.texte_source,
                'facture_origine_numero', e.donnees ->> 'facture_origine_numero')
     INTO v_extraction
     FROM extractions e JOIN extractions s ON s.id = coalesce(e.reutilise_de, e.id)
@@ -5316,4 +5319,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261010100000'),
     ('20261010110000'),
     ('20261010120000'),
-    ('20261010130000');
+    ('20261010130000'),
+    ('20261010140000');

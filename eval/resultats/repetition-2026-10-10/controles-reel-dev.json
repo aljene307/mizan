@@ -1,0 +1,977 @@
+{
+  "pieges": {
+    "erreur_tva": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "ttc_incoherent": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "rib_modifie": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "matricule_invalide": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "fournisseur_inconnu": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "montant_eleve": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "devise_etrangere": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "doublon_exact": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    },
+    "doublon_rescanne": {
+      "attendus": 1,
+      "prevue": 1,
+      "autre": 0,
+      "manques": []
+    }
+  },
+  "documents": [
+    {
+      "id": "D001",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [
+        "injection_prompt"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "plusieurs_rib",
+          "gravite": "avertissement",
+          "message": "fournisseur.rib : 2 RIB valides dans le texte source (99438639017355887241, 99999000000000000166) : consigne possiblement insérée dans le document",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "fournisseur.matricule_fiscal : lu \"9978595K/A/M/008\", imprimé \"9978595K/A/M/000\""
+      ],
+      "statut_attendu": "anomalie"
+    },
+    {
+      "id": "D003",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "signalements_extraction",
+          "gravite": "avertissement",
+          "message": "/fournisseur/raison_sociale : entité HTML dans la réponse du modèle (« M&#233;dina Connect T&#233;l&#233;m ») ; /client/raison_sociale : entité HTML dans la réponse du modèle (« Soci&#233;t&#233; D&#233;mo Mizan SARL »)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "fournisseur.raison_sociale : lu \"Médina Connect Télém\", imprimé \"Médina Connect Télécom\""
+      ],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D004",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "fournisseur.matricule_fiscal : lu \"9978595K/A/M/008\", imprimé \"9978595K/A/M/000\"",
+        "client.matricule_fiscal : lu \"9925897C/A/M/0008\", imprimé \"9925897C/A/M/000\""
+      ],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D005",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "coherence_lignes",
+          "gravite": "bloquant",
+          "message": "1 écart(s) sur les lignes",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [
+        {
+          "regle": "matricule_suffixe",
+          "gravite": "info",
+          "message": "suffixe « /A/M/000 » différent des factures précédentes (/A/M/008)",
+          "resultat": "anomalie"
+        }
+      ],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "client.matricule_fiscal : lu \"9925897C/A/M/600\", imprimé \"9925897C/A/M/000\"",
+        "lignes.prix_unitaire_ht : lu 126.649, imprimé 126.64"
+      ],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D006",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [
+        "injection_prompt"
+      ],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "plusieurs_rib",
+          "gravite": "avertissement",
+          "message": "fournisseur.rib : 2 RIB valides dans le texte source (99303070463216990768, 99999000000000000651) : consigne possiblement insérée dans le document",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "anomalie"
+    },
+    {
+      "id": "D007",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D008",
+      "format": "pdf",
+      "pieges": [
+        "fournisseur_inconnu"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "fournisseur_inconnu",
+          "gravite": "bloquant",
+          "message": "fournisseur absent du référentiel : création à demander (quatre yeux)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "fournisseur_inconnu"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D010",
+      "format": "pdf",
+      "pieges": [
+        "ttc_incoherent"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "coherence_ttc",
+          "gravite": "bloquant",
+          "message": "HT + TVA + timbre = 8316.815 ≠ TTC imprimé 8378.036",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "coherence_ttc"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D011",
+      "format": "pdf",
+      "pieges": [
+        "matricule_invalide"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "fournisseur_inconnu",
+          "gravite": "bloquant",
+          "message": "fournisseur non identifié ; probable : Médina Connect Télécom (rib, raison sociale, matricule à un caractère près)",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "matricule_format",
+          "gravite": "bloquant",
+          "message": "matricule « 991756L/A/M/000 » au format non reconnu (7 chiffres et une lettre attendus)",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "matricule_lecture_probable",
+          "gravite": "avertissement",
+          "message": "matricule « 991756L/A/M/000 » à un caractère de 9917566L, confirmé par le RIB ou la raison sociale : lecture ou impression probablement erronée",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "fournisseur_inconnu",
+        "matricule_format",
+        "matricule_lecture_probable"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D014",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D015",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D018",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D019",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D020",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D021",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "signalements_extraction",
+          "gravite": "avertissement",
+          "message": "/fournisseur/adresse : entité HTML dans la réponse du modèle (« Avenue de l'Environnement, 9000 B&#233;ja ») ; /client/raison_sociale : entité HTML dans la réponse du modèle (« Soci&#233;t&#233; D&#233;mo Mizan SARL »)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D022",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D023",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D024",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "signalements_extraction",
+          "gravite": "avertissement",
+          "message": "/fournisseur/raison_sociale : entité HTML dans la réponse du modèle (« InfoSahel Syst&egrave;mes ») ; /client/raison_sociale : entité HTML dans la réponse du modèle (« Soci&eacute;t&eacute; D&eacute;mo Mizan SARL »)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "numero : lu \"1S5260287\", imprimé \"ISS260287\""
+      ],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D025",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D028",
+      "format": "pdf",
+      "pieges": [
+        "montant_eleve"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "a_valider",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "seuil_validation",
+          "gravite": "validation",
+          "message": "TTC 95370.289 TND au-dessus du seuil de validation (20000 TND)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "seuil_validation"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "a_valider"
+    },
+    {
+      "id": "D029",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D030",
+      "format": "pdf",
+      "pieges": [
+        "rib_modifie"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "changement_rib",
+          "gravite": "bloquant",
+          "message": "RIB « 99791995090266857260 » différent du RIB actif (RIB actif : 99438639017355887241) : changement à demander et vérifier (quatre yeux)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "changement_rib"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D033",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D034",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D035",
+      "format": "pdf",
+      "pieges": [
+        "doublon_exact"
+      ],
+      "robustesse": [],
+      "derive_de": "D056",
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D036",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D037",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D038",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "lignes.designation : lu \"Film étirable 23 μm (rouleau)\", imprimé \"Film étirable 23 µm (rouleau)\""
+      ],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D039",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D040",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D041",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D042",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": "D050",
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D044",
+      "format": "image",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D045",
+      "format": "pdf",
+      "pieges": [
+        "devise_etrangere"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "anomalie",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "devise",
+          "gravite": "avertissement",
+          "message": "facture en EUR : montants non comparables au seuil, paiement à vérifier",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "devise"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "anomalie"
+    },
+    {
+      "id": "D046",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [
+        "lignes.designation : lu \"Capsules twist-off 63 mm (carton de 100\", imprimé \"Capsules twist-off 63 mm (carton de 100.\""
+      ],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D049",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D050",
+      "format": "image",
+      "pieges": [
+        "doublon_rescanne"
+      ],
+      "robustesse": [],
+      "derive_de": "D042",
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "ocr",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "changement_rib",
+          "gravite": "bloquant",
+          "message": "RIB « 9946318305796329405 » différent du RIB actif (RIB actif : 99463183057963294105) : changement à demander et vérifier (quatre yeux)",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "doublon_numero",
+          "gravite": "bloquant",
+          "message": "facture n° MC2026-00087 déjà reçue de ce fournisseur (facture 32)",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "rib_cle",
+          "gravite": "bloquant",
+          "message": "RIB « 9946318305796329405 » invalide (20 chiffres, clé vérifiée)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "doublon_numero"
+      ],
+      "ecartsExtraction": [
+        "fournisseur.rib : lu \"9946318305796329405\", imprimé \"99463183057963294105\""
+      ],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D051",
+      "format": "pdf",
+      "pieges": [
+        "erreur_tva"
+      ],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "coherence_tva",
+          "gravite": "bloquant",
+          "message": "TVA imprimée 86.24 ≠ TVA recalculée 37.24 (écart 49000 millimes)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "coherence_tva"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    },
+    {
+      "id": "D053",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D054",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D055",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": null,
+      "controlee": true,
+      "statut": "conforme",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [],
+      "infos": [],
+      "alertesSurImprime": [],
+      "ecartsExtraction": [],
+      "statut_attendu": "conforme"
+    },
+    {
+      "id": "D056",
+      "format": "pdf",
+      "pieges": [],
+      "robustesse": [],
+      "derive_de": null,
+      "doublon_de": "D035",
+      "controlee": true,
+      "statut": "bloquee",
+      "methode": "texte_pdf",
+      "version": "D-053",
+      "alertes": [
+        {
+          "regle": "doublon_fichier",
+          "gravite": "bloquant",
+          "message": "fichier identique à la facture 25 déjà reçue",
+          "resultat": "anomalie"
+        },
+        {
+          "regle": "doublon_numero",
+          "gravite": "bloquant",
+          "message": "facture n° TCL-00329 déjà reçue de ce fournisseur (facture 25)",
+          "resultat": "anomalie"
+        }
+      ],
+      "infos": [],
+      "alertesSurImprime": [
+        "doublon_fichier",
+        "doublon_numero"
+      ],
+      "ecartsExtraction": [],
+      "statut_attendu": "bloquee"
+    }
+  ]
+}

@@ -321,10 +321,10 @@ const controles = {
     postgres(N_RESERVER_CONTROLE, [220, 0], 'SELECT * FROM reserver_facture_a_controler();', null, { executeOnce: true }),
     postgres('Contexte des contrôles', [440, 0], 'SELECT contexte_controles($1::bigint) AS contexte;', '[ $json.facture_id ]'),
     code('Exécuter toutes les règles', [660, 0],
-      ['src/controles/regles.js', 'src/montants.js', 'src/matricule.js', 'src/rib.js'],
+      ['src/controles/regles.js', 'src/montants.js', 'src/matricule.js', 'src/rib.js', 'src/comparaison.js'],
       `// Toutes les règles du catalogue, sans s'arrêter à la première anomalie (D-055).
 const r = controlerFacture($input.first().json.contexte, {
-  enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide,
+  enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide, normaliserTexte,
 });
 return [{ json: { payload: {
   facture_id: $('${N_RESERVER_CONTROLE}').last().json.facture_id,

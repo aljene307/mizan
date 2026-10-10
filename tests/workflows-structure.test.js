@@ -161,7 +161,8 @@ test('workflow Contrôles : le code généré, sur le vrai contexte de la base (
   const { enMillimes, diviserArrondi, montantTva } = await import('../src/montants.js');
   const { formeCourteMatricule, normaliserMatricule } = await import('../src/matricule.js');
   const { ribValide } = await import('../src/rib.js');
-  const direct = controlerFacture(contexte, { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide });
+  const { normaliserTexte } = await import('../src/comparaison.js');
+  const direct = controlerFacture(contexte, { enMillimes, diviserArrondi, montantTva, formeCourteMatricule, normaliserMatricule, ribValide, normaliserTexte });
   assert.deepEqual(sortie.payload.resultats, JSON.parse(JSON.stringify(direct.resultats)));
   assert.equal(sortie.payload.facture_id, contexte.facture.id);
   assert.equal(sortie.payload.execution_n8n_id, 'exec-test');
