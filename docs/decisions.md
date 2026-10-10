@@ -1929,6 +1929,88 @@ appel au LLM). À construire après l'annulation d'un rapprochement.
 - Rejoue les extractions enregistrées du lot de développement (version de
   chaîne D-053), exportées dans un fichier versionné ; ne lit jamais le lot
   de test ; ne relance aucune mesure publiée.
+- **Choix du 2026-10-10 :** a1 (état « évaluation » : schéma, référentiel et
+  utilisateurs, sans facture ni relevé) ; b1 (export et scénario dans
+  `demo/`, versionné) ; c1 (sauvegarde automatique avant chaque
+  reconstruction, sans option pour la désactiver).
+- **Sauvegarde et restauration** (`npm run sauvegarder-base`) : `pg_dump`
+  au format « custom » dans `sauvegardes/` (ignoré par Git : données
+  personnelles), relue par `pg_restore --list` ; restauration seulement dans
+  une base distincte de la base de travail. Une sauvegarde jamais restaurée
+  ne compte pas : test d'intégration (sauvegarde de `mizan_test`,
+  restauration, comparaison table par table) ; première sauvegarde de la
+  base de Mohamed restaurée dans `mizan_restauree` et comparée (factures,
+  extractions, décisions, journal, adresses : identiques).
+- **Export des extractions** (`npm run exporter-extractions-dev`,
+  `demo/extractions-dev.json`) : 42 documents du lot de développement,
+  41 extractions valides à la version D-053, D056 rejouée par réutilisation
+  (même fichier que D035). Lecture protégée (`scripts/lecture-protegee.js`) :
+  tout chemin du lot de test est refusé. Les documents du lot de test
+  s'appellent aussi « D… » : la preuve porte sur l'appartenance à la partie
+  `dev` de `lots.json`, pas sur un préfixe.
+
+### D-083 · Script de reconstruction : réalisation
+Réalisation de D-078, 2026-10-10 (`scripts/reconstruire-base.js`,
+`npm run reconstruire-base`).
+- **Chemin rejoué :** `enregistrer_reception` (ordre des noms de fichier),
+  `reserver_facture_a_extraire`, `extraction_valide_existante`, puis
+  `enregistrer_extraction` (extraction exportée, ou réutilisation par
+  `payloadReutilisation` de `src/`) ; un seul passage des contrôles après
+  toutes les extractions (`contexte_controles`, `controlerFacture`,
+  `enregistrer_controles`) ; décisions du scénario ; relevé
+  (`enregistrer_releve`, `contexte_rapprochement`, `rapprocher`,
+  `enregistrer_rapprochements`) ; lot d'ordres. Rôle `mizan_app` pour ce
+  que font les workflows, administrateur pour le référentiel et les
+  décisions simulées.
+- **Protections :** base de travail refusée si un workflow Mizan est publié ;
+  bases système refusées ; plan affiché ; confirmation par le nom exact de
+  la base ; sauvegarde relue avant d'effacer ; `DROP DATABASE … WITH
+  (FORCE)` puis toutes les migrations.
+- **Vérification de fidélité :** reconstruction d'une base séparée comparée
+  à la base de Mohamed, facture par facture : statuts, numéros, montants et
+  résultats des contrôles identiques, sauf D030 et D056 (laissées en
+  attente par le scénario) et une « info » `matricule_suffixe` sur D005,
+  déjà annoncée par D-060 (la base d'origine a été contrôlée avant ce
+  correctif). Rapprochement : 103, 70, 12, 13, 8, comme la mesure publiée ;
+  lot d'ordres identique (3 ordres, 8 229,124 TND).
+- **Tests :** unitaires (lecture protégée, aucune lecture directe de
+  fichier ni appel au modèle dans les scripts, compte de l'entreprise
+  identique au workflow) ; intégration sur une base dédiée (refus sans
+  confirmation, base de travail protégée, état « démonstration » avec les
+  chiffres attendus et aucun document du lot de test, état « évaluation »
+  vierge avec inscription, curseur et sauvegarde vérifiés).
+
+### D-081 · Lot de test autonome et ordre d'arrivée (avant l'évaluation finale)
+Vérification demandée par Mohamed le 2026-10-10, à partir de `lots.json`
+seulement (groupes, types, étiquettes), sans ouvrir les documents ni la
+vérité terrain.
+- **Autonomie : confirmée.** 54 groupes, aucun à cheval sur les deux lots.
+  Dans le lot de test (18 documents), les trois documents dérivés ont leur
+  document d'origine dans le même groupe : G18 (doublon exact D013, avec
+  D043), G19 (doublon rescanné D027, avec D052), G20 (avoir D016, avec la
+  facture D017).
+- **Règles qui dépendent des autres factures** (`src/controles/regles.js`) :
+  `doublon_fichier`, `doublon_numero`, `doublon_probable` (la facture
+  marquée est celle reçue en second : identifiant le plus grand, D-057),
+  `avoir_origine` (facture d'origine déjà en base), `matricule_suffixe`
+  (suffixe comparé aux factures précédentes du fournisseur). Les règles du
+  référentiel (`changement_rib`, `fournisseur_inconnu`…) dépendent du
+  référentiel, chargé dans la base d'évaluation, pas de l'historique.
+- **Effet sur la mesure (corrigé le 2026-10-10, après lecture du protocole
+  réellement suivi, D-082) :** ma première analyse annonçait 3 erreurs dues
+  à l'ordre d'arrivée ; elle était fausse. Avec le protocole du lot de
+  développement, toutes les extractions sont faites **avant** l'unique
+  passage des contrôles, et une paire de doublons compte comme une unité,
+  détectée si exactement une de ses deux factures est marquée. Dans l'ordre
+  des noms, c'est l'original qui est marqué pour D013/D043 et D027/D052,
+  comme D056 (et non la copie D035) l'a été dans le lot de développement : la
+  paire est détectée de la même façon. L'avoir D016 trouve sa facture D017,
+  déjà extraite au moment des contrôles, comme l'avoir D034 a trouvé D040
+  (reçue après lui) dans le lot de développement. **L'ordre d'arrivée ne
+  change donc rien à la mesure** ; il change seulement laquelle des deux
+  factures d'une paire est bloquée. `matricule_suffixe` n'a d'historique
+  que dans le lot de test : moins de comparaisons, sans effet sur une
+  anomalie prévue (aucune ne porte sur le suffixe).
 
 ### D-079 · Credentials n8n : instructions d'import et contrôle
 Incident du 2026-10-09 : après la création de « PostgreSQL Mizan
@@ -1944,6 +2026,74 @@ Mohamed.
   workflow du dépôt, version publiée et brouillon, le credential de chaque
   nœud à celui du fichier du dépôt. Tout écart est listé (code de sortie
   1). Test unitaire qui rejoue l'incident.
+
+### D-082 · Protocole d'évaluation de l'étape 8 (écrit avant toute ouverture du lot de test)
+Consigné le 2026-10-10 à la demande de Mohamed, **avant toute ouverture du
+lot de test**. Principe : le lot de test est mesuré avec **exactement le même
+protocole** que le lot de développement. Toute modification après
+l'ouverture exige une nouvelle décision, et les résultats concernés sont
+présentés comme postérieurs à l'ouverture (D-053).
+
+**Protocole réellement suivi pour le lot de développement** (relevé dans les
+scripts et dans la base le 2026-10-10) :
+- **Réception :** dépôt des fichiers dans `data/entrant/`, reçus dans
+  l'ordre de leur nom (identifiants croissants : D034 avant D035 avant D040…).
+- **Extraction :** les 42 documents extraits avec la configuration figée
+  (D-053), le 2026-10-06 entre 21 h 39 et 21 h 45 (UTC).
+- **Contrôles :** un seul passage, lancé à la main **après** toutes les
+  extractions (2026-10-06, 22 h 02, les 42 factures en 2 secondes) ; la
+  mesure lit le dernier passage de chaque facture.
+- **Comptage des doublons :** la paire est l'unité ; détectée si exactement
+  une des deux factures est marquée par la règle prévue ; la facture marquée
+  attendue est celle **reçue en second** ; les alertes de doublon sur l'autre
+  facture de la paire ne comptent pas comme fausses alertes. (Paire
+  D035/D056 : D056 bloquée, bien que D035 soit la copie générée.)
+- **Avoirs :** la règle `avoir_origine` cherche la facture d'origine parmi
+  toutes les factures déjà extraites, quel que soit leur ordre de réception
+  (l'avoir D034 a trouvé D040, reçue après lui).
+- **Copies d'essai** exclues (D-054) ; nombres bruts à côté des
+  pourcentages (D-031) ; règle de comparaison D-050.
+
+**Protocole de l'étape 8 (lot de test) :**
+1. **Base :** reconstruite à l'état « évaluation » (D-078, a1) : schéma,
+   référentiel fictif, utilisateurs ; aucune facture, aucun relevé.
+   Sauvegarde de la base précédente faite et restaurée (vérifiée).
+2. **Configuration :** celle de D-053 (prompt v1, empreinte enregistrée,
+   `gemini-3.5-flash-lite`, paramètres D-048, corrections par le code) ;
+   vérifiée avant le dépôt (`version_chaine` = D-053). Aucun changement de
+   code de `src/` touchant l'extraction ou les contrôles entre la
+   vérification et la fin de la mesure.
+3. **Dépôt :** les 18 documents de `lots.json` « test » copiés dans
+   `data/entrant/`, reçus **dans l'ordre de leur nom**, comme le lot de
+   développement (confirmé, voir ci-dessous). Ordre vérifié
+   après coup par les identifiants des factures.
+4. **Extraction :** workflow « Réception et extraction », sans relance
+   sélective. Une erreur ou un quota épuisé est consigné tel quel ; une
+   reprise après quota ne change rien d'autre que l'heure. Aucune copie
+   d'essai d'un document du lot de test.
+5. **Contrôles :** un seul passage du workflow « Contrôles », lancé à la
+   main **après** la fin de toutes les extractions (aucune facture
+   `recue` ou `en_extraction`).
+6. **Mesure :** les scripts de mesure du lot de développement, avec l'option
+   du lot de test, sans changer leurs règles de comptage : précision de
+   l'extraction (`eval/evaluer.js --lot test --etape-8`, D-050), sortie
+   brute du modèle et résultat après corrections côte à côte (D-053) ;
+   contrôles sur l'extraction réelle (même script que pour le lot de
+   développement, adapté pour lire le lot de test, mêmes règles de comptage,
+   adaptation faite et testée **avant** l'ouverture).
+7. **Ouverture :** la vérité terrain du lot de test n'est lue que par ces
+   scripts, après l'étape 5. Pas d'examen d'un document pour « comprendre »
+   avant la fin de la mesure ; l'analyse des écarts vient après, dans le
+   rapport.
+8. **Rapport :** nombres bruts (sur 18 documents, un document vaut environ
+   5,6 points), par champ, par format et par piège ; limites de
+   l'échantillon ; comparaison avec le lot de développement présentée comme
+   telle (lot de développement : mise au point ; lot de test : évaluation).
+
+**Ordre de dépôt :** avec ce protocole, l'ordre d'arrivée ne change rien aux
+résultats mesurés (D-081, corrigé) ; il ne décide que de la facture bloquée
+dans chaque paire de doublons. **Confirmé par Mohamed le 2026-10-10 :
+ordre des noms, identique au lot de développement.**
 
 ### D-071 · Extension possible : catalogue de questions en serveur MCP
 Estimation demandée par Mohamed le 2026-10-08 ; **rien n'est construit**.

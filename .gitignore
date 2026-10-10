@@ -28,3 +28,6 @@ __pycache__/
 
 # Captures d'écran brutes : relues et sélectionnées avant tout commit
 screenshots/
+
+# Sauvegardes de la base (données personnelles : jamais commitées)
+sauvegardes/

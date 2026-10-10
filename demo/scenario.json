@@ -1,0 +1,16 @@
+{
+  "description": "Scénario de l'état de démonstration (D-078). Les décisions sont rejouées par le compte fictif, canal « simulation », par les mêmes tables et déclencheurs que d'habitude. Elles reproduisent l'ensemble des factures approuvées au moment de l'import du relevé (2026-10-08), pour que le rapprochement retrouve les chiffres de la mesure publiée. Le reste est laissé en attente exprès, pour la démonstration et les captures d'écran.",
+  "decisions_factures": [
+    { "document": "D028", "decision": "valider", "justification": "Montant élevé conforme au contrat annuel signé avec le fournisseur" },
+    { "document": "D005", "decision": "valider", "justification": "Prix unitaire vérifié sur l'original : erreur de lecture, montants exacts" }
+  ],
+  "proposer_lot_ordres": true,
+  "attendu_apres_releve": { "operations": 103, "categorisees": 70, "confirmees_auto": 12, "a_confirmer": 13, "signalements": 8 },
+  "laisse_en_attente": [
+    "D030 : RIB différent du référentiel (règle non dérogeable) : refus ou demande de changement à montrer",
+    "D056 : doublon exact de D035 : rejet à montrer",
+    "les autres factures à valider ou en anomalie",
+    "les 13 propositions de rapprochement à confirmer et les 8 signalements",
+    "le lot d'ordres de paiement proposé (dépend de la date du jour)"
+  ]
+}

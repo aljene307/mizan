@@ -511,6 +511,46 @@ Ouvrir ensuite <http://localhost:5678> et créer le compte propriétaire n8n
 Arrêter : `docker compose down`. Les données sont conservées dans les volumes
 Docker ; `docker compose down -v` les supprime définitivement.
 
+## Reconstruire une base propre (démonstration, évaluation)
+
+Une seule commande reconstruit la base `mizan`, **sans clé Gemini ni compte
+Telegram** : les extractions enregistrées du lot de développement
+(`demo/extractions-dev.json`) sont rejouées par les mêmes fonctions de la base
+que les workflows, sans appel au modèle (D-078).
+
+```powershell
+npm run reconstruire-base -- --etat demonstration   # 42 factures, relevé rapproché, décisions en attente à montrer
+npm run reconstruire-base -- --etat evaluation      # schéma, référentiel, utilisateurs ; aucune facture (évaluation, D-082)
+```
+
+**Avant d'effacer, le script :**
+- refuse de tourner si un workflow Mizan est publié dans n8n (le dépublier
+  d'abord, le republier après) ;
+- affiche ce qu'il va faire, puis demande de taper le nom de la base ;
+- sauvegarde la base actuelle dans `sauvegardes/` et relit la sauvegarde (ce
+  dossier est ignoré par Git : il contient des données personnelles).
+
+**Ce qui est conservé :** les utilisateurs réels, leur inscription Telegram
+et le curseur de lecture du canal. Les comptes fictifs et le référentiel sont
+rechargés. Le lot de test n'est jamais lu, et des tests le vérifient.
+
+**L'état « démonstration »** suit le scénario de `demo/scenario.json` :
+- il rejoue les deux validations qui fixent les factures approuvées avant le
+  relevé ;
+- il retrouve ainsi les chiffres publiés du rapprochement (103 opérations,
+  12 confirmations automatiques, 13 propositions, 8 signalements) ;
+- il laisse en attente une facture au RIB modifié, un doublon, les
+  propositions et les signalements, et propose un lot d'ordres.
+
+Les retards et le lot d'ordres dépendent de la date du jour.
+
+**Sauvegarder ou restaurer à la main :**
+
+```powershell
+npm run sauvegarder-base                                                            # sauvegarde relue de la base mizan
+npm run sauvegarder-base -- --restaurer sauvegardes/<fichier>.dump --dans mizan_restauree   # jamais dans la base de travail
+```
+
 ## Base de données
 
 Le schéma de la base `mizan` est géré par migrations

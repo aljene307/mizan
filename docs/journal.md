@@ -658,3 +658,32 @@ empreinte, traçabilité de chaque extraction).
   référence. Test qui rejoue le cas complet (rejet, autre facture, annulation,
   rapprochement avec la facture rejetée), vérifié en échec sans correctif.
 - Tests : 410 SQL, 276 unitaires, 38 d'intégration.
+
+## 2026-10-10 — Reconstruction : sauvegarde, export des extractions
+
+- Annulation démontrée et commitée (65033bc, poussé). Plan de la
+  reconstruction validé : a1, b1, c1 (D-078).
+- Sauvegarde de la base de Mohamed : `sauvegardes/mizan-2026-10-10-1301.dump`
+  (ignoré par Git), relue, puis restaurée dans `mizan_restauree` : contenu
+  identique. Test d'intégration de restauration ajouté.
+- Export des extractions du lot de développement (`demo/extractions-dev.json`,
+  42 documents, version D-053) ; lecture protégée du lot de test ; tests.
+  Constat : les documents du lot de test s'appellent aussi « D… ».
+- Lot de test autonome confirmé depuis `lots.json` ; l'ordre d'arrivée des
+  documents dérivés pèsera sur la mesure des contrôles (D-081, à trancher).
+- Tests : 279 unitaires, 40 d'intégration.
+- Protocole du lot de développement relevé dans les scripts et la base :
+  extractions D-053 du 2026-10-06 (21 h 39 à 21 h 45), un seul passage des
+  contrôles à 22 h 02 ; paire de doublons comptée comme unité ; avoir
+  retrouvé quel que soit l'ordre. Ma première analyse de D-081 (3 erreurs
+  dues à l'ordre d'arrivée) était fausse : corrigée. Protocole complet de
+  l'étape 8 écrit avant toute ouverture du lot de test (D-082).
+- Script de reconstruction (D-083) : rejoue en 7 secondes ; base séparée
+  comparée à celle de Mohamed facture par facture (seuls écarts : D030 et
+  D056 laissées en attente, info D005 annoncée par D-060) ; rapprochement
+  103/70/12/13/8 et lot d'ordres identiques.
+- Tests : 281 unitaires, 44 d'intégration.
+- Ordre de dépôt du lot de test confirmé par Mohamed : ordre des noms (D-082).
+  Pas d'essai séparé du script de reconstruction : sa première utilisation
+  réelle sera l'évaluation finale. Base de comparaison `mizan_reconstruite`
+  supprimée (`mizan_restauree` l'avait déjà été par Mohamed).
