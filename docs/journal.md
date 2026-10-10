@@ -209,7 +209,7 @@ empreinte, traçabilité de chaque extraction).
   D007, D034 (avoir), D041 (scan), D056 et son doublon exact D035.
 
 ### Reprise du 2026-10-06
-- Commit `d0ce530` confirmé sur GitHub.
+- Commit `bdaa63c` confirmé sur GitHub.
 - Premier essai réel (6 documents dev, exécution n8n n° 5) : 90/96 champs
   d'en-tête et 12/12 lignes exacts ; doublon D035/D056 → un seul appel au LLM ;
   D006 : injection non suivie (vrai TTC), mais RIB amputé de son « 99 »
@@ -255,7 +255,7 @@ empreinte, traçabilité de chaque extraction).
   134 unitaires, 12 d'intégration.
 
 ### Contrôles déterministes : modèle de données (2026-10-06)
-- Commit `a83407c` poussé (corrections par le code, configuration figée).
+- Commit `f459e51` poussé (corrections par le code, configuration figée).
 - Choix validés : workflow « Contrôles » séparé, tolérance mixte,
   fournisseur probable proposé seulement, statut `a_valider` (D-055) ; deux
   rôles, quatre règles non dérogeables, méthode de vérification obligatoire,
@@ -408,7 +408,7 @@ empreinte, traçabilité de chaque extraction).
   commit et push.
 
 ### Rapprochement bancaire : modèle de données (2026-10-08)
-- Commit `b628ca6` poussé (validation humaine par Telegram).
+- Commit `6e8e316` poussé (validation humaine par Telegram).
 - Choix (D-065) ; estimation du volume de notifications sur le lot de
   développement : 1 synthèse et 21 messages par import. D056, rejetée comme
   doublon mais payée, sera rapprochée de D035 (même numéro, approuvée).
@@ -604,7 +604,7 @@ empreinte, traçabilité de chaque extraction).
 
 ## 2026-10-10 — Après la clôture de la restitution
 
-- Commit a5f09cb poussé sur `main`.
+- Commit d807c9e poussé sur `main`.
 - Captures d'écran : aucune n'est commitée. Elles seront toutes refaites en
   une fois à l'étape de finition, sur la base reconstruite (D-078), pour être
   cohérentes avec le README. Captures à prévoir :
@@ -661,7 +661,7 @@ empreinte, traçabilité de chaque extraction).
 
 ## 2026-10-10 — Reconstruction : sauvegarde, export des extractions
 
-- Annulation démontrée et commitée (65033bc, poussé). Plan de la
+- Annulation démontrée et commitée (ac2ac32, poussé). Plan de la
   reconstruction validé : a1, b1, c1 (D-078).
 - Sauvegarde de la base de Mohamed : `sauvegardes/mizan-2026-10-10-1301.dump`
   (ignoré par Git), relue, puis restaurée dans `mizan_restauree` : contenu
@@ -690,7 +690,7 @@ empreinte, traçabilité de chaque extraction).
 
 ## 2026-10-10 — Préparation de l'évaluation finale
 
-- Commit 27bcef0 poussé. Plan de l'évaluation validé par Mohamed, avec la
+- Commit 504b01c poussé. Plan de l'évaluation validé par Mohamed, avec la
   répétition générale sur le lot de développement ; Ollama reporté (D-084).
 - A1 : scripts de mesure paramétrés par lot et dossier de sortie ; rapports
   du lot de développement identiques octet pour octet entre l'ancienne et la
@@ -785,3 +785,12 @@ empreinte, traçabilité de chaque extraction).
   - D-085 sans effet : aucune entité HTML dans les réponses.
 - **Rapport :** `eval/resultats/evaluation-test-2026-10-10.md`. Rien n'a été
   changé dans le prompt, le schéma, les corrections ou les règles.
+
+## 2026-10-10 — Historique Git : adresse de l'auteur
+
+- Historique réécrit à la demande de Mohamed : adresse de l'auteur et du
+  committer remplacée par l'adresse « noreply » de GitHub sur les
+  15 commits ; dates, messages et contenu des fichiers inchangés (arbre du
+  dernier commit identique). Identifiants de commit cités dans ce journal
+  mis à jour. Anciennes références de sauvegarde locales supprimées ;
+  `user.email` du dépôt réglé sur l'adresse « noreply ».
