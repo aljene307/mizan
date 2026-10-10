@@ -794,3 +794,17 @@ empreinte, traçabilité de chaque extraction).
   dernier commit identique). Identifiants de commit cités dans ce journal
   mis à jour. Anciennes références de sauvegarde locales supprimées ;
   `user.email` du dépôt réglé sur l'adresse « noreply ».
+
+## 2026-10-10 — Finition : dépôt recréé, README final
+
+- Dépôt GitHub supprimé et recréé (privé) par Mohamed ; `main` poussé.
+  Vérifié depuis un clone neuf : les anciens commits ne sont plus
+  récupérables, auteur et committer uniques (adresse « noreply »), contenu
+  identique. Copie de l'ancien historique supprimée par Mohamed.
+- README réécrit pour une lecture rapide (résumé anglais, schéma, résultats
+  du lot de test et limites, ce que le projet a appris, démonstration sans
+  clé) ; détail déplacé sans perte dans `docs/fonctionnement.md`,
+  `docs/installation.md` et `docs/architecture.md`.
+- `node scripts/creer-env.js` : `.env` créé avec des secrets aléatoires, clé
+  Gemini et jeton Telegram vides (3 tests). À vérifier sur un clone propre
+  en fin de finition.
